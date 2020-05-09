@@ -50,6 +50,9 @@ brew install xz
 brew install sqlite
 brew install wget
 
+# app
+brew cask install hiddenbar
+
 # Node
 # n, Node version manager
 brew install n
