@@ -8,6 +8,13 @@ sudo -v
 # Install Homebrew
 #command -v brew >/dev/null 2>&1 || ruby -e "$(curl -fsSkL raw.github.com/mxcl/homebrew/go)"
 
+# git-friendly
+curl -sS https://raw.githubusercontent.com/jamiew/git-friendly/master/install.sh | bash
+
+# Extend global $PATH
+echo -e "setenv PATH $HOME/dotfiles/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin" | sudo tee /etc/launchd.conf
+
+
 # Update Homebrew and already installed packages
 brew update
 
@@ -21,11 +28,13 @@ brew install tree
 # Git
 brew install git
 brew install git-extras
-# git-friendly
-curl -sS https://raw.githubusercontent.com/jamiew/git-friendly/master/install.sh | bash
 
-# Extend global $PATH
-echo -e "setenv PATH $HOME/dotfiles/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin" | sudo tee /etc/launchd.conf
+# java
+brew install maven
+
+# docker
+brew install docker
+brew install lazydocker
 
 # Everything else
 brew install ripgrep
@@ -37,8 +46,9 @@ brew install fzf && $(brew --prefix)/opt/fzf/install
 brew install bat
 brew install micro
 brew install proselint
-brew install maven
 brew install xz
+brew install sqlite
+brew install wget
 
 # Node
 # n, Node version manager

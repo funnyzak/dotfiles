@@ -5,6 +5,8 @@ source ~/dotfiles/zsh/completions.zsh
 source ~/dotfiles/zsh/key-bindings.zsh
 source ~/dotfiles/zsh/prompt/prompt.zsh
 
+source ~/dotfiles/sh/functions.sh
+
 # Do not overwrite files when redirecting using ">". Note that you can still override this with ">|"
 set -o noclobber
 
