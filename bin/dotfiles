@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# Update dotfiles
+#
+#
+
+# Exit on any failed command
+set -e
+
+cd "$HOME/dotfiles" > /dev/null 2>&1
+git pull
+./sync.py
+echo
+echo "Open a new terminal for the changes to take effect."
+echo
+nyan

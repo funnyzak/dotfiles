@@ -3,9 +3,7 @@
 #
 # Inspired by: https://github.com/sindresorhus/pure
 #
-# Author: Artem Sapegin, sapegin.me
-# License: MIT
-# https://github.com/sapegin/dotfiles
+#
 
 source ~/dotfiles/zsh/prompt/sections/git_simple.zsh
 

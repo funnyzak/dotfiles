@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+# Convert line endings to UNIX
+#
+#
+
+perl -pi -e 's/\r\n?/\n/g'
