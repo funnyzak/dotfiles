@@ -36,6 +36,9 @@ brew install maven
 brew install docker
 brew install lazydocker
 
+# monitor
+brew install htop
+
 # Everything else
 brew install ripgrep
 brew install zsh-syntax-highlighting
