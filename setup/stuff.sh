@@ -39,7 +39,7 @@ brew install lazydocker
 # Everything else
 brew install ripgrep
 brew install zsh-syntax-highlighting
-brew install zsh-autosuggestion
+brew install zsh-autosuggestions
 brew install youtube-dl
 brew install fd
 brew install fzf && $(brew --prefix)/opt/fzf/install

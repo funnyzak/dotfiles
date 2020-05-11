@@ -39,6 +39,9 @@ SAVEHIST=$HISTSIZE
 # Enable zsh-syntax-highlighting: https://github.com/zsh-users/zsh-syntax-highlighting
 [ -f /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ] && source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
+# Enable zsh-autosuggestions: https://github.com/zsh-users/zsh-autosuggestions
+[ -f /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh ] && source /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
 # Enable fzf: https://github.com/junegunn/fzf
 # Use fd (https://github.com/sharkdp/fd) to respect .gitignore
 export FZF_DEFAULT_COMMAND='fd --type f'
