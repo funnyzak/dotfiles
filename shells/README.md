@@ -109,6 +109,9 @@ curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/s
 # 下载所有别名文件
 curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
 
+# 中国大陆用户可以使用以下命令下载:
+curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force --url https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/custom/aliases/
+
 # 下载特定的别名文件
 curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- -s git_aliases.zsh
 
