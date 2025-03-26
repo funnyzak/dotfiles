@@ -19,8 +19,7 @@ Usage: $(basename "$0") [OPTIONS] [ALIAS_FILES...]
 Download oh-my-zsh alias files from a remote repository.
 
 Remote execution example:
-  bash -c "\$(curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/download_aliases.sh)"
-  curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/download_aliases.sh | bash -s -- --force
+  curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
 
 Options:
   -h, --help              Show this help message

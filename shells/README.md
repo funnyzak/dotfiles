@@ -35,7 +35,7 @@ shells/
 │   │   ├── plugins/        # 自定义插件
 │   │   └── themes/         # 自定义主题
 │   └── tools/              # 工具脚本
-│       └── download_aliases.sh  # 下载别名文件的脚本
+│       └── install_omz_aliases.sh  # 下载别名文件的脚本
 ├── zsh/                    # Zsh 专用配置
 ```
 
@@ -45,18 +45,19 @@ shells/
 
 #### 别名下载工具
 
-`download_aliases.sh` 是一个用于从远程仓库下载 Oh My Zsh 别名文件的工具脚本。
+`install_omz_aliases.sh` 是一个用于从远程仓库下载 Oh My Zsh 别名文件的工具脚本。
 
-**文件位置**: `/shells/oh-my-zsh/tools/download_aliases.sh`
+- [ ] 支持通过环境变量设置下载地址
+**文件位置**: `/shells/oh-my-zsh/tools/install_omz_aliases.sh`
 
 **远程执行示例**:
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/download_aliases.sh | bash -s -- --force
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
 ```
 
 **使用方法**:
 ```bash
-./download_aliases.sh [选项] [别名文件...]
+./install_omz_aliases.sh [选项] [别名文件...]
 ```
 
 **选项**:
@@ -72,17 +73,17 @@ curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/t
 **示例**:
 1. 列出所有可用的别名文件:
 ```bash
-./download_aliases.sh --list
+./install_omz_aliases.sh --list
 ```
 
 2. 下载特定的别名文件:
 ```bash
-./download_aliases.sh git_aliases.zsh system_aliases.zsh
+./install_omz_aliases.sh git_aliases.zsh system_aliases.zsh
 ```
 
 3. 下载所有别名文件到指定目录:
 ```bash
-./download_aliases.sh --directory ~/custom_aliases --force
+./install_omz_aliases.sh --directory ~/custom_aliases --force
 ```
 
 #### 自定义别名
@@ -92,7 +93,7 @@ Oh My Zsh 目录下包含了多种类型的别名文件，每个文件都聚焦�
 - `archive_aliases.zsh`: 提供压缩和解压缩文件的快捷命令
 - `brew_aliases.zsh`: Homebrew 相关的命令别名
 
-如需新增或修改别名，可以在 `~/.oh-my-zsh/custom/aliases/` 目录下创建新的 `.zsh` 文件，或者直接编辑现有的别名文件。请在 `download_aliases.sh` 脚本中添加新的别名文件路径，以便于下载和管理。
+如需新增或修改别名，可以在 `~/.oh-my-zsh/custom/aliases/` 目录下创建新的 `.zsh` 文件，或者直接编辑现有的别名文件。请在 `install_omz_aliases.sh` 脚本中添加新的别名文件路径，以便于下载和管理。
 
 ## 安装说明
 
@@ -105,7 +106,7 @@ curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/z
 ```
 3. 下载别名文件:
 ```bash
-bash -c "$(curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/download_aliases.sh)"
+bash -c "$(curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh)"
 ```
 
 ## 贡献
