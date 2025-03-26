@@ -47,7 +47,7 @@ list_aliases() {
 # Download a single alias file
 download_alias() {
   local file="$1"
-  local url="${remote_base_url}/${file}"
+  local url="${remote_base_url}${file}"
   local dest="${download_dir}/${file}"
 
   if [[ -f "$dest" && "$overwrite" == "false" ]]; then
@@ -61,6 +61,7 @@ download_alias() {
     echo -e "${BLUE}Downloading ${file}${RESET}"
   fi
 
+  echo -e "${YELLOW}Downloading ${file}...${RESET}"
   if curl -sSL "$url" -o "$dest"; then
     echo -e "${GREEN}Successfully downloaded ${file}${RESET}"
   else
@@ -76,7 +77,7 @@ verbose="false"
 force="false"
 
 # Define the base URL for the remote aliases files
-remote_base_url="https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/custom/aliases"
+remote_base_url="https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/custom/aliases/"
 
 # List of aliases files to download
 alias_files=(
