@@ -61,7 +61,7 @@ download_alias() {
     echo -e "${BLUE}Downloading ${file}${RESET}"
   fi
 
-  echo -e "${YELLOW}Downloading ${file}...${RESET}"
+  echo -e "${YELLOW}Downloading ${file} from ${url}...${RESET}"
   if curl -sSL "$url" -o "$dest"; then
     echo -e "${GREEN}Successfully downloaded ${file}${RESET}"
   else
