@@ -9,9 +9,10 @@ Used to centrally manage personal configuration scripts, system settings, utilit
 
 **CDN Addresses:**
 
-*   jsdelivr: [`https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/`](https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/)
-*   GitHub raw: [`https://raw.githubusercontent.com/funnyzak/dotfiles/main/`](https://raw.githubusercontent.com/funnyzak/dotfiles/main/)
+* GitHub raw: [`https://raw.githubusercontent.com/funnyzak/dotfiles/main/`](https://raw.githubusercontent.com/funnyzak/dotfiles/main/)
 * Vercel: [`https://idotfiles.vercel.app`](https://idotfiles.vercel.app)
+* GitCode: [`https://raw.gitcode.com/funnyzak/dotfiles/raw/main/`](https://raw.gitcode.com/funnyzak/dotfiles/raw/main/)
+* jsdelivr: [`https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/`](https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/)
 
 ## Directory Structure
 
