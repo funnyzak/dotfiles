@@ -51,7 +51,7 @@ shells/
 
 **远程执行示例**:
 ```bash
-bash -c "$(curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/download_aliases.sh)"
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/download_aliases.sh | bash -s -- --force
 ```
 
 **使用方法**:
