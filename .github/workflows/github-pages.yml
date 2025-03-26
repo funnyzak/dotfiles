@@ -8,7 +8,7 @@ on:
   pull_request:
     branches:
       - main
-  
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -25,7 +25,7 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./
           cname: dotfiles.gh.yycc.dev
           publish_branch: gh-pages
           enable_jekyll: true
