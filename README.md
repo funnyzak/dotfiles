@@ -30,15 +30,13 @@ dotfiles/
 │   ├── automation/      # System automation scripts (e.g., scheduled tasks, monitoring scripts)
 │   └── setup/         # System initialization or installation scripts
 ├── utilities/
-├── python/                    # Python scripts collection
-└── shell/                     # Shell scripts collection
+├── ├──python/                    # Python scripts collection
+└── ├──shell/                     # Shell scripts collection
 │   ├── ...              # Directories for other languages or types of general scripts
 ├── docs/                # Documentation
 │   ├── help/            # Help documentation for applications or tools
-│   ├── command/         # Command documentation
+│   ├── command/         # Command documentation`
 │   ├── general/         # General documentation
-│   │   ├── linux-command-tips.md
-│   │   └── git-workflow.md
 │   ├── templates/       # Documentation templates
 │   │   └── report-template.md
 ```
