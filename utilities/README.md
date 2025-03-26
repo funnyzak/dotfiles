@@ -14,6 +14,7 @@ utilities/
 │       └── background_remover.py  # 图片背景移除工具
 └── shell/                     # Shell脚本集合
     └── batch_rename.sh        # 批量重命名工具
+    └── cheatsheet.sh          # 命令行速查表工具
 ```
 
 ## 脚本使用说明
@@ -84,29 +85,80 @@ python3 <(curl -s https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/p
 
 ### Shell工具
 
-#### 批量重命名工具
+#### 命令行速查表工具
 
-`batch_rename.sh` 是一个用于批量重命名当前目录下文件的工具脚本。
+`cheatsheet.sh` 是一个功能强大的命令行速查表工具，可以快速查询常用命令的语法和使用示例，支持多种不同类别的命令。
 
-**文件位置**: `/utilities/shell/batch_rename.sh`
+**文件位置**: `/utilities/shell/cheatsheet.sh`
+
+**功能**:
+- 提供交互式菜单界面，按类别展示所有命令
+- 直接在命令行查看特定命令的速查表
+- 支持本地缓存，提高访问速度(7天有效期)
+- 自动检测并使用最佳URL来源(支持国内加速)
+- 覆盖系统、网络、工具、安卓、媒体、包管理、运行时和Web服务器等多个类别的命令
+
+**支持的命令类别**:
+- 系统类: apt, awk, cat, chmod, chown, df, du, grep, ip, iptables, less, mount, nano, operators, rclone, rsync, systemctl, vim, watch, yum
+- 网络类: curl, netstat, nmcli, tcpdump, wget
+- 工具类: docker, git
+- 安卓类: adb
+- 媒体类: ffmpeg, Imagemagick
+- 包管理类: npm, pnpm, yarn
+- 运行时类: golang, java, node, python
+- Web服务器类: caddy, nginx
 
 **使用方法**:
 
-```bash
-./batch_rename.sh <模式> <替换文本>
-```
-
-**示例**:
+1. **本地执行**:
 
 ```bash
-# 将所有包含"test"的文件名替换为"demo"
-./batch_rename.sh "test" "demo"
+# 赋予执行权限
+chmod +x cheatsheet.sh
+
+# 启动交互式菜单
+./cheatsheet.sh
+
+# 直接查看特定命令的速查表
+./cheatsheet.sh git
+
+# 列出所有支持的命令
+./cheatsheet.sh -l
+./cheatsheet.sh --list
+
+# 显示帮助信息
+./cheatsheet.sh -h
+./cheatsheet.sh --help
+
+# 使用自定义URL前缀
+./cheatsheet.sh -u https://example.com/path/ git
 ```
 
-**功能**:
-- 支持正则表达式匹配文件名
-- 输出重命名过程的详细信息
-- 简单易用，无需额外依赖
+2. **远程执行**:
+
+```bash
+# 启动交互式菜单
+curl -sSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/utilities/shell/cheatsheet.sh | bash
+
+# 国内加速
+curl -sSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh | bash
+
+# 直接查看git命令速查表
+curl -sSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/utilities/shell/cheatsheet.sh | bash -s -- git
+
+# 列出所有支持的命令
+curl -sSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/utilities/shell/cheatsheet.sh | bash -s -- -l
+```
+
+**选项**:
+- `-h, --help`: 显示帮助信息
+- `-l, --list`: 列出所有支持的命令
+- `-u, --url URL`: 指定自定义URL前缀
+
+**必要条件**:
+1. Bash环境
+2. curl 工具
+3. less 命令
 
 ## 安装说明
 

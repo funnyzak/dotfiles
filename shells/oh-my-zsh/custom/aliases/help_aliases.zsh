@@ -1,25 +1,18 @@
 # Description: This script defines a set of aliases for quickly accessing various cheat sheets and help documents using curl and less.
 
-alias ip_help='(){ curl -sL https://cdn.jsdelivr.net/gh/skywind3000/awesome-cheatsheets@master/tools/ip.txt | less; }; ip_help'
-alias ffmpeg_help='(){ curl -sL https://cdn.jsdelivr.net/gh/skywind3000/awesome-cheatsheets@master/tools/ffmpeg.txt | less; }; ffmpeg_help'
-alias adb_help='(){ curl -sL https://cdn.jsdelivr.net/gh/skywind3000/awesome-cheatsheets@master/tools/adb.txt | less; }; adb_help'
-alias git_help='(){ curl -sL https://cdn.jsdelivr.net/gh/skywind3000/awesome-cheatsheets@master/tools/git.txt | less; }; git_help'
-alias vim_help='(){ curl -sL https://cdn.jsdelivr.net/gh/skywind3000/awesome-cheatsheets@master/editors/vim.txt | less; }; vim_help'
-alias nano_help='(){ curl -sL https://cdn.jsdelivr.net/gh/skywind3000/awesome-cheatsheets@master/editors/nano.txt | less; }; nano_help'
+alias cheatsheet='() {
+  CHEATSHEET_REMOTE_URL="https://raw.githubusercontent.com/funnyzak/dotfiles/main/utilities/shell/cheatsheet.sh"
+  CN_CHEATSHEET_REMOTE_URL="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh"
 
-alias linux_help='(){ echo "You can find the cheat sheet at https://ycgo.notion.site/Linux-44565c5124ab4c35be5b99a199aeab89"; }'
-alias docker_help='(){ echo "You can find the cheat sheet at https://docs.docker.com/reference/cli/docker/"; }'
-alias docker_compose_help='(){ echo "You can find the cheat sheet at https://docs.docker.com/compose/reference/"; }'
-alias kubectl_help='(){ echo "You can find the cheat sheet at https://kubernetes.io/docs/reference/kubectl/cheatsheet/"; }'
-alias ssh_help='(){ echo "You can find the cheat sheet at https://www.ssh.com/academy/ssh/command"; }'
-alias ssh_config_help='(){ echo "You can find the cheat sheet at https://www.ssh.com/academy/ssh/config"; }'
-alias nginx_help='(){ echo "You can find the cheat sheet at https://www.nginx.com/resources/wiki/"; }'
-alias systemctl_help='(){ echo "You can find the cheat sheet at https://www.digitalocean.com/community/tutorials/how-to-use-systemctl-to-manage-systemd-services-and-units"; }'
-alias journalctl_help='(){ echo "You can find the cheat sheet at https://www.digitalocean.com/community/tutorials/how-to-use-journalctl-to-view-and-manipulate-systemd-logs"; }'
-alias iptables_help='(){ echo "You can find the cheat sheet at https://www.digitalocean.com/community/tutorials/iptables-essentials-common-firewall-rules-and-commands"; }'
-alias netstat_help='(){ echo "You can find the cheat sheet at https://www.digitalocean.com/community/tutorials/how-to-use-netstat-to-troubleshoot-network-connections-on-linux"; }'
-alias tcpdump_help='(){ echo "You can find the cheat sheet at https://hackertricks.co/tcpdump-practical-examples/"; }'
-alias dig_help='(){ echo "You can find the cheat sheet at https://www.digitalocean.com/community/tools/dig/"; }'
-alias route_help='(){ echo "You can find the cheat sheet at https://www.ibm.com/docs/en/aix/7.3?topic=commands-route-command"; }'
-alias df_help='(){ echo "You can find the cheat sheet at https://www.computerhope.com/unix/udf.htm"; }'
-alias du_help='(){ echo "You can find the cheat sheet at https://www.computerhope.com/unix/udu.htm"; }'
+  if [[ -n "$CN" ]]; then
+    CHEATSHEET_REMOTE_URL="$CN_CHEATSHEET_REMOTE_URL"
+  fi
+
+  echo "Command cheatsheet tool.\nUsage:\n cheatsheet [command] to view specific command\n cheatsheet -l to list all supported commands"
+
+  if [[ $# -eq 0 ]]; then
+    curl -sSL "$CHEATSHEET_REMOTE_URL" | bash
+  else
+    curl -sSL "$CHEATSHEET_REMOTE_URL" | bash -s -- "$@"
+  fi
+}' # Command cheatsheet tool
