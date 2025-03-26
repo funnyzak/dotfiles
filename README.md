@@ -35,8 +35,6 @@ dotfiles/
 │   ├── ...              # Directories for other languages or types of general scripts
 ├── docs/                # Documentation
 │   ├── help/            # Help documentation for applications or tools
-│   │   ├── app-x-usage.md
-│   │   └── cli-tool-tips.md
 │   ├── general/         # General documentation
 │   │   ├── linux-command-tips.md
 │   │   └── git-workflow.md
