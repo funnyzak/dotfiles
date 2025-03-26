@@ -5,6 +5,14 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - '.github/**'
+      - '.gitignore'
+      - '.git/**'
+      - '.idea/**'
+      - '.vscode/**'
   pull_request:
     branches:
       - main
@@ -32,6 +40,11 @@ jobs:
           keep_files: false
           force_orphan: true
           commit_message: ${{ github.event.head_commit.message }}
+
+      - name: Clear jsdelivr CDN cache
+        run: |
+          curl "https://purge.jsdelivr.net/gh/${{ github.repository }}@main/" \
+          && echo "Cache cleared successfully." || echo "Failed to clear cache."
 
       - name: Send Apprise Notification
         run: |

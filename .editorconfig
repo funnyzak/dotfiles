@@ -13,7 +13,7 @@ trim_trailing_whitespace = true
 [*.{js,py,java,c,cpp,cs,go,html,css,json,md,sh,yaml,yml,rb,php,sql,xml,txt}]
 charset = utf-8
 indent_style = space
-indent_size = 4
+indent_size = 2
 
 # Matches js files
 [*.js]
