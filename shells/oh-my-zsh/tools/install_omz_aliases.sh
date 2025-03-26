@@ -224,13 +224,25 @@ fi
 # Download the files
 echo -e "${BLUE}Downloading aliases to $download_dir${RESET}"
 echo -e "${BLUE}Using remote URL: $remote_base_url${RESET}"
+# List Alias files to be downloaded
+echo -e "${BLUE}Files to download:${RESET}"
+for file in "${files_to_download[@]}"; do
+  echo -e "  ${YELLOW}${file}${RESET}"
+done
+echo -e "${BLUE}----------------------------------------${RESET}"
+echo -e "${BLUE}Starting download...${RESET}"
+# Loop through the files and download each one
 
 successful_downloads=0
+# Temporarily disable exit on error
+set +e
 for file in "${files_to_download[@]}"; do
   if download_alias "$file"; then
     ((successful_downloads++))
   fi
 done
+# Re-enable exit on error
+set -e
 
 # Display download summary
 total_files=${#files_to_download[@]}
@@ -250,16 +262,6 @@ if [[ successful_downloads -eq 0 ]]; then
   echo -e "${RED}No files were downloaded successfully.${RESET}"
   exit_code=1
 else
-
-# Load custom aliases
-# if [[ -d $ZSH/custom/aliases ]]; then
-#   for alias_file in $ZSH/custom/aliases/*_aliases.zsh; do
-#     if [[ -r "$alias_file" ]]; then
-#       source "$alias_file"
-#     fi
-#   done
-# fi
-
   echo -e "${GREEN}Successfully downloaded $successful_downloads out of $total_files files.${RESET}"
   echo -e "${GREEN}You can find them in: $download_dir${RESET}"
   echo -e "${GREEN}You can apply them by running: source ~/.zshrc${RESET}"
