@@ -5,14 +5,14 @@ on:
   push:
     # branches:
     #   - main
-    paths-ignore:
-      - 'README.md'
-      - 'LICENSE'
-      - '.github/**'
-      - '.gitignore'
-      - '.git/**'
-      - '.idea/**'
-      - '.vscode/**'
+    # paths-ignore:
+    #   - 'README.md'
+    #   - 'LICENSE'
+    #   - '.github/**'
+    #   - '.gitignore'
+    #   - '.git/**'
+    #   - '.idea/**'
+    #   - '.vscode/**'
   pull_request:
     branches:
       - main
@@ -42,10 +42,12 @@ jobs:
           commit_message: ${{ github.event.head_commit.message }}
 
       - name: Get changed folders
+        if: github.event_name == 'push'
         id: changed-folders
         uses: tj-actions/changed-files@v46.0.3
 
       - name: Clear jsdelivr CDN cache
+        if: github.event_name == 'push'
         env:
           ALL_CHANGED_FOLDERS: ${{ steps.changed-folders.outputs.all_changed_files }}
         run: |
