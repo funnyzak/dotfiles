@@ -53,8 +53,8 @@ Examples:
   $(basename "$0") --default-list "git_aliases.zsh,help_aliases.zsh"  # Set custom default list
 
   # Remote execution examples:
-  curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
-  curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --url https://example.com/aliases/ git_aliases.zsh
+  curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
+  curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --url https://example.com/aliases/ git_aliases.zsh
 
 Options:
   -h, --help                   Show this help message
@@ -62,7 +62,7 @@ Options:
   -n, --no-overwrite           Don't overwrite existing files
   -v, --verbose                Enable verbose output
   -f, --force                  Force download even if directory doesn't exist
-  -u, --url URL                Custom repository base URL (default: https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/custom/aliases/)
+  -u, --url URL                Custom repository base URL (default: https://raw.githubusercontent.com/funnyzak/dotfiles/main/shells/oh-my-zsh/custom/aliases/)
   -s, --default-list LIST      Custom default alias list (comma-separated, default: all available files)
                                Example: "git_aliases.zsh,help_aliases.zsh"
 
@@ -145,7 +145,7 @@ force="false"
 download_errors=0  # Initialize download error counter
 
 # Define the base URL for the remote aliases files
-remote_base_url="https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/custom/aliases/"
+remote_base_url="https://raw.githubusercontent.com/funnyzak/dotfiles/main/shells/oh-my-zsh/custom/aliases/"
 # Use China-specific URL if CN=true
 if [ "$CN" = "true" ]; then
   remote_base_url="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/custom/aliases/"

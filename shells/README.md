@@ -52,7 +52,7 @@ shells/
 
 **远程执行示例**:
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
+curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
 ```
 
 **使用方法**:
@@ -102,21 +102,21 @@ Oh My Zsh 目录下包含了多种类型的别名文件，每个文件都聚焦�
 1. 确保已安装 [Oh My Zsh](https://ohmyz.sh/)
 2. 下载并应用配置模板:
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/zshrc.zsh-template > ~/.zshrc
+curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/shells/oh-my-zsh/zshrc.zsh-template > ~/.zshrc
 ```
 3. 下载别名文件:
 ```bash
 # 下载所有别名文件
-curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
+curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
 
 # 下载特定的别名文件
-curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- -s git_aliases.zsh
+curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- -s git_aliases.zsh
 
 # 下载指定 URL 的别名文件
-curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --url https://example.com/aliases/ git_aliases.zsh
+curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --url https://example.com/aliases/ git_aliases.zsh
 
 # 下载所有别名文件到指定目录
-curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- -d "~/custom_aliases"
+curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- -d "~/custom_aliases"
 ```
 
 ## 贡献
