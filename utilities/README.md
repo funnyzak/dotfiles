@@ -138,10 +138,16 @@ chmod +x cheatsheet.sh
 
 ```bash
 # 启动交互式菜单
-curl -sSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/utilities/shell/cheatsheet.sh | bash
+curl -sSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/utilities/shell/cheatsheet.sh -o cheatsheet.sh && chmod +x cheatsheet.sh && ./cheatsheet.sh
 
-# 国内加速
-curl -sSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh | bash
+# 直接查看特定命令的速查表
+curl -sSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh -o cheatsheet.sh && chmod +x cheatsheet.sh && ./cheatsheet.sh
+
+# 国内加速显示 git 命令速查表
+curl -sSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh | bash -s -- git
+
+# 显示帮助信息
+curl -sSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/utilities/shell/cheatsheet.sh | bash -s -- -h
 
 # 直接查看git命令速查表
 curl -sSL https://raw.githubusercontent.com/funnyzak/dotfiles/main/utilities/shell/cheatsheet.sh | bash -s -- git
