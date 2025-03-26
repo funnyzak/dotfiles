@@ -10,3 +10,11 @@ alias zshrc='source ~/.zshrc' # Source ~/.zshrc to reload configuration
 alias zshconfigp='less ~/.zshrc' # View ~/.zshrc in less
 alias ohmyzsh='mate ~/.oh-my-zsh' # Edit ~/.oh-my-zsh directory in Mate text editor
 alias asg='(){ echo "Search alias.\nUsage:\n asg <alias_name>"; alias_name=${@}; alias | grep $alias_name;}' # Search for aliases
+
+alias install_omz_aliases='() {
+  local remote_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/"
+  if [[ "$CN" == "true" ]]; then
+    remote_url = "https://raw.gitcode.com/funnyzak/dotfiles/raw/main/"
+  fi
+  curl -fsSL "${remote_url}shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
+}' # Install oh-my-zsh alias files from a remote repository (Linux/macOS)
