@@ -220,3 +220,92 @@ alias bria_rmbg_dir='() {
 
   echo "Batch processing complete. Processed $count images, $success successful."
 }' # Batch remove background from all images in a directory
+
+# Remote execution of Bria background remover
+alias bria_bgremover='() {
+  bria_check || return 1
+
+  if [ $# -eq 0 ]; then
+    echo "Remote execution of Bria background removal tool."
+    echo "\nUsage:"
+    echo "  bria_bgremover [options]"
+    echo "\nOptions:"
+    echo "  --interactive, -i      : Run in interactive mode"
+    echo "  --url URL              : Process a single URL"
+    echo "  --file, -f FILE        : Process a single local image file"
+    echo "  --url_file, -u FILE    : Process URLs from a text file"
+    echo "  --batch_folder, -b DIR : Process all images in a folder"
+    echo "  --output_path, -o DIR  : Output directory for processed images"
+    echo "  --max_workers, -m NUM  : Maximum concurrent workers (default: 4)"
+    echo "  --overwrite, -w        : Overwrite existing files"
+    echo "\nExamples:"
+    echo "  bria_bgremover -i                                          # Interactive mode"
+    echo "  bria_bgremover --url https://example.com/image.jpg -o ./output"
+    echo "  bria_bgremover -f ./image.jpg -o ./output"
+    echo "  bria_bgremover -u ./urls.txt -o ./output"
+    echo "  bria_bgremover -b ./images -m 8 -w"
+    return 0
+  fi
+  local script_remote="https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/python/bria/background_remover.py"
+  if [[ "$CN" == "true" ]]; then
+    script_remote="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/python/bria/background_remover.py"
+  fi
+
+  # Build the command based on provided arguments
+  local cmd="python3 <(curl -s $script_remote)"
+
+  # Add API token
+  cmd+=" --api_token $BRIA_TOKEN"
+
+  # Process arguments and build command
+  local i=1
+  while [ $i -le $# ]; do
+    local arg=${(P)i}
+
+    case "$arg" in
+      --interactive|-i)
+        echo "启动交互式背景移除工具..."
+        python3 <(curl -s $script_remote)
+        return $?
+        ;;
+      --url)
+        i=$((i+1))
+        cmd+=" --url ${(P)i}"
+        ;;
+      --file|-f)
+        i=$((i+1))
+        cmd+=" --file ${(P)i}"
+        ;;
+      --url_file|-u)
+        i=$((i+1))
+        cmd+=" --url_file ${(P)i}"
+        ;;
+      --batch_folder|-b)
+        i=$((i+1))
+        cmd+=" --batch_folder ${(P)i}"
+        ;;
+      --output_path|-o)
+        i=$((i+1))
+        cmd+=" --output_path ${(P)i}"
+        ;;
+      --max_workers|-m)
+        i=$((i+1))
+        cmd+=" --max_workers ${(P)i}"
+        ;;
+      --overwrite|-w)
+        cmd+=" --overwrite"
+        ;;
+      *)
+        echo "Error: Unknown option: $arg"
+        return 1
+        ;;
+    esac
+
+    i=$((i+1))
+  done
+
+  echo "执行背景移除工具命令..."
+  echo "$cmd"
+  eval "$cmd"
+}' # Remote execution of Bria background remover tool
+
