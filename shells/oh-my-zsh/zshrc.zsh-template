@@ -103,11 +103,12 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
-# Load custom aliases
-if [[ -d $ZSH/custom/aliases ]]; then
-  for alias_file in $ZSH/custom/aliases/*_aliases.zsh; do
+if [[ -d ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases ]]; then
+  setopt nullglob
+  for alias_file in ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases/*_aliases.zsh; do
     if [[ -r "$alias_file" ]]; then
       source "$alias_file"
     fi
   done
+  unsetopt nullglob
 fi
