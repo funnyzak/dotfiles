@@ -3,16 +3,16 @@ name: Deploy to GitHub Pages
 on:
   workflow_dispatch: {}
   push:
-    branches:
-      - main
-    paths-ignore:
-      - 'README.md'
-      - 'LICENSE'
-      - '.github/**'
-      - '.gitignore'
-      - '.git/**'
-      - '.idea/**'
-      - '.vscode/**'
+    # branches:
+    #   - main
+    # paths-ignore:
+    #   - 'README.md'
+    #   - 'LICENSE'
+    #   - '.github/**'
+    #   - '.gitignore'
+    #   - '.git/**'
+    #   - '.idea/**'
+    #   - '.vscode/**'
   pull_request:
     branches:
       - main
@@ -43,8 +43,18 @@ jobs:
 
       - name: Clear jsdelivr CDN cache (Only root directory)
         run: |
-          curl "https://purge.jsdelivr.net/gh/${{ github.repository }}@main/" \
-          && echo "Cache cleared successfully." || echo "Failed to clear cache."
+          pure_path=(
+            ""
+            "shells/oh-my-zsh/custom/aliases/"
+            "shells/oh-my-zsh/custom/plugins/"
+            "shells/oh-my-zsh/custom/themes/"
+            "docs"
+            "system"
+          )
+          for path in "${pure_path[@]}"; do
+            curl "https://purge.jsdelivr.net/gh/${{ github.repository }}@main/$path" \
+            && echo "Cache cleared for $path successfully." || echo "Failed to clear cache for $path."
+          done
 
       - name: Send Apprise Notification
         run: |
