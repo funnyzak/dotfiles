@@ -1,0 +1,45 @@
+name: Deploy to GitHub Pages
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          cname: dotfiles.gh.yycc.dev
+          publish_branch: gh-pages
+          enable_jekyll: true
+          keep_files: false
+          force_orphan: true
+          commit_message: ${{ github.event.head_commit.message }}
+
+      - name: Send Apprise Notification
+        run: |
+          curl -X POST \
+          -F "tag=p" \
+          -F "body=🚀 ${{ github.event.repository.name }} Pages 部署成功 #github
+
+          📎 相关链接
+          • [GitHub Pages](https://dotfiles.gh.yycc.dev)
+          • [仓库地址](https://github.com/${{ github.repository }})" \
+          "${{ secrets.APPRISE_HTTP_URL }}"
