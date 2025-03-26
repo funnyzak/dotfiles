@@ -9,9 +9,10 @@ Used to centrally manage personal configuration scripts, system settings, utilit
 
 **CDN Addresses:**
 
-*   jsdelivr: [`https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/`](https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/)
-*   GitHub raw: [`https://raw.githubusercontent.com/funnyzak/dotfiles/main/`](https://raw.githubusercontent.com/funnyzak/dotfiles/main/)
-* Vercel: [`https://idotfiles.vercel.app`](https://idotfiles.vercel.app)   
+* GitHub raw: [`https://raw.githubusercontent.com/funnyzak/dotfiles/main/`](https://raw.githubusercontent.com/funnyzak/dotfiles/main/)
+* Vercel: [`https://idotfiles.vercel.app`](https://idotfiles.vercel.app)
+* GitCode: [`https://raw.gitcode.com/funnyzak/dotfiles/raw/main/`](https://raw.gitcode.com/funnyzak/dotfiles/raw/main/)
+* jsdelivr: [`https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/`](https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/)
 
 ## Directory Structure
 
@@ -20,12 +21,15 @@ The following directory structure is used to organize different types of scripts
 ```
 dotfiles/
 ├── shells/              # Shell configuration collection
+│   ├── zshrc.zsh-template # Zsh configuration template
 │   ├── oh-my-zsh/       # Oh My Zsh related configurations
 │   │   └── custom/      # Oh My Zsh custom content
 │   │       ├── aliases/
 │   │       ├── plugins/
 │   │       └── themes/
-│   ├── zsh/       # Zsh configuration
+
+│   ├── zsh/             # Zsh configuration
+│   │   └── .zshrc-template # Zsh configuration template
 ├── system/              # Linux system setup scripts
 │   ├── config/          # Scripts related to system configuration files (e.g., sysctl, bashrc)
 │   │   ├── bashrc.sh
