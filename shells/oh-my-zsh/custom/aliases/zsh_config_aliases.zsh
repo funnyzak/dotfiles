@@ -18,5 +18,5 @@ alias install_omz_aliases='() {
 
 alias install_omz_aliases_cn='() {
   local remote_url="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/"
-  curl -fsSL "${remote_url}shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- --url https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/custom/aliases/ "$@"
+  curl -fsSL "${remote_url}shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
 }' # Install oh-my-zsh alias files from a remote repository (China)
