@@ -42,11 +42,12 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") [OPTIONS] [ALIAS_FILES...]
 
-Download oh-my-zsh alias files from a remote repository.
+Install oh-my-zsh alias files from a remote repository (Linux/macOS).
+This script downloads specified alias files or a default list of alias files
+from a remote repository to the specified directory.
 
 Examples:
   # Local execution examples:
-  $(basename "$0") --list                                   # List available alias files
   $(basename "$0") git_aliases.zsh help_aliases.zsh         # Download specific alias files
   $(basename "$0") --url https://example.com/aliases/       # Use custom repository URL
   $(basename "$0") --default-list "git_aliases.zsh,help_aliases.zsh"  # Set custom default list
@@ -59,7 +60,6 @@ Options:
   -h, --help                   Show this help message
   -d, --directory DIR          Specify download directory (default: \$ZSH/custom/aliases/)
   -n, --no-overwrite           Don't overwrite existing files
-  -l, --list                   List available alias files
   -v, --verbose                Enable verbose output
   -f, --force                  Force download even if directory doesn't exist
   -u, --url URL                Custom repository base URL (default: https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/custom/aliases/)
@@ -71,14 +71,24 @@ EOF
   exit "${1:-0}"
 }
 
-# List available alias files
-list_aliases() {
-  echo -e "${BLUE}Available alias files:${RESET}"
-  for file in "${alias_files[@]}"; do
-    echo "  - $file"
-  done
-  exit 0
+# Detect the operating system type
+detect_os() {
+  local os_name
+  if [ "$(uname)" = "Darwin" ]; then
+    os_name="macOS"
+  elif [ "$(uname)" = "Linux" ]; then
+    os_name="Linux"
+  else
+    os_name="Unknown"
+  fi
+  echo "$os_name"
 }
+
+# Initialize system-related variables
+OS_TYPE=$(detect_os)
+if [[ "$verbose" == "true" ]]; then
+  echo -e "${BLUE}Detected operating system: ${OS_TYPE}${RESET}"
+fi
 
 # Download a single alias file
 download_alias() {
@@ -88,20 +98,22 @@ download_alias() {
 
   if [[ -f "$dest" && "$overwrite" == "false" ]]; then
     echo -e "${YELLOW}Skipping ${file} (already exists)${RESET}"
-    return
+    return 0
   fi
 
+  # Simplify log output to avoid duplicate information
   if [[ "$verbose" == "true" ]]; then
-    echo -e "${BLUE}Downloading ${file} from ${url}${RESET}"
+    echo -e "${BLUE}Downloading ${file} from ${url} to ${dest}${RESET}"
   else
     echo -e "${BLUE}Downloading ${file}${RESET}"
   fi
 
-  echo -e "${YELLOW}Downloading ${file} from ${url} to ${dest}${RESET}"
   if $DOWNLOAD_CMD "$url" $DOWNLOAD_OUT "$dest"; then
     echo -e "${GREEN}Successfully downloaded ${file}${RESET}"
+    return 0
   else
     echo -e "${RED}Failed to download ${file}${RESET}" >&2
+    ((download_errors++))
     return 1
   fi
 }
@@ -113,15 +125,16 @@ parse_comma_list() {
   local item
   local result=()
 
-  # Read comma-separated list into array - POSIX compatible
+  # More compatible method, suitable for different shell versions on macOS and Linux
   for item in $list; do
-    result+=("$item")
+    # Remove any spaces that may exist
+    item="${item## }"
+    item="${item%% }"
+    [ -n "$item" ] && result+=("$item")
   done
 
-  # Print the array elements
-  for item in "${result[@]}"; do
-    echo "$item"
-  done
+  # Return array elements
+  printf "%s\n" "${result[@]}"
 }
 
 # Default settings
@@ -129,34 +142,12 @@ download_dir="${ZSH:-$HOME/.oh-my-zsh}/custom/aliases"
 overwrite="true"
 verbose="false"
 force="false"
+download_errors=0  # Initialize download error counter
 
 # Define the base URL for the remote aliases files
 remote_base_url="https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/custom/aliases/"
 
-# Define default alias files
-default_alias_files="git_aliases.zsh,help_aliases.zsh"
-
-# Full list of aliases files available
-alias_files=(
-  "archive_aliases.zsh"
-  "brew_aliases.zsh"
-  "bria_aliases.zsh"
-  "dependency_aliases.zsh"
-  "directory_aliases.zsh"
-  "docker_aliases.zsh"
-  "filesystem_aliases.zsh"
-  "git_aliases.zsh"
-  "help_aliases.zsh"
-  "image_aliases.zsh"
-  "mc_aliases.zsh"
-  "network_aliases.zsh"
-  "notification_aliases.zsh"
-  "pdf_aliases.zsh"
-  "system_aliases.zsh"
-  "tcpdump_aliases.zsh"
-  "video_aliases.zsh"
-  "zsh_config_aliases.zsh"
-)
+default_alias_files="archive_aliases.zsh,brew_aliases.zsh,bria_aliases.zsh,dependency_aliases.zsh,directory_aliases.zsh,docker_aliases.zsh,filesystem_aliases.zsh,git_aliases.zsh,help_aliases.zsh,image_aliases.zsh,mc_aliases.zsh,network_aliases.zsh,notification_aliases.zsh,pdf_aliases.zsh,system_aliases.zsh,tcpdump_aliases.zsh,video_aliases.zsh,zsh_config_aliases.zsh"
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
@@ -171,9 +162,6 @@ while [[ $# -gt 0 ]]; do
     -n|--no-overwrite)
       overwrite="false"
       shift
-      ;;
-    -l|--list)
-      list_aliases
       ;;
     -v|--verbose)
       verbose="true"
@@ -196,7 +184,6 @@ while [[ $# -gt 0 ]]; do
       usage 1
       ;;
     *)
-      # Collect specified alias files
       files_to_download=("$@")
       break
       ;;
@@ -220,71 +207,65 @@ if ! echo "$remote_base_url" | grep -q '/$'; then
   remote_base_url="${remote_base_url}/"
 fi
 
-# If no specific files were provided, use default list
 if [[ ${#files_to_download[@]} -eq 0 ]]; then
-  # Parse the default list - POSIX compatible approach
-  default_files=()
-  while read -r line; do
-    default_files+=("$line")
+  # Parse the default alias list - use a macOS compatible method
+  files_to_download=()
+  while IFS= read -r line; do
+    files_to_download+=("$line")
   done < <(parse_comma_list "$default_alias_files")
+fi
 
-  # Validate default files
-  valid_defaults=()
-  for file in "${default_files[@]}"; do
-    is_valid=0
-    for valid_file in "${alias_files[@]}"; do
-      if [[ "$file" == "$valid_file" ]]; then
-        is_valid=1
-        break
-      fi
-    done
-
-    if [[ $is_valid -eq 1 ]]; then
-      valid_defaults+=("$file")
-    else
-      echo -e "${YELLOW}Warning: Skipping unknown default alias file: $file${RESET}" >&2
-    fi
-  done
-
-  if [[ ${#valid_defaults[@]} -eq 0 ]]; then
-    echo -e "${YELLOW}No valid default files found, using all available files${RESET}"
-    files_to_download=("${alias_files[@]}")
-  else
-    files_to_download=("${valid_defaults[@]}")
-  fi
-else
-  # Validate that specified files exist in the available list
-  valid_files=()
-  for file in "${files_to_download[@]}"; do
-    is_valid=0
-    for valid_file in "${alias_files[@]}"; do
-      if [[ "$file" == "$valid_file" ]]; then
-        is_valid=1
-        break
-      fi
-    done
-
-    if [[ $is_valid -eq 1 ]]; then
-      valid_files+=("$file")
-    else
-      echo -e "${RED}Error: Unknown alias file: $file${RESET}" >&2
-      echo -e "${YELLOW}Use --list to see available files${RESET}" >&2
-    fi
-  done
-
-  if [[ ${#valid_files[@]} -eq 0 ]]; then
-    echo -e "${RED}No valid files to download${RESET}" >&2
-    exit 1
-  fi
-
-  files_to_download=("${valid_files[@]}")
+# Ensure the array is not empty
+if [[ ${#files_to_download[@]} -eq 0 ]]; then
+  echo -e "${RED}No files specified for download and default list is empty${RESET}" >&2
+  exit 1
 fi
 
 # Download the files
 echo -e "${BLUE}Downloading aliases to $download_dir${RESET}"
 echo -e "${BLUE}Using remote URL: $remote_base_url${RESET}"
+
+successful_downloads=0
 for file in "${files_to_download[@]}"; do
-  download_alias "$file"
+  if download_alias "$file"; then
+    ((successful_downloads++))
+  fi
 done
 
-echo -e "${GREEN}All done!${RESET}"
+# Display download summary
+total_files=${#files_to_download[@]}
+echo -e "\n${BLUE}Download Summary:${RESET}"
+echo -e "  ${GREEN}Successful: $successful_downloads${RESET}"
+
+if [[ $download_errors -gt 0 ]]; then
+  echo -e "  ${RED}Failed: $download_errors${RESET}"
+  echo -e "${YELLOW}Some files failed to download. Check your network connection or the URL is correct.${RESET}"
+  exit_code=1
+else
+  echo -e "${GREEN}All files downloaded successfully!${RESET}"
+  exit_code=0
+fi
+
+if [[ successful_downloads -eq 0 ]]; then
+  echo -e "${RED}No files were downloaded successfully.${RESET}"
+  exit_code=1
+else
+
+# Load custom aliases
+# if [[ -d $ZSH/custom/aliases ]]; then
+#   for alias_file in $ZSH/custom/aliases/*_aliases.zsh; do
+#     if [[ -r "$alias_file" ]]; then
+#       source "$alias_file"
+#     fi
+#   done
+# fi
+
+  echo -e "${GREEN}Successfully downloaded $successful_downloads out of $total_files files.${RESET}"
+  echo -e "${GREEN}You can find them in: $download_dir${RESET}"
+  echo -e "${GREEN}You can apply them by running: source ~/.zshrc${RESET}"
+  echo -e "${WARNING}Note: You need add the following line to your ~/.zshrc file:${RESET}"
+  echo -e "${WARNING}source $download_dir/*_aliases.zsh${RESET}"
+  exit_code=0
+fi
+
+exit $exit_code
