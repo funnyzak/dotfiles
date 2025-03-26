@@ -30,17 +30,17 @@
 #
 # 2. 远程执行示例:
 #    使用curl直接远程执行:
-#      bash -c "$(curl -fsSL https://github.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh)" -- git
+#      bash -c "$(curl -fsSL https://github.com/funnyzak/dotfiles/raw/docs/utilities/shell/cheatsheet.sh)" -- git
 #
 #    或使用wget:
-#      bash -c "$(wget -qO- https://github.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh)" -- docker
+#      bash -c "$(wget -qO- https://github.com/funnyzak/dotfiles/raw/docs/utilities/shell/cheatsheet.sh)" -- docker
 #
 #    带参数远程执行:
-#      bash -c "$(curl -fsSL https://github.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh)" -- -c nginx
+#      bash -c "$(curl -fsSL https://github.com/funnyzak/dotfiles/raw/docs/utilities/shell/cheatsheet.sh)" -- -c nginx
 #
 # 3. 安装到本地:
 #    下载并安装到/usr/local/bin:
-#      curl -fsSL https://github.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh -o /usr/local/bin/cheatsheet && chmod +x /usr/local/bin/cheatsheet
+#      curl -fsSL https://github.com/funnyzak/dotfiles/raw/docs/utilities/shell/cheatsheet.sh -o /usr/local/bin/cheatsheet && chmod +x /usr/local/bin/cheatsheet
 #
 #    然后就可以在任何地方使用cheatsheet命令:
 #      cheatsheet git
@@ -55,7 +55,7 @@
 #      cs -l
 #
 # 5. 在Docker中使用:
-#    docker run --rm -it bash -c "$(curl -fsSL https://github.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh)" -- nginx
+#    docker run --rm -it bash -c "$(curl -fsSL https://github.com/funnyzak/dotfiles/raw/docs/utilities/shell/cheatsheet.sh)" -- nginx
 #
 #############################################################
 
@@ -74,7 +74,7 @@ NC='\033[0m' # 无颜色
 
 # 速查表数据源URL前缀
 DEFAULT_URL="https://github.com/funnyzak/dotfiles/raw/refs/heads/main/docs/command/"
-CHINA_URL="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/docs/command/"
+CHINA_URL="https://raw.gitcode.com/funnyzak/dotfiles/raw/docs/docs/command/"
 CURRENT_URL=$DEFAULT_URL
 TIMEOUT=5 # 超时时间(秒)
 
