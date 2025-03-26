@@ -3,8 +3,8 @@ name: Deploy to GitHub Pages
 on:
   workflow_dispatch: {}
   push:
-    branches:
-      - main
+    # branches:
+    #   - main
   pull_request:
     branches:
       - main
@@ -25,7 +25,7 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./
           cname: dotfiles.gh.yycc.dev
           publish_branch: gh-pages
           enable_jekyll: true
