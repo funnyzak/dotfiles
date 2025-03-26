@@ -3,8 +3,8 @@ name: Deploy to GitHub Pages
 on:
   workflow_dispatch: {}
   push:
-    branches:
-      - main
+    # branches:
+    #   - main
     paths-ignore:
       - 'README.md'
       - 'LICENSE'
@@ -41,10 +41,19 @@ jobs:
           force_orphan: true
           commit_message: ${{ github.event.head_commit.message }}
 
+      - name: Get changed folders
+        id: changed-folders
+        uses: tj-actions/changed-files@v46.0.3
+
       - name: Clear jsdelivr CDN cache
+        env:
+          ALL_CHANGED_FOLDERS: ${{ steps.changed-folders.outputs.all_changed_files }}
         run: |
-          curl "https://purge.jsdelivr.net/gh/${{ github.repository }}@main/" \
-          && echo "Cache cleared successfully." || echo "Failed to clear cache."
+          unique_folders=$(echo "${ALL_CHANGED_FOLDERS}" | tr ' ' '\n' | awk -F'/' '{print $1}' | sort -u)
+          for folder in ${unique_folders}; do
+            curl "https://purge.jsdelivr.net/gh/${{ github.repository }}@main/${folder}" \
+            && echo "Cache cleared successfully for ${folder}." || echo "Failed to clear cache for ${folder}."
+          done
 
       - name: Send Apprise Notification
         run: |
