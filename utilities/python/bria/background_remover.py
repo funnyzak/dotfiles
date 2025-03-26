@@ -25,9 +25,9 @@
 
     远程执行：
         必要条件：
-        1. 安装Python 3.x
-        2. 安装requests库
-        3. 获取Bria API Token
+        1. 安装Python 3.x （使用 Python 自带的 env 模块进行包管理）
+        2. 安装requests库（pip install requests）
+        3. 获取Bria API Token(https://platform.bria.ai/console)
 
         # 远程执行脚本(交互式模式)
         python3 <(curl -s https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/python/bria/background_remover.py)
