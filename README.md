@@ -24,25 +24,14 @@ dotfiles/
 │   ├── zshrc.zsh-template # Zsh configuration template
 │   ├── oh-my-zsh/       # Oh My Zsh related configurations
 │   │   └── custom/      # Oh My Zsh custom content
-│   │       ├── aliases/
-│   │       ├── plugins/
-│   │       └── themes/
-
 │   ├── zsh/             # Zsh configuration
-│   │   └── .zshrc-template # Zsh configuration template
 ├── system/              # Linux system setup scripts
 │   ├── config/          # Scripts related to system configuration files (e.g., sysctl, bashrc)
-│   │   ├── bashrc.sh
-│   │   └── sysctl.conf
 │   ├── automation/      # System automation scripts (e.g., scheduled tasks, monitoring scripts)
-│   │   └── daily_backup.sh
 │   └── setup/         # System initialization or installation scripts
-│       └── install_tools.sh
-├── utilities/           # General scripts (cross-platform or not specific to applications)
-│   ├── shell/           # Shell scripts
-│   │   └── batch_rename.sh
-│   ├── python/          # Python scripts
-│   │   └── process_data.py
+├── utilities/
+├── python/                    # Python scripts collection
+└── shell/                     # Shell scripts collection
 │   ├── ...              # Directories for other languages or types of general scripts
 ├── docs/                # Documentation
 │   ├── help/            # Help documentation for applications or tools
