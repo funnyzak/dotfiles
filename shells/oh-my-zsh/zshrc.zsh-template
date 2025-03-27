@@ -112,3 +112,38 @@ if [[ -d ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases ]]; then
   done
   unsetopt nullglob
 fi
+
+# Install oh-my-zsh alias files from remote repository (Linux/macOS)
+alias install_omz_aliases='() {
+  REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/"
+  REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/"
+
+  # Check if CN mirror is accessible
+  if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
+    REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
+  fi
+
+  echo "Installing oh-my-zsh alias files from remote repository..."
+  echo "Using remote URL: $REMOTE_URL_PREFIX"
+
+  curl -fsSL "${REMOTE_URL_PREFIX}shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
+}'
+
+# Upgrade oh-my-zsh configuration from remote repository
+alias upgrade_omz_config='() {
+  REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/"
+  REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/"
+
+  # Check if CN mirror is accessible
+  if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
+    REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
+  fi
+
+  zsh_config_download_url="${REMOTE_URL_PREFIX}shells/oh-my-zsh/zshrc.zsh-template"
+
+  echo "Upgrading oh-my-zsh configuration from remote repository..."
+  echo "Using template URL: $zsh_config_download_url"
+
+  curl -fsSL "$zsh_config_download_url" > ~/.zshrc
+}'
+
