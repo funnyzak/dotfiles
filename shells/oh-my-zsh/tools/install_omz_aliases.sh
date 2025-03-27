@@ -157,8 +157,8 @@ force="false"
 download_errors=0  # Initialize download error counter
 
 # Define the base URL for the remote aliases files
-remote_base_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${DOTFILES_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/"
-remote_base_url_cn="https://raw.gitcode.com/funnyzak/dotfiles/raw/${DOTFILES_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/"
+remote_base_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/"
+remote_base_url_cn="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/"
 
 remote_base_url=$(detect_best_url "$remote_base_url" "$remote_base_url_cn")
 # Use China-specific URL if CN=true
@@ -166,7 +166,7 @@ if [ "$CN" = "true" ]; then
   remote_base_url="$remote_base_url_cn"
 fi
 
-default_alias_files="archive_aliases.zsh,brew_aliases.zsh,bria_aliases.zsh,dependency_aliases.zsh,directory_aliases.zsh,docker_aliases.zsh,filesystem_aliases.zsh,git_aliases.zsh,help_aliases.zsh,image_aliases.zsh,mc_aliases.zsh,network_aliases.zsh,notification_aliases.zsh,pdf_aliases.zsh,system_aliases.zsh,tcpdump_aliases.zsh,video_aliases.zsh,zsh_config_aliases.zsh,other_aliases.zsh"
+default_alias_files="archive_aliases.zsh,brew_aliases.zsh,bria_aliases.zsh,dependency_aliases.zsh,directory_aliases.zsh,docker_aliases.zsh,filesystem_aliases.zsh,git_aliases.zsh,help_aliases.zsh,image_aliases.zsh,mc_aliases.zsh,network_aliases.zsh,notification_aliases.zsh,pdf_aliases.zsh,system_aliases.zsh,tcpdump_aliases.zsh,video_aliases.zsh,zsh_config_aliases.zsh,other_aliases.zsh,vps_aliases.zsh"
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do

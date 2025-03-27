@@ -246,9 +246,9 @@ alias bria_bgremover='() {
     echo "  bria_bgremover -b ./images -m 8 -w"
     return 0
   fi
-  local script_remote="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${DOTFILES_BRANCH:-main}/utilities/python/bria/background_remover.py"
+  local script_remote="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/utilities/python/bria/background_remover.py"
   if [[ "$CN" == "true" ]]; then
-    script_remote="https://raw.gitcode.com/funnyzak/dotfiles/raw/${DOTFILES_BRANCH:-main}/utilities/python/bria/background_remover.py"
+    script_remote="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/utilities/python/bria/background_remover.py"
   fi
 
   # Build the command based on provided arguments
