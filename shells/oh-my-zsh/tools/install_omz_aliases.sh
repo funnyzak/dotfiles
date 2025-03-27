@@ -284,8 +284,6 @@ else
   echo -e "${GREEN}Successfully downloaded $successful_downloads out of $total_files files.${RESET}"
   echo -e "${GREEN}You can find them in: $download_dir${RESET}"
   echo -e "${GREEN}You can apply them by running: source ~/.zshrc${RESET}"
-  echo -e "${WARNING}Note: You need add the following line to your ~/.zshrc file:${RESET}"
-  echo -e "${WARNING}source $download_dir/*_aliases.zsh${RESET}"
   exit_code=0
 fi
 
