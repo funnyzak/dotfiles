@@ -1,8 +1,8 @@
 # Description: Command cheatsheet aliases for quick reference and usage.
 
 alias cs='() {
-  REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${DOTFILES_BRANCH:-main}/"
-  REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/${DOTFILES_BRANCH:-main}/"
+  REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
+  REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
   if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
     REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
   fi
