@@ -2,12 +2,21 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
-current_datetime() {
-  date "+%Y-%m-%d %H:%M:%S"
+detect_best_url() {
+  local timeout=3
+  local urls=("${@}")
+
+  for url in "${urls[@]}"; do
+    if curl -s --connect-timeout "$timeout" "$url" >/dev/null 2>&1; then
+      echo "$url"
+      return
+    fi
+  done
+  echo "No working URL found"
 }
 
-mkcd() {
-  mkdir -p "$1" && cd "$1"
+current_datetime() {
+  date "+%Y-%m-%d %H:%M:%S"
 }
 
 rmdir_if_empty() {
