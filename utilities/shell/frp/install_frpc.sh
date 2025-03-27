@@ -56,6 +56,8 @@
 #   # Uninstall frpc:
 #   ./install_frpc.sh uninstall
 #
+#   # Remote execution example using pipe:
+#   curl -sSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/frp/install_frpc.sh | bash -s install --token your_token --config-url http://example.com/frpc.toml
 # Author: Leon
 # Date: March 27, 2025
 #########################################################################
@@ -301,8 +303,13 @@ parse_arguments() {
                         ;;
                     --version)
                         if [[ -n "$2" && "$2" != --* ]]; then
-                            FRPC_VERSION="$2"
-                            shift 2
+                            if [[ "$2" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+                                FRPC_VERSION="$2"
+                                shift 2
+                            else
+                                log_message "error" "Invalid version format: $2. Please use a valid version string (e.g., 0.61.2)."
+                                exit 1
+                            fi
                         else
                             log_message "error" "Missing argument for --version option"
                             exit 1
@@ -520,11 +527,13 @@ prepare_interactive_config() {
         log_message "error" "Server address cannot be empty."
         return 1
     fi
+
+    # Replace the user-entered server address in the configuration file
     sed -i "s/your_frps_ip_or_domain/${server_addr}/g" "${TMP_PATH}/${config_tmp_name}"
 
     # Server port
     read -rep "Enter FRP server port [7000]: " server_port
-    server_port=${server_port:-7000}
+    server_port=${server_port:-7000} # Default to 7000 if not provided
     # Validate port number
     if ! [[ "${server_port}" =~ ^[0-9]+$ ]] || [[ "${server_port}" -lt 1 ]] || [[ "${server_port}" -gt 65535 ]]; then
         log_message "error" "Invalid port number. Must be between 1-65535."
