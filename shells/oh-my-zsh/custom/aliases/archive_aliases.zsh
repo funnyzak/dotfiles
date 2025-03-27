@@ -1,759 +1,898 @@
 # Description: Advanced compression and extraction aliases for ZIP, TAR and other archive formats. Provides intuitive shortcuts for common archive operations.
 
-# =========================
-# ZIP Compression Aliases
-# =========================
+# ==========================
+# Common Utility Functions
+# ==========================
 
-alias zip_cur='() { 
-  echo "Compressing current directory to a ZIP file.\nUsage:\n zip_cur [output_filename]"
-  zip_name=${1:-$(basename $(pwd)).zip}
-  echo "Creating archive: $zip_name"
-  zip -x "*.DS_Store" -r -q -9 "$zip_name" . && 
-  echo "Compression completed, saved to $zip_name" 
-}'  # Compress current directory to a ZIP file
+# Utility function to validate directory
+_archive_validate_dir() {
+  local dir="$1"
+  local error_msg="${2:-Directory}"
+  if [ ! -d "$dir" ]; then
+    echo "Error: $error_msg $dir does not exist"
+    return 1
+  fi
+  return 0
+}
 
-alias zip_dir='() {
+# Utility function to validate file
+_archive_validate_file() {
+  local file="$1"
+  if [ ! -f "$file" ]; then
+    echo "Error: File $file does not exist or is not a regular file"
+    return 1
+  fi
+  return 0
+}
+
+# Utility function to change directory and remember original
+_archive_pushd() {
+  local target_dir="$1"
+  export _ARCHIVE_PREV_DIR=$(pwd)
+  cd "$target_dir" || return 1
+  return 0
+}
+
+# Utility function to return to original directory
+_archive_popd() {
+  if [ -n "$_ARCHIVE_PREV_DIR" ]; then
+    cd "$_ARCHIVE_PREV_DIR" || return 1
+    unset _ARCHIVE_PREV_DIR
+  fi
+  return 0
+}
+
+# Utility function for common zip options
+_archive_zip_opts() {
+  echo "-x \"*.DS_Store\" -r -q -9"
+}
+
+# Utility function for common tar options
+_archive_tar_opts() {
+  echo "--exclude=\"*.DS_Store\""
+}
+
+# Utility function to select compression option
+_archive_tar_compress_opt() {
+  local format="${1:-gz}"
+  case "$format" in
+    gz|gzip)  echo "-z" ;;
+    bz2|bzip) echo "-j" ;;
+    xz)       echo "-J" ;;
+    *)        echo "-z" ;; # Default to gzip
+  esac
+}
+
+# Utility function to get file extension for tar format
+_archive_tar_extension() {
+  local format="${1:-gz}"
+  case "$format" in
+    gz|gzip)  echo "tar.gz" ;;
+    bz2|bzip) echo "tar.bz2" ;;
+    xz)       echo "tar.xz" ;;
+    *)        echo "tar.gz" ;; # Default to .tar.gz
+  esac
+}
+
+# ==========================
+# Core ZIP Functions
+# ==========================
+
+# Unified ZIP compression function
+alias zip_utils='() {
+  local usage="ZIP utilities. Available commands:
+    zip_utils dir <directory> [output_name] [-p password] [-t]     - Compress directory
+    zip_utils file <file> [output_name] [-p password] [-t]         - Compress single file
+    zip_utils cur [output_name] [-p password] [-t]                 - Compress current directory
+    zip_utils ext <extension> [target_dir] [-p password] [-t]      - Compress files with extension
+    zip_utils sub [parent_dir] [-p password] [-t]                  - Compress subdirectories
+    zip_utils each [target_dir] [-p password] [-t]                 - Compress each item separately"
+
+  # Parse command
   if [ $# -eq 0 ]; then
-    echo "Compress a directory to a ZIP file.\nUsage:\n zip_dir <directory_path> [output_filename]"
+    echo "$usage"
     return 1
   fi
-  zip_path=${1}
-  if [ ! -d "$zip_path" ]; then
-    echo "Error: Directory $zip_path does not exist"
-    return 1
-  fi
-  zip_name=${2:-$(basename ${zip_path}).zip}
-  echo "Creating archive: $zip_name from directory: $zip_path"
-  zip -x "*.DS_Store" -r -q -9 "$zip_name" "$zip_path" && 
-  echo "Compression completed, saved to $zip_name"
-}'  # Compress a specific directory to a ZIP file
 
-alias zip_dirp='() { 
-  if [ $# -lt 2 ]; then
-    echo "Compress a directory with password protection.\nUsage:\n zip_dirp <directory_path> <password> [output_filename]"
-    return 1
-  fi
-  zip_path=${1}
-  if [ ! -d "$zip_path" ]; then
-    echo "Error: Directory $zip_path does not exist"
-    return 1
-  fi
-  zip_name=${3:-$(basename ${zip_path}).zip}
-  echo "Creating password-protected archive: $zip_name from directory: $zip_path"
-  zip -x "*.DS_Store" -r -q -9 -P "$2" "$zip_name" "$zip_path" && 
-  echo "Compression completed, saved to $zip_name"
-}'  # Compress a directory with password protection
+  local command="$1"
+  shift
 
-alias zip_ext='() {
-  if [ $# -eq 0 ]; then
-    echo "Compress all files with specific extension.\nUsage:\n zip_ext <file_extension> [target_directory]"
-    return 1
-  fi
-  ext=${1}
-  zip_path=${2:-.}
-  if [ ! -d "$zip_path" ]; then
-    echo "Error: Directory $zip_path does not exist"
-    return 1
-  fi
-  echo "Compressing all .$ext files in $zip_path"
-  
-  # Save current directory
-  current_dir=$(pwd)
-  
-  # Change to target directory
-  cd "$zip_path" || return 1
-  
-  # Check if any matching files exist
-  if [ -z "$(find . -type f -name "*.${ext}" -print -quit)" ]; then
-    echo "Warning: No files with extension .$ext found in $zip_path"
-    cd "$current_dir"
-    return 1
-  fi
-  
-  # Search and compress
-  find . -type f -name "*.${ext}" -print | xargs zip -r -q -9 "${ext}.zip" && 
-  echo "Compression completed, saved to $zip_path/${ext}.zip"
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Compress all files with specific extension
+  # Parse options
+  local OPTIND opt password timestamp_flag
+  local use_pwd=0 use_date=0
 
-alias zip_sub='() { 
-  echo "Compress each subdirectory to separate ZIP files.\nUsage:\n zip_sub [parent_directory]"
-  target_dir=${1:-.}
-  if [ ! -d "$target_dir" ]; then
-    echo "Error: Directory $target_dir does not exist"
-    return 1
-  fi
-  echo "Compressing all subdirectories in $target_dir"
-  
-  # Save current directory
-  current_dir=$(pwd)
-  
-  # Change to target directory
-  cd "$target_dir" || return 1
-  
-  # Check if any subdirectories exist
-  if [ -z "$(ls -d ./*/ 2>/dev/null)" ]; then
-    echo "Warning: No subdirectories found in $target_dir"
-    cd "$current_dir"
-    return 1
-  fi
-  
-  # Process each subdirectory
-  for dir in $(ls -d ./*/); do 
-    timestamp=$(date +%Y%m%d%H%M%S)
-    archive_name="./$(basename "$dir")_${timestamp}.zip"
-    echo "Compressing directory: $(basename "$dir") to $archive_name"
-    (zip -x "*.DS_Store" -r -q "$archive_name" "${dir}"* && 
-    echo "Successfully compressed to $archive_name")
+  while getopts "p:t" opt; do
+    case $opt in
+      p) use_pwd=1; password="$OPTARG" ;;
+      t) use_date=1 ;;
+      *) echo "Invalid option"; return 1 ;;
+    esac
   done
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Compress each subdirectory to separate ZIP files
+  OPTIND=1
 
-alias zip_each='() { 
-  echo "Compress each file in a directory to separate ZIP files.\nUsage:\n zip_each [directory_path]"
-  target_dir=${1:-.}
-  if [ ! -d "$target_dir" ]; then
-    echo "Error: Directory $target_dir does not exist"
-    return 1
+  # Generate timestamp if needed
+  local timestamp=""
+  if [ $use_date -eq 1 ]; then
+    timestamp="_$(date +%Y%m%d%H%M%S)"
   fi
-  echo "Compressing each file in $target_dir"
-  
-  # Save current directory
-  current_dir=$(pwd)
-  
-  # Change to target directory
-  cd "$target_dir" || return 1
-  
-  # Check if any files exist
-  if [ -z "$(ls 2>/dev/null)" ]; then
-    echo "Warning: No files found in $target_dir"
-    cd "$current_dir"
-    return 1
-  fi
-  
-  # Compress each file
-  compressed_count=0
-  for file in $(ls); do 
-    # Skip directories and existing zip files
-    if [ -f "$file" ] && [[ "$file" != *.zip ]]; then
-      archive_name="./$(basename "$file").zip"
-      echo "Compressing file: $file to $archive_name"
-      (zip -x "*.DS_Store" -r -q "$archive_name" "$file" && 
-      echo "Successfully compressed to $archive_name")
-      ((compressed_count++))
-    fi
-  done
-  
-  if [ $compressed_count -eq 0 ]; then
-    echo "No suitable files found for compression"
-  else
-    echo "Completed compressing $compressed_count files"
-  fi
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Compress each file in a directory to separate ZIP files
 
-alias zip_each_with_date='() { 
-  echo "Compress each file with timestamp in filename.\nUsage:\n zip_each_with_date [directory_path]"
-  target_dir=${1:-.}
-  if [ ! -d "$target_dir" ]; then
-    echo "Error: Directory $target_dir does not exist"
-    return 1
+  # Password option string
+  local pwd_opt=""
+  if [ $use_pwd -eq 1 ]; then
+    pwd_opt="-P \"$password\""
   fi
-  echo "Compressing each file with timestamp in $target_dir"
-  
-  # Save current directory
-  current_dir=$(pwd)
-  
-  # Change to target directory
-  cd "$target_dir" || return 1
-  
-  # Check if any files exist
-  if [ -z "$(ls 2>/dev/null)" ]; then
-    echo "Warning: No files found in $target_dir"
-    cd "$current_dir"
-    return 1
-  fi
-  
-  # Compress each file with timestamp
-  compressed_count=0
-  for file in $(ls); do 
-    # Skip directories and existing zip files
-    if [ -f "$file" ] && [[ "$file" != *.zip ]]; then
-      timestamp=$(date +%Y%m%d%H%M%S)
-      archive_name="./$(basename "$file")_${timestamp}.zip"
-      echo "Compressing file: $file to $archive_name"
-      (zip -x "*.DS_Store" -r -q "$archive_name" "$file" && 
-      echo "Successfully compressed to $archive_name")
-      ((compressed_count++))
-    fi
-  done
-  
-  if [ $compressed_count -eq 0 ]; then
-    echo "No suitable files found for compression"
-  else
-    echo "Completed compressing $compressed_count files with timestamps"
-  fi
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Compress each file with timestamp in filename
 
-alias zip_each_with_pwd='() { 
-  echo "Compress each file with password protection.\nUsage:\n zip_each_with_pwd [directory_path] [password]"
-  dir_path=${1:-.}
-  if [ ! -d "$dir_path" ]; then
-    echo "Error: Directory $dir_path does not exist"
-    return 1
-  fi
-  
-  # Save current directory
-  current_dir=$(pwd)
-  
-  # Change to target directory
-  cd "$dir_path" || return 1
-  
-  # Check if any files exist
-  if [ -z "$(ls 2>/dev/null)" ]; then
-    echo "Warning: No files found in $dir_path"
-    cd "$current_dir"
-    return 1
-  fi
-  
-  echo "Compressing files with password protection in $dir_path"
-  
-  # Create or clear password file
-  echo "Filename:Password" > password.txt
-  
-  # Compress each file with password
-  compressed_count=0
-  for file in $(ls); do
-    # Skip password file, directories, and existing zip files
-    if [ "$file" = "password.txt" ] || [ ! -f "$file" ] || [[ "$file" == *.zip ]]; then
-      continue
-    fi
-    
-    # Generate random password if not provided
-    if [ -z "$2" ]; then
-      pwd=$(openssl rand -base64 8)
-    else
-      pwd=$2
-    fi
-    
-    archive_name="./$(basename "$file").zip"
-    echo "Compressing file: $file to $archive_name with password"
-    
-    # Use password to compress file
-    zip -x "*.DS_Store" -r -q -P "$pwd" "$archive_name" "$file" && 
-    echo "Successfully compressed to $archive_name with password: $pwd"
-    
-    # Save filename and password to password.txt
-    echo "$(basename "$file").zip:$pwd" >> password.txt
-    ((compressed_count++))
-  done
-  
-  if [ $compressed_count -eq 0 ]; then
-    echo "No suitable files found for compression"
-    rm password.txt
-  else
-    echo "Completed compressing $compressed_count files with password protection"
-    echo "Passwords have been saved to $dir_path/password.txt"
-  fi
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Compress each file with password protection
+  # Process commands
+  case "$command" in
+    dir)
+      # Check parameters
+      if [ $# -eq 0 ]; then
+        echo "Compress a directory to a ZIP file.\nUsage:\n zip_utils dir <directory_path> [output_filename] [-p password] [-t]"
+        return 1
+      fi
 
-# Single File ZIP Compression
-alias zip_single='() { 
-  if [ $# -eq 0 ]; then 
-    echo "Compress a single file to ZIP format.\nUsage:\n zip_single <file_path> [output_filename]"
-    return 1
-  fi
-  
-  zip_path=${1}
-  if [ ! -f "$zip_path" ]; then
-    echo "Error: File $zip_path does not exist or is not a regular file"
-    return 1
-  fi
-  
-  zip_dir=$(dirname "$zip_path")
-  file_name=$(basename "$zip_path")
-  zip_name=${2:-${file_name}.zip}
-  
-  echo "Compressing file: $file_name to $zip_name"
-  
-  # Save current directory
-  current_dir=$(pwd)
-  
-  cd "$zip_dir" || return 1
-  
-  zip -x "*.DS_Store" -r -q -9 "$zip_name" "$file_name" && 
-  echo "Compression completed, saved to $zip_dir/$zip_name"
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Compress a single file to ZIP format
+      local zip_path="$1"
+      _archive_validate_dir "$zip_path" || return 1
 
-alias zip_singlep='() { 
-  if [ $# -lt 2 ]; then 
-    echo "Compress a single file with password protection.\nUsage:\n zip_singlep <file_path> <password> [output_filename]"
-    return 1
-  fi
-  
-  zip_path=${1}
-  if [ ! -f "$zip_path" ]; then
-    echo "Error: File $zip_path does not exist or is not a regular file"
-    return 1
-  fi
-  
-  zip_dir=$(dirname "$zip_path")
-  file_name=$(basename "$zip_path")
-  zip_name=${3:-${file_name}.zip}
-  
-  echo "Compressing file: $file_name to $zip_name with password protection"
-  
-  # Save current directory
-  current_dir=$(pwd)
-  
-  cd "$zip_dir" || return 1
-  
-  zip -x "*.DS_Store" -r -q -9 -P "$2" "$zip_name" "$file_name" && 
-  echo "Compression completed, saved to $zip_dir/$zip_name"
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Compress a single file with password protection
+      local zip_name="${2:-$(basename ${zip_path})$timestamp.zip}"
+      local pwd_note=""
+      [ $use_pwd -eq 1 ] && pwd_note=" with password protection"
 
-# =========================
-# ZIP Extraction Aliases
-# =========================
+      echo "Creating archive$pwd_note: $zip_name from directory: $zip_path"
+      eval "zip $(_archive_zip_opts) $pwd_opt \"$zip_name\" \"$zip_path\"" &&
+      echo "Compression completed, saved to $zip_name"
+    ;;
 
-alias unzip_file='() { 
-  if [ $# -eq 0 ]; then
-    echo "Extract a ZIP file.\nUsage:\n unzip_file <zip_file> [destination_path]"
-    return 1
-  fi
-  
-  unzip_name=${1}
-  if [ ! -f "$unzip_name" ]; then
-    echo "Error: File $unzip_name does not exist or is not a regular file"
-    return 1
-  fi
-  
-  unzip_path=${2:-$(dirname "$unzip_name")}
-  if [ ! -d "$unzip_path" ]; then
-    echo "Creating destination directory: $unzip_path"
-    mkdir -p "$unzip_path"
-  fi
-  
-  echo "Extracting: $unzip_name to $unzip_path"
-  unzip -q "$unzip_name" -d "$unzip_path" && 
-  echo "Extraction completed, files extracted to $unzip_path"
-}'  # Extract a ZIP file
+    file)
+      # Check parameters
+      if [ $# -eq 0 ]; then
+        echo "Compress a single file to ZIP format.\nUsage:\n zip_utils file <file_path> [output_filename] [-p password] [-t]"
+        return 1
+      fi
 
-alias unzip_each='() { 
-  echo "Extract all ZIP files in a directory.\nUsage:\n unzip_each [directory_path]"
-  target_dir=${1:-.}
-  if [ ! -d "$target_dir" ]; then
-    echo "Error: Directory $target_dir does not exist"
-    return 1
-  fi
-  
-  # Save current directory
-  current_dir=$(pwd)
-  
-  # Change to target directory
-  cd "$target_dir" || return 1
-  
-  # Check if any zip files exist
-  if [ -z "$(ls *.zip 2>/dev/null)" ]; then
-    echo "Warning: No ZIP files found in $target_dir"
-    cd "$current_dir"
-    return 1
-  fi
-  
-  echo "Extracting all ZIP files in $target_dir"
-  extracted_count=0
-  
-  for file in $(ls *.zip 2>/dev/null); do 
-    dir_name=$(basename "$file" .zip)
-    echo "Extracting: $file to ./$dir_name"
-    mkdir -p "./$dir_name"
-    unzip -q "$file" -d "./$dir_name" && 
-    echo "Successfully extracted to ./$dir_name"
-    ((extracted_count++))
-  done
-  
-  echo "Completed extracting $extracted_count ZIP files"
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Extract all ZIP files in a directory
+      local zip_path="$1"
+      _archive_validate_file "$zip_path" || return 1
 
-alias unzip_pwd='() { 
-  if [ $# -lt 2 ]; then
-    echo "Extract a password-protected ZIP file.\nUsage:\n unzip_pwd <zip_file> <password> [destination_path]"
-    return 1
-  fi
-  
-  unzip_name=${1}
-  if [ ! -f "$unzip_name" ]; then
-    echo "Error: File $unzip_name does not exist or is not a regular file"
-    return 1
-  fi
-  
-  unzip_path=${3:-$(dirname "$unzip_name")}
-  if [ ! -d "$unzip_path" ]; then
-    echo "Creating destination directory: $unzip_path"
-    mkdir -p "$unzip_path"
-  fi
-  
-  echo "Extracting password-protected: $unzip_name to $unzip_path"
-  unzip -q -P "$2" "$unzip_name" -d "$unzip_path" && 
-  echo "Extraction completed, files extracted to $unzip_path"
-}'  # Extract a password-protected ZIP file
+      local zip_dir=$(dirname "$zip_path")
+      local file_name=$(basename "$zip_path")
+      local zip_name="${2:-${file_name}$timestamp.zip}"
+      local pwd_note=""
+      [ $use_pwd -eq 1 ] && pwd_note=" with password protection"
 
-# =========================
-# TAR Compression Aliases
-# =========================
+      echo "Compressing file$pwd_note: $file_name to $zip_name"
+      _archive_pushd "$zip_dir" || return 1
 
-alias tar_cur='() { 
-  echo "Compress current directory with tar.\nUsage:\n tar_cur [output_filename]"
-  tar_name=${1:-$(basename $(pwd)).tar.gz}
-  
-  echo "Creating tar archive: $tar_name"
-  tar -czf "$tar_name" . && 
-  echo "Compression completed, saved to $tar_name"
-}'  # Compress current directory with tar
+      eval "zip $(_archive_zip_opts) $pwd_opt \"$zip_name\" \"$file_name\"" &&
+      echo "Compression completed, saved to $zip_dir/$zip_name"
 
-alias tar_dir='() { 
-  if [ $# -eq 0 ]; then 
-    echo "Compress a directory with tar.\nUsage:\n tar_dir <directory_path> [output_filename]"
-    return 1
-  fi
-  
-  tar_path=${1}
-  if [ ! -d "$tar_path" ]; then
-    echo "Error: Directory $tar_path does not exist"
-    return 1
-  fi
-  
-  tar_name=${2:-$(basename ${tar_path}).tar.gz}
-  
-  echo "Creating tar archive: $tar_name from directory: $tar_path"
-  tar -czf "$tar_name" "$tar_path" && 
-  echo "Compression completed, saved to $tar_name"
-}'  # Compress a directory with tar
+      _archive_popd
+    ;;
 
-alias tar_ext='() {
-  if [ $# -eq 0 ]; then
-    echo "Compress all files with specific extension using tar.\nUsage:\n tar_ext <file_extension> [target_directory]"
-    return 1
-  fi
-  
-  ext=${1}
-  tar_path=${2:-.}
-  if [ ! -d "$tar_path" ]; then
-    echo "Error: Directory $tar_path does not exist"
-    return 1
-  fi
-  
-  echo "Compressing all .$ext files in $tar_path"
-  
-  # Save current directory
-  current_dir=$(pwd)
-  
-  # Change to target directory
-  cd "$tar_path" || return 1
-  
-  # Check if any matching files exist
-  if [ -z "$(find . -type f -name "*.${ext}" -print -quit)" ]; then
-    echo "Warning: No files with extension .$ext found in $tar_path"
-    cd "$current_dir"
-    return 1
-  fi
-  
-  # Search and compress
-  find . -type f -name "*.${ext}" -print | xargs tar -czf "${ext}.tar.gz" && 
-  echo "Compression completed, saved to $tar_path/${ext}.tar.gz"
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Compress all files with specific extension using tar
+    cur)
+      local zip_name="${1:-$(basename $(pwd))$timestamp.zip}"
+      local pwd_note=""
+      [ $use_pwd -eq 1 ] && pwd_note=" with password protection"
 
-alias tar_sub='() { 
-  echo "Compress each subdirectory to separate tar archives.\nUsage:\n tar_sub [parent_directory]"
-  target_dir=${1:-.}
-  if [ ! -d "$target_dir" ]; then
-    echo "Error: Directory $target_dir does not exist"
-    return 1
-  fi
-  
-  echo "Compressing all subdirectories in $target_dir"
-  
-  # Save current directory
-  current_dir=$(pwd)
-  
-  # Change to target directory
-  cd "$target_dir" || return 1
-  
-  # Check if any subdirectories exist
-  if [ -z "$(ls -d ./*/ 2>/dev/null)" ]; then
-    echo "Warning: No subdirectories found in $target_dir"
-    cd "$current_dir"
-    return 1
-  fi
-  
-  # Process each subdirectory
-  for dir in $(ls -d ./*/); do 
-    timestamp=$(date +%Y%m%d%H%M%S)
-    archive_name="./$(basename "$dir")_${timestamp}.tar.gz"
-    echo "Compressing directory: $(basename "$dir") to $archive_name"
-    (tar -czf "$archive_name" "${dir}"* && 
-    echo "Successfully compressed to $archive_name")
-  done
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Compress each subdirectory to separate tar archives
+      echo "Compressing current directory$pwd_note to a ZIP file: $zip_name"
+      eval "zip $(_archive_zip_opts) $pwd_opt \"$zip_name\" ." &&
+      echo "Compression completed, saved to $zip_name"
+    ;;
 
-alias tar_each='() { 
-  echo "Compress each file in a directory to separate tar archives.\nUsage:\n tar_each [directory_path]"
-  target_dir=${1:-.}
-  if [ ! -d "$target_dir" ]; then
-    echo "Error: Directory $target_dir does not exist"
-    return 1
-  fi
-  
-  echo "Compressing each file in $target_dir"
-  
-  # Save current directory
-  current_dir=$(pwd)
-  
-  # Change to target directory
-  cd "$target_dir" || return 1
-  
-  # Check if any files exist
-  if [ -z "$(ls 2>/dev/null)" ]; then
-    echo "Warning: No files found in $target_dir"
-    cd "$current_dir"
-    return 1
-  fi
-  
-  # Compress each file
-  compressed_count=0
-  for file in $(ls); do 
-    # Skip directories and existing tar.gz files
-    if [ -f "$file" ] && [[ "$file" != *.tar.gz ]]; then
-      timestamp=$(date +%Y%m%d%H%M%S)
-      archive_name="./$(basename "$file")_${timestamp}.tar.gz"
-      echo "Compressing file: $file to $archive_name"
-      (tar -czf "$archive_name" "$file" && 
-      echo "Successfully compressed to $archive_name")
-      ((compressed_count++))
-    fi
-  done
-  
-  if [ $compressed_count -eq 0 ]; then
-    echo "No suitable files found for compression"
-  else
-    echo "Completed compressing $compressed_count files"
-  fi
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Compress each file in a directory to separate tar archives
+    ext)
+      # Check parameters
+      if [ $# -eq 0 ]; then
+        echo "Compress all files with specific extension.\nUsage:\n zip_utils ext <file_extension> [target_directory] [-p password] [-t]"
+        return 1
+      fi
 
-alias tar_single='() { 
-  if [ $# -eq 0 ]; then 
-    echo "Compress a single file with tar.\nUsage:\n tar_single <file_path> [output_filename]"
-    return 1
-  fi
-  
-  tar_path=${1}
-  if [ ! -f "$tar_path" ]; then
-    echo "Error: File $tar_path does not exist or is not a regular file"
-    return 1
-  fi
-  
-  tar_dir=$(dirname "$tar_path")
-  file_name=$(basename "$tar_path")
-  tar_name=${2:-${file_name}.tar.gz}
-  
-  echo "Compressing file: $file_name to $tar_name"
-  
-  current_dir=$(pwd)
-  
-  cd "$tar_dir" || return 1
-  
-  tar -czf "$tar_name" "$file_name" && 
-  echo "Compression completed, saved to $tar_dir/$tar_name"
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Compress a single file with tar
+      local ext="$1"
+      local zip_path="${2:-.}"
+      _archive_validate_dir "$zip_path" || return 1
 
-# =========================
-# TAR Extraction Aliases
-# =========================
+      echo "Compressing all .$ext files in $zip_path"
+      _archive_pushd "$zip_path" || return 1
 
-alias untar='() { 
-  if [ $# -eq 0 ]; then
-    echo "Extract a tar archive.\nUsage:\n untar <tar_file> [destination_path]"
-    return 1
-  fi
-  
-  untar_name=${1}
-  if [ ! -f "$untar_name" ]; then
-    echo "Error: File $untar_name does not exist or is not a regular file"
-    return 1
-  fi
-  
-  untar_path=${2:-$(dirname "$untar_name")}
-  if [ ! -d "$untar_path" ]; then
-    echo "Creating destination directory: $untar_path"
-    mkdir -p "$untar_path"
-  fi
-  
-  echo "Extracting: $untar_name to $untar_path"
-  tar -xzf "$untar_name" -C "$untar_path" && 
-  echo "Extraction completed, files extracted to $untar_path"
-}'  # Extract a tar archive
+      # Check if any matching files exist
+      if [ -z "$(find . -type f -name "*.${ext}" -print -quit 2>/dev/null)" ]; then
+        echo "Warning: No files with extension .$ext found in $zip_path"
+        _archive_popd
+        return 1
+      fi
 
-alias untar_each='() {
-  echo "Extract all tar archives in a directory.\nUsage:\n untar_each [directory_path]"
-  target_dir=${1:-.}
-  if [ ! -d "$target_dir" ]; then
-    echo "Error: Directory $target_dir does not exist"
-    return 1
-  fi
-  
-  # Save current directory
-  current_dir=$(pwd)
-  
-  # Change to target directory
-  cd "$target_dir" || return 1
-  
-  # Check if any tar files exist
-  if [ -z "$(ls *.tar.gz 2>/dev/null)" ]; then
-    if [ -z "$(ls *.tgz 2>/dev/null)" ]; then
-      echo "Warning: No tar archives found in $target_dir"
-      cd "$current_dir"
+      local output_name="${ext}$timestamp.zip"
+
+      # Search and compress
+      eval "find . -type f -name \"*.${ext}\" -print | xargs zip $(_archive_zip_opts) $pwd_opt \"$output_name\"" &&
+      echo "Compression completed, saved to $zip_path/$output_name"
+
+      _archive_popd
+    ;;
+
+    sub)
+      local target_dir="${1:-.}"
+      _archive_validate_dir "$target_dir" || return 1
+
+      echo "Compressing all subdirectories in $target_dir"
+      _archive_pushd "$target_dir" || return 1
+
+      # Check if any subdirectories exist
+      if [ -z "$(ls -d ./*/ 2>/dev/null)" ]; then
+        echo "Warning: No subdirectories found in $target_dir"
+        _archive_popd
+        return 1
+      fi
+
+      # Process each subdirectory
+      for dir in $(ls -d ./*/ 2>/dev/null); do
+        local dir_basename=$(basename "$dir")
+        local archive_name="./${dir_basename}$timestamp.zip"
+        echo "Compressing directory: $dir_basename to $archive_name"
+        eval "(zip $(_archive_zip_opts) $pwd_opt \"$archive_name\" \"${dir}\"* &&
+        echo \"Successfully compressed to $archive_name\")"
+      done
+
+      _archive_popd
+    ;;
+
+    each)
+      local target_dir="${1:-.}"
+      _archive_validate_dir "$target_dir" || return 1
+
+      echo "Compressing each file or subdirectory to separate ZIP files"
+      _archive_pushd "$target_dir" || return 1
+
+      # Check if any files exist
+      if [ -z "$(ls 2>/dev/null)" ]; then
+        echo "Warning: No files found in $target_dir"
+        _archive_popd
+        return 1
+      fi
+
+      # Create password file if using passwords
+      if [ $use_pwd -eq 1 ]; then
+        echo "Filename:Password" > password.txt
+        echo "Using password protection. Passwords will be saved to $target_dir/password.txt"
+      fi
+
+      # Compress each file or subdirectory
+      local compressed_count=0
+      for item in $(ls); do
+        # Skip existing zip files and password file
+        if [[ "$item" != *.zip ]] && [ "$item" != "password.txt" ]; then
+          local archive_name="./$(basename \"$item\")$timestamp.zip"
+          echo "Compressing: $item to $archive_name"
+
+          # Use password if specified
+          if [ $use_pwd -eq 1 ]; then
+            eval "zip $(_archive_zip_opts) $pwd_opt \"$archive_name\" \"$item\"" &&
+            echo "Successfully compressed to $archive_name with password protection" &&
+            echo "$(basename "$archive_name"):$password" >> password.txt
+          else
+            eval "zip $(_archive_zip_opts) \"$archive_name\" \"$item\"" &&
+            echo "Successfully compressed to $archive_name"
+          fi
+
+          ((compressed_count++))
+        fi
+      done
+
+      if [ $compressed_count -eq 0 ]; then
+        echo "No suitable items found for compression"
+        [ $use_pwd -eq 1 ] && rm password.txt
+      else
+        echo "Completed compressing $compressed_count items"
+      fi
+
+      _archive_popd
+    ;;
+
+    *)
+      echo "Unknown command: $command"
+      echo "$usage"
       return 1
-    fi
+    ;;
+  esac
+}'
+
+# ==========================
+# Legacy Compatibility Aliases
+# ==========================
+alias zip_cur='() { zip_utils cur "$@"; }'
+alias zip_dir='() { zip_utils dir "$@"; }'
+alias zip_dirp='() { local dir="$1"; local pwd="$2"; local name="$3"; zip_utils dir "$dir" "$name" -p "$pwd"; }'
+alias zip_ext='() { zip_utils ext "$@"; }'
+alias zip_sub='() { zip_utils sub "$@"; }'
+alias zip_each='() {
+  local OPTIND opt d p password
+  local use_date=0 use_pwd=0
+
+  # Parse legacy options
+  while getopts "dp:" opt; do
+    case $opt in
+      d) use_date=1 ;;
+      p) use_pwd=1; password=$OPTARG ;;
+      *) echo "Invalid option"; return 1 ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+
+  # Build new option string
+  local opts=""
+  [ $use_date -eq 1 ] && opts="$opts -t"
+  [ $use_pwd -eq 1 ] && opts="$opts -p \"$password\""
+
+  eval "zip_utils each $1 $opts"
+}'
+
+alias zip_single='() { zip_utils file "$@"; }'
+alias zip_singlep='() { local file="$1"; local pwd="$2"; local name="$3"; zip_utils file "$file" "$name" -p "$pwd"; }'
+
+# ==========================
+# Extraction Functions
+# ==========================
+
+# Unified ZIP extraction function
+alias unzip_utils='() {
+  local usage="ZIP extraction utilities. Available commands:
+    unzip_utils file <zip_file> [destination_path] [-p password]    - Extract a ZIP file
+    unzip_utils each [directory_path] [-p password]                - Extract all ZIP files in a directory"
+
+  # Parse command
+  if [ $# -eq 0 ]; then
+    echo "$usage"
+    return 1
   fi
-  
-  echo "Extracting all tar archives in $target_dir"
-  extracted_count=0
-  
-  # Extract .tar.gz files
-  for file in $(ls *.tar.gz 2>/dev/null); do 
-    dir_name=$(basename "$file" .tar.gz)
-    echo "Extracting: $file to ./$dir_name"
-    mkdir -p "./$dir_name"
-    tar -xzf "$file" -C "./$dir_name" && 
-    echo "Successfully extracted to ./$dir_name"
-    ((extracted_count++))
-  done
-  
-  # Extract .tgz files
-  for file in $(ls *.tgz 2>/dev/null); do 
-    dir_name=$(basename "$file" .tgz)
-    echo "Extracting: $file to ./$dir_name"
-    mkdir -p "./$dir_name"
-    tar -xzf "$file" -C "./$dir_name" && 
-    echo "Successfully extracted to ./$dir_name"
-    ((extracted_count++))
-  done
-  
-  echo "Completed extracting $extracted_count tar archives"
-  
-  # Return to original directory
-  cd "$current_dir"
-}'  # Extract all tar archives in a directory
 
-# =========================
-# General Archive Utilities
-# =========================
+  local command="$1"
+  shift
 
+  # Parse options
+  local OPTIND opt password
+  local use_pwd=0
+
+  while getopts "p:" opt; do
+    case $opt in
+      p) use_pwd=1; password="$OPTARG" ;;
+      *) echo "Invalid option"; return 1 ;;
+    esac
+  done
+  OPTIND=1
+
+  # Password option string
+  local pwd_opt=""
+  if [ $use_pwd -eq 1 ]; then
+    pwd_opt="-P \"$password\""
+  fi
+
+  # Process commands
+  case "$command" in
+    file)
+      # Check parameters
+      if [ $# -eq 0 ]; then
+        echo "Extract a ZIP file.\nUsage:\n unzip_utils file <zip_file> [destination_path] [-p password]"
+        return 1
+      fi
+
+      local unzip_name="$1"
+      _archive_validate_file "$unzip_name" || return 1
+
+      local unzip_path="${2:-$(dirname "$unzip_name")}"
+      if [ ! -d "$unzip_path" ]; then
+        echo "Creating destination directory: $unzip_path"
+        mkdir -p "$unzip_path"
+      fi
+
+      local pwd_note=""
+      [ $use_pwd -eq 1 ] && pwd_note=" (password-protected)"
+
+      echo "Extracting$pwd_note: $unzip_name to $unzip_path"
+      eval "unzip -q $pwd_opt \"$unzip_name\" -d \"$unzip_path\"" &&
+      echo "Extraction completed, files extracted to $unzip_path"
+    ;;
+
+    each)
+      local target_dir="${1:-.}"
+      _archive_validate_dir "$target_dir" || return 1
+
+      echo "Extracting all ZIP files in $target_dir"
+      _archive_pushd "$target_dir" || return 1
+
+      # Check if any zip files exist
+      if [ -z "$(ls *.zip 2>/dev/null)" ]; then
+        echo "Warning: No ZIP files found in $target_dir"
+        _archive_popd
+        return 1
+      fi
+
+      local extracted_count=0
+
+      for file in $(ls *.zip 2>/dev/null); do
+        local dir_name=$(basename "$file" .zip)
+        echo "Extracting: $file to ./$dir_name"
+        mkdir -p "./$dir_name"
+
+        if [ $use_pwd -eq 1 ]; then
+          eval "unzip -q $pwd_opt \"$file\" -d \"./$dir_name\"" &&
+          echo "Successfully extracted to ./$dir_name"
+        else
+          unzip -q "$file" -d "./$dir_name" &&
+          echo "Successfully extracted to ./$dir_name"
+        fi
+
+        ((extracted_count++))
+      done
+
+      echo "Completed extracting $extracted_count ZIP files"
+      _archive_popd
+    ;;
+
+    *)
+      echo "Unknown command: $command"
+      echo "$usage"
+      return 1
+    ;;
+  esac
+}'
+
+# Legacy compatibility aliases
+alias unzip_file='() { unzip_utils file "$@"; }'
+alias unzip_each='() { unzip_utils each "$@"; }'
+alias unzip_pwd='() { local file="$1"; local pwd="$2"; local dest="$3"; unzip_utils file "$file" "$dest" -p "$pwd"; }'
+
+# ==========================
+# Core TAR Functions
+# ==========================
+
+# Unified TAR compression function
+alias tar_utils='() {
+  local usage="TAR utilities. Available commands:
+    tar_utils dir <directory> [output_name] [-f format] [-t]     - Compress directory
+    tar_utils file <file> [output_name] [-f format] [-t]         - Compress single file
+    tar_utils cur [output_name] [-f format] [-t]                 - Compress current directory
+    tar_utils ext <extension> [target_dir] [-f format] [-t]      - Compress files with extension
+    tar_utils sub [parent_dir] [-f format] [-t]                  - Compress subdirectories
+    tar_utils each [target_dir] [-f format] [-t]                 - Compress each item separately
+
+    Available formats:
+      gz/gzip (default) - gzip compression (.tar.gz)
+      bz2/bzip         - bzip2 compression (.tar.bz2)
+      xz               - xz compression (.tar.xz)"
+
+  # Parse command
+  if [ $# -eq 0 ]; then
+    echo "$usage"
+    return 1
+  fi
+
+  local command="$1"
+  shift
+
+  # Parse options
+  local OPTIND opt format timestamp_flag
+  local use_date=0
+  local compress_format="gz"
+
+  while getopts "f:t" opt; do
+    case $opt in
+      f) compress_format="$OPTARG" ;;
+      t) use_date=1 ;;
+      *) echo "Invalid option"; return 1 ;;
+    esac
+  done
+  OPTIND=1
+
+  # Generate timestamp if needed
+  local timestamp=""
+  if [ $use_date -eq 1 ]; then
+    timestamp="_$(date +%Y%m%d%H%M%S)"
+  fi
+
+  # Get file extension based on format
+  local file_ext=$(_archive_tar_extension "$compress_format")
+  local compress_opt=$(_archive_tar_compress_opt "$compress_format")
+
+  # Process commands
+  case "$command" in
+    dir)
+      # Check parameters
+      if [ $# -eq 0 ]; then
+        echo "Compress a directory to a TAR file.\nUsage:\n tar_utils dir <directory_path> [output_filename] [-f format] [-t]"
+        return 1
+      fi
+
+      local tar_path="$1"
+      _archive_validate_dir "$tar_path" || return 1
+
+      local tar_name="${2:-$(basename ${tar_path})$timestamp.$file_ext}"
+
+      echo "Creating archive ($compress_format): $tar_name from directory: $tar_path"
+      eval "tar $compress_opt -cf \"$tar_name\" $(_archive_tar_opts) -C \"$(dirname \"$tar_path\")\" \"$(basename \"$tar_path\")\"" &&
+      echo "Compression completed, saved to $tar_name"
+    ;;
+
+    file)
+      # Check parameters
+      if [ $# -eq 0 ]; then
+        echo "Compress a single file to TAR format.\nUsage:\n tar_utils file <file_path> [output_filename] [-f format] [-t]"
+        return 1
+      fi
+
+      local tar_path="$1"
+      _archive_validate_file "$tar_path" || return 1
+
+      local tar_dir=$(dirname "$tar_path")
+      local file_name=$(basename "$tar_path")
+      local tar_name="${2:-${file_name}$timestamp.$file_ext}"
+
+      echo "Compressing file: $file_name to $tar_name"
+      _archive_pushd "$tar_dir" || return 1
+
+      eval "tar $compress_opt -cf \"$tar_name\" $(_archive_tar_opts) \"$file_name\"" &&
+      echo "Compression completed, saved to $tar_dir/$tar_name"
+
+      _archive_popd
+    ;;
+
+    cur)
+      local tar_name="${1:-$(basename $(pwd))$timestamp.$file_ext}"
+
+      echo "Compressing current directory to a TAR file: $tar_name"
+      eval "tar $compress_opt -cf \"$tar_name\" $(_archive_tar_opts) ." &&
+      echo "Compression completed, saved to $tar_name"
+    ;;
+
+    ext)
+      # Check parameters
+      if [ $# -eq 0 ]; then
+        echo "Compress all files with specific extension.\nUsage:\n tar_utils ext <file_extension> [target_directory] [-f format] [-t]"
+        return 1
+      fi
+
+      local ext="$1"
+      local tar_path="${2:-.}"
+      _archive_validate_dir "$tar_path" || return 1
+
+      echo "Compressing all .$ext files in $tar_path"
+      _archive_pushd "$tar_path" || return 1
+
+      # Check if any matching files exist
+      if [ -z "$(find . -type f -name "*.${ext}" -print -quit 2>/dev/null)" ]; then
+        echo "Warning: No files with extension .$ext found in $tar_path"
+        _archive_popd
+        return 1
+      fi
+
+      local output_name="${ext}$timestamp.$file_ext"
+
+      # Create file list
+      find . -type f -name "*.${ext}" > .tmpfilelist
+
+      # Compress files
+      eval "tar $compress_opt -cf \"$output_name\" $(_archive_tar_opts) -T .tmpfilelist" &&
+      echo "Compression completed, saved to $tar_path/$output_name"
+
+      # Clean up
+      rm .tmpfilelist
+      _archive_popd
+    ;;
+
+    sub)
+      local target_dir="${1:-.}"
+      _archive_validate_dir "$target_dir" || return 1
+
+      echo "Compressing all subdirectories in $target_dir"
+      _archive_pushd "$target_dir" || return 1
+
+      # Check if any subdirectories exist
+      if [ -z "$(ls -d ./*/ 2>/dev/null)" ]; then
+        echo "Warning: No subdirectories found in $target_dir"
+        _archive_popd
+        return 1
+      fi
+
+      # Process each subdirectory
+      for dir in $(ls -d ./*/ 2>/dev/null); do
+        local dir_basename=$(basename "$dir")
+        local archive_name="./${dir_basename}$timestamp.$file_ext"
+        echo "Compressing directory: $dir_basename to $archive_name"
+        eval "(tar $compress_opt -cf \"$archive_name\" $(_archive_tar_opts) \"${dir%/}\" &&
+        echo \"Successfully compressed to $archive_name\")"
+      done
+
+      _archive_popd
+    ;;
+
+    each)
+      local target_dir="${1:-.}"
+      _archive_validate_dir "$target_dir" || return 1
+
+      echo "Compressing each file or subdirectory to separate TAR files"
+      _archive_pushd "$target_dir" || return 1
+
+      # Check if any files exist
+      if [ -z "$(ls 2>/dev/null)" ]; then
+        echo "Warning: No files found in $target_dir"
+        _archive_popd
+        return 1
+      fi
+
+      # Compress each file or subdirectory
+      local compressed_count=0
+      for item in $(ls); do
+        # Skip existing archive files
+        if [[ "$item" != *.tar.* ]]; then
+          local archive_name="./$(basename "$item")$timestamp.$file_ext"
+          echo "Compressing: $item to $archive_name"
+
+          eval "tar $compress_opt -cf \"$archive_name\" $(_archive_tar_opts) \"$item\"" &&
+          echo "Successfully compressed to $archive_name"
+
+          ((compressed_count++))
+        fi
+      done
+
+      if [ $compressed_count -eq 0 ]; then
+        echo "No suitable items found for compression"
+      else
+        echo "Completed compressing $compressed_count items"
+      fi
+
+      _archive_popd
+    ;;
+
+    *)
+      echo "Unknown command: $command"
+      echo "$usage"
+      return 1
+    ;;
+  esac
+}'
+
+# Legacy compatibility aliases for TAR
+alias tar_dir='() { tar_utils dir "$@"; }'
+alias tar_file='() { tar_utils file "$@"; }'
+alias tar_cur='() { tar_utils cur "$@"; }'
+alias tar_ext='() { tar_utils ext "$@"; }'
+alias tar_sub='() { tar_utils sub "$@"; }'
+alias tar_each='() { tar_utils each "$@"; }'
+
+# Format-specific aliases
+alias tgz_dir='() { tar_utils dir "$@" -f gz; }'
+alias tbz2_dir='() { tar_utils dir "$@" -f bz2; }'
+alias txz_dir='() { tar_utils dir "$@" -f xz; }'
+
+# TAR extraction function
+alias untar_utils='() {
+  local usage="TAR extraction utilities. Available commands:
+    untar_utils file <tar_file> [destination_path]     - Extract a TAR file
+    untar_utils each [directory_path]                 - Extract all TAR files in a directory"
+
+  # Parse command
+  if [ $# -eq 0 ]; then
+    echo "$usage"
+    return 1
+  fi
+
+  local command="$1"
+  shift
+
+  # Process commands
+  case "$command" in
+    file)
+      # Check parameters
+      if [ $# -eq 0 ]; then
+        echo "Extract a TAR file.\nUsage:\n untar_utils file <tar_file> [destination_path]"
+        return 1
+      fi
+
+      local untar_name="$1"
+      _archive_validate_file "$untar_name" || return 1
+
+      local untar_path="${2:-$(dirname "$untar_name")}"
+      if [ ! -d "$untar_path" ]; then
+        echo "Creating destination directory: $untar_path"
+        mkdir -p "$untar_path"
+      fi
+
+      # Auto-detect compression format based on extension
+      local compress_opt=""
+      if [[ "$untar_name" == *.tar.gz ]] || [[ "$untar_name" == *.tgz ]]; then
+        compress_opt="-z"
+      elif [[ "$untar_name" == *.tar.bz2 ]] || [[ "$untar_name" == *.tbz2 ]]; then
+        compress_opt="-j"
+      elif [[ "$untar_name" == *.tar.xz ]]; then
+        compress_opt="-J"
+      fi
+
+      echo "Extracting: $untar_name to $untar_path"
+      eval "tar $compress_opt -xf \"$untar_name\" -C \"$untar_path\"" &&
+      echo "Extraction completed, files extracted to $untar_path"
+    ;;
+
+    each)
+      local target_dir="${1:-.}"
+      _archive_validate_dir "$target_dir" || return 1
+
+      echo "Extracting all TAR files in $target_dir"
+      _archive_pushd "$target_dir" || return 1
+
+      # Check if any tar files exist
+      if [ -z "$(ls *.tar* 2>/dev/null)" ]; then
+        echo "Warning: No TAR files found in $target_dir"
+        _archive_popd
+        return 1
+      fi
+
+      local extracted_count=0
+
+      # Extract .tar files
+      for file in $(ls *.tar 2>/dev/null); do
+        local dir_name=$(basename "$file" .tar)
+        echo "Extracting: $file to ./$dir_name"
+        mkdir -p "./$dir_name"
+        tar -xf "$file" -C "./$dir_name" &&
+        echo "Successfully extracted to ./$dir_name"
+        ((extracted_count++))
+      done
+
+      # Extract .tar.gz and .tgz files
+      for file in $(ls *.tar.gz *.tgz 2>/dev/null | sort -u); do
+        [ -f "$file" ] || continue
+        local dir_name=$(basename "$file" | sed "s/\.tar\.gz$//;s/\.tgz$//")
+        echo "Extracting: $file to ./$dir_name"
+        mkdir -p "./$dir_name"
+        tar -zxf "$file" -C "./$dir_name" &&
+        echo "Successfully extracted to ./$dir_name"
+        ((extracted_count++))
+      done
+
+      # Extract .tar.bz2 and .tbz2 files
+      for file in $(ls *.tar.bz2 *.tbz2 2>/dev/null | sort -u); do
+        [ -f "$file" ] || continue
+        local dir_name=$(basename "$file" | sed "s/\.tar\.bz2$//;s/\.tbz2$//")
+        echo "Extracting: $file to ./$dir_name"
+        mkdir -p "./$dir_name"
+        tar -jxf "$file" -C "./$dir_name" &&
+        echo "Successfully extracted to ./$dir_name"
+        ((extracted_count++))
+      done
+
+      # Extract .tar.xz files
+      for file in $(ls *.tar.xz 2>/dev/null); do
+        [ -f "$file" ] || continue
+        local dir_name=$(basename "$file" .tar.xz)
+        echo "Extracting: $file to ./$dir_name"
+        mkdir -p "./$dir_name"
+        tar -Jxf "$file" -C "./$dir_name" &&
+        echo "Successfully extracted to ./$dir_name"
+        ((extracted_count++))
+      done
+
+      echo "Completed extracting $extracted_count TAR files"
+      _archive_popd
+    ;;
+
+    *)
+      echo "Unknown command: $command"
+      echo "$usage"
+      return 1
+    ;;
+  esac
+}'
+
+# Legacy compatibility aliases for TAR extraction
+alias untar_file='() { untar_utils file "$@"; }'
+alias untar_each='() { untar_utils each "$@"; }'
+
+# Combined archive utilities (handles both ZIP and TAR)
+alias archive_utils='() {
+  local usage="Archive utilities. Available commands:
+    archive_utils compress <type> <command> [options]   - Compress files using specified archive type
+    archive_utils extract <type> <command> [options]    - Extract files from specified archive type
+
+    Available types:
+      zip - ZIP archives (.zip)
+      tar - TAR archives (.tar, .tar.gz, .tar.bz2, .tar.xz)
+
+    Run with just the type to see available commands:
+      archive_utils compress zip
+      archive_utils extract tar"
+
+  # Parse command
+  if [ $# -lt 2 ]; then
+    echo "$usage"
+    return 1
+  fi
+
+  local operation="$1"
+  local type="$2"
+  shift 2
+
+  case "$operation" in
+    compress)
+      case "$type" in
+        zip) zip_utils "$@" ;;
+        tar) tar_utils "$@" ;;
+        *) echo "Unknown archive type: $type"; return 1 ;;
+      esac
+    ;;
+
+    extract)
+      case "$type" in
+        zip) unzip_utils "$@" ;;
+        tar) untar_utils "$@" ;;
+        *) echo "Unknown archive type: $type"; return 1 ;;
+      esac
+    ;;
+
+    *)
+      echo "Unknown operation: $operation"
+      echo "$usage"
+      return 1
+    ;;
+  esac
+}'
+
+# Auto-detect and extract any archive type
 alias extract='() {
   if [ $# -eq 0 ]; then
     echo "Extract any supported archive file.\nUsage:\n extract <archive_file> [destination_path]"
     return 1
   fi
-  
-  archive_file=${1}
-  if [ ! -f "$archive_file" ]; then
-    echo "Error: File $archive_file does not exist or is not a regular file"
-    return 1
-  fi
-  
-  extract_path=${2:-$(dirname "$archive_file")}
-  if [ ! -d "$extract_path" ]; then
-    echo "Creating destination directory: $extract_path"
-    mkdir -p "$extract_path"
-  fi
-  
-  echo "Extracting: $archive_file to $extract_path"
-  
-  case $archive_file in
-    *.tar.bz2)   tar -xjf "$archive_file" -C "$extract_path" ;;
-    *.tar.gz)    tar -xzf "$archive_file" -C "$extract_path" ;;
-    *.tar.xz)    tar -xJf "$archive_file" -C "$extract_path" ;;
-    *.bz2)       bunzip2 -k "$archive_file" ;;
-    *.rar)       unrar x "$archive_file" "$extract_path" ;;
-    *.gz)        gunzip -k "$archive_file" ;;
-    *.tar)       tar -xf "$archive_file" -C "$extract_path" ;;
-    *.tbz2)      tar -xjf "$archive_file" -C "$extract_path" ;;
-    *.tgz)       tar -xzf "$archive_file" -C "$extract_path" ;;
-    *.zip)       unzip -q "$archive_file" -d "$extract_path" ;;
-    *.Z)         uncompress "$archive_file" ;;
-    *.7z)        7z x "$archive_file" -o"$extract_path" ;;
-    *)           echo "Error: $archive_file cannot be extracted via extract" && return 1 ;;
-  esac
-  
-  echo "Extraction completed, files extracted to $extract_path"
-}'  # Extract any supported archive file
 
-alias archive_info='() {
-  if [ $# -eq 0 ]; then
-    echo "Display information about an archive file.\nUsage:\n archive_info <archive_file>"
-    return 1
-  fi
-  
-  archive_file=${1}
-  if [ ! -f "$archive_file" ]; then
-    echo "Error: File $archive_file does not exist or is not a regular file"
-    return 1
-  fi
-  
-  echo "Archive information for: $archive_file"
-  echo "----------------------------------------"
-  
-  case $archive_file in
-    *.tar.bz2|*.tbz2)   echo "Type: TAR+BZIP2"; tar -tjf "$archive_file" | sort ;;
-    *.tar.gz|*.tgz)     echo "Type: TAR+GZIP"; tar -tzf "$archive_file" | sort ;;
-    *.tar.xz)           echo "Type: TAR+XZ"; tar -tJf "$archive_file" | sort ;;
-    *.tar)              echo "Type: TAR"; tar -tf "$archive_file" | sort ;;
-    *.zip)              echo "Type: ZIP"; unzip -l "$archive_file" ;;
-    *.rar)              echo "Type: RAR"; unrar l "$archive_file" ;;
-    *.7z)               echo "Type: 7-Zip"; 7z l "$archive_file" ;;
-    *)                  echo "Error: Unsupported archive format" && return 1 ;;
-  esac
-  
-  echo "----------------------------------------"
-  file_size=$(du -h "$archive_file" | cut -f1)
-  echo "Archive size: $file_size"
-}'  # Display information about an archive file
+  local file="$1"
+  local destination="${2:-$(dirname "$file")}"
 
-# Set aliases compatible with non-macOS systems
-if [ "$(uname)" != "Darwin" ]; then
-  # Override the unzip function for Linux systems
-  alias unzip='unzip_file'
-fi
+  if [ ! -f "$file" ]; then
+    echo "Error: File $file does not exist"
+    return 1
+  fi
+
+  if [ ! -d "$destination" ]; then
+    echo "Creating destination directory: $destination"
+    mkdir -p "$destination"
+  fi
+
+  echo "Extracting $file to $destination"
+
+  case "$file" in
+    *.zip)
+      unzip_utils file "$file" "$destination"
+      ;;
+    *.tar)
+      untar_utils file "$file" "$destination"
+      ;;
+    *.tar.gz|*.tgz)
+      untar_utils file "$file" "$destination"
+      ;;
+    *.tar.bz2|*.tbz2)
+      untar_utils file "$file" "$destination"
+      ;;
+    *.tar.xz)
+      untar_utils file "$file" "$destination"
+      ;;
+    *.rar)
+      if command -v unrar &> /dev/null; then
+        unrar x "$file" "$destination"
+      else
+        echo "Error: unrar is not installed"
+        return 1
+      fi
+      ;;
+    *.7z)
+      if command -v 7z &> /dev/null; then
+        7z x "$file" -o"$destination"
+      else
+        echo "Error: 7z is not installed"
+        return 1
+      fi
+      ;;
+    *)
+      echo "Error: Unsupported archive format"
+      return 1
+      ;;
+  esac
+
+  echo "Extraction completed: $file -> $destination"
+}'
+

@@ -8,5 +8,10 @@ alias cs='() {
   fi
   CHEATSHEET_REMOTE_URL="${REMOTE_URL_PREFIX}utilities/shell/cheatsheet.sh"
   echo "Command cheatsheet tool.\nUsage:\n cs [command] to view specific command\n cs -l to list all supported commands"
-  curl -sSL "$CHEATSHEET_REMOTE_URL" | bash -s -- "$@"
+  if [ $# -eq 0 ]; then
+    tmpfile=$(mktemp)
+    curl -sSL "$CHEATSHEET_REMOTE_URL" -o "$tmpfile" && chmod +x "$tmpfile" && "$tmpfile"
+  else
+    curl -sSL "$CHEATSHEET_REMOTE_URL" | bash -s -- "$@" || echo "Error executing command."
+  fi
 }'
