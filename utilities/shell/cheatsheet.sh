@@ -19,9 +19,9 @@
 set -euo pipefail
 
 # 默认URL前缀
-DEFAULT_URL="https://github.com/funnyzak/dotfiles/raw/refs/heads/${REPO_BRANCH:-main}/docs/command/"
+DEFAULT_URL="https://github.com/funnyzak/dotfiles/raw/refs/heads/${REPO_BRANCH:-main}/docs/cli/"
 # 中国地区加速URL前缀
-CN_URL="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/docs/command/"
+CN_URL="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/docs/cli/"
 
 # 支持的命令列表及其描述和所属分类
 declare -A COMMANDS
