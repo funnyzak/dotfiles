@@ -147,3 +147,31 @@ alias upgrade_omz_config='() {
   curl -fsSL "$zsh_config_download_url" > ~/.zshrc
 }'
 
+best_remote_url_prefix() {
+  REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/"
+  REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/"
+
+  # Check if CN mirror is accessible
+  if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
+    REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
+  fi
+
+  echo $REMOTE_URL_PREFIX
+}
+
+if [ ! -d "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-autosuggestions" ]; then
+  curl -L "$(best_remote_url_prefix)/templates/packages/zsh/plugins/zsh-autosuggestions-master.zip" -o zsh-autosuggestions-master.zip
+  unzip zsh-autosuggestions-master.zip -d "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/"
+  rm zsh-autosuggestions-master.zip
+fi
+
+if [ ! -d "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-syntax-highlighting" ]; then
+  curl -L "$(best_remote_url_prefix)/templates/packages/zsh/plugins/zsh-syntax-highlighting-master.tar.gz" -o zsh-syntax-highlighting-master.tar.gz
+  tar -xzf zsh-syntax-highlighting-master.tar.gz -C "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/"
+  rm zsh-syntax-highlighting-master.tar.gz
+fi
+
+source ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+source ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+
