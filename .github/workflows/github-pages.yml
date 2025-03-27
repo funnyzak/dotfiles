@@ -3,16 +3,16 @@ name: Deploy to GitHub Pages
 on:
   workflow_dispatch: {}
   push:
-    # branches:
-    #   - main
-    # paths-ignore:
-    #   - 'README.md'
-    #   - 'LICENSE'
-    #   - '.github/**'
-    #   - '.gitignore'
-    #   - '.git/**'
-    #   - '.idea/**'
-    #   - '.vscode/**'
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - '.github/**'
+      - '.gitignore'
+      - '.git/**'
+      - '.idea/**'
+      - '.vscode/**'
   pull_request:
     branches:
       - main
