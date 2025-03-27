@@ -97,11 +97,69 @@ source $ZSH/oh-my-zsh.sh
 # the $ZSH_CUSTOM folder, with .zsh extension. Examples:
 # - $ZSH_CUSTOM/aliases.zsh
 # - $ZSH_CUSTOM/macos.zsh
-# For a full list of active aliases, run `alias`.
-#
-# Example aliases
-# alias zshconfig="mate ~/.zshrc"
-# alias ohmyzsh="mate ~/.oh-my-zsh"
+
+color_echo() {
+  local color=$1
+  local message=$2
+  case "$color" in
+    red)    color_code="31";;
+    green)  color_code="32";;
+    yellow) color_code="33";;
+    blue)   color_code="34";;
+    magenta)color_code="35";;
+    cyan)   color_code="36";;
+    *)      color_code="39";;
+  esac
+  echo -e "\e[${color_code}m${message}\e[0m"
+}
+
+local shell_zsh_remote_url="https://raw.gitcode.com/funnyzak/dotfiles/raw/dev/"
+local custom_functions_path="${ZSH:-$HOME/.oh-my-zsh}/custom/custom_functions.zsh"
+local functions_url="${shell_zsh_remote_url}shells/oh-my-zsh/custom/custom_functions.zsh"
+
+load_custom_functions() {
+  if [ -f "$custom_functions_path" ]; then
+    source "$custom_functions_path"
+  else
+    color_echo yellow "Custom functions file not found at: $custom_functions_path"
+    download_custom_functions
+  fi
+}
+
+download_custom_functions() {
+  color_echo yellow "Downloading custom functions from: $functions_url"
+  if command -v curl >/dev/null 2>&1; then
+    curl -sSL -o "$custom_functions_path" "$functions_url"
+    if [[ $? -eq 0 ]]; then
+      color_echo green "Custom functions downloaded successfully to: $custom_functions_path"
+      source "$custom_functions_path"
+    else
+      color_echo red "Error downloading custom functions using curl."
+      color_echo red "Please check the URL and your network connection."
+    fi
+  elif command -v wget >/dev/null 2>&1; then # Fallback to wget if curl is not available
+    wget -q -O "$custom_functions_path" "$functions_url"
+    if [[ $? -eq 0 ]]; then
+      color_echo green "Custom functions downloaded successfully to: $custom_functions_path"
+      source "$custom_functions_path"
+    else
+      color_echo red "Error downloading custom functions using wget."
+      color_echo red "Please check the URL and your network connection."
+    fi
+  else
+    color_echo red "Error: Neither curl nor wget is available to download functions."
+    color_echo red "Please install curl or wget and try again, or manually create $custom_functions_path."
+  fi
+}
+
+load_custom_functions
+
+alias upgrade_custom_functions='(){
+  download_custom_functions && color_echo green "Custom functions updated and reloaded."
+}'
+alias reload_custom_functions='(){
+  load_custom_functions && color_echo green "Custom functions reloaded."
+}'
 
 if [[ -d ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases ]]; then
   setopt nullglob

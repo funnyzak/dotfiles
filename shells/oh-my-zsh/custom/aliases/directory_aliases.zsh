@@ -1,15 +1,15 @@
 # Description: Directory navigation and file listing aliases for efficient filesystem operations.
 
 # 目录导航
-alias ..='() { 
+alias ..='() {
   echo "Navigate up one directory.\nUsage:\n .."
   cd ..
 }'  # Navigate up one directory
-alias ...='() { 
+alias ...='() {
   echo "Navigate up two directories.\nUsage:\n ..."
   cd ../..
 }'  # Navigate up two directories
-alias ~='() { 
+alias ~='() {
   echo "Navigate to home directory.\nUsage:\n ~"
   cd ~
 }'  # Navigate to home directory
@@ -24,23 +24,23 @@ alias mkcd='() {
 }'  # Create a directory and navigate into it
 
 # 列表显示
-alias ll='() { 
+alias ll='() {
   echo "List files in long format with human-readable sizes.\nUsage:\n ll [directory_path]"
   ls -lh ${@:-./}
 }'  # List files in long format with human-readable sizes
-alias la='() { 
-  echo "List all files including hidden ones.\nUsage:\n la [directory_path]" 
+alias la='() {
+  echo "List all files including hidden ones.\nUsage:\n la [directory_path]"
   ls -lah ${@:-./}
 }'  # List all files including hidden ones
-alias lsa='() { 
+alias lsa='() {
   echo "List all files including hidden ones in single column.\nUsage:\n lsa [directory_path]"
   ls -1lah ${@:-./}
 }'  # List all files including hidden ones in single column
-alias lsdir='() { 
+alias lsdir='() {
   echo "List only directories.\nUsage:\n lsdir [directory_path]"
   ls -1d ${1:-./}*/
 }'  # List only directories
-alias lsfile='() { 
+alias lsfile='() {
   echo "List only files in the specified directory.\nUsage:\n lsfile [directory_path]"
   ls -1p ${1:-./} | grep -v /
 }'  # List only files
@@ -190,90 +190,84 @@ alias log1000='() {
   echo "Display last 1000 lines of file and follow updates.\nUsage:\n log1000 <file_path>"
   tail -f -n 1000 "$@"
 }'  # Display last 1000 lines of file and follow updates
-
-# 文件编辑
-alias vim='() {
-  echo "Edit file with vim.\nUsage:\n vim <file_path>"
-  command vim "$@"
-}'  # Edit file with vim
-alias vi='() {
-  echo "Edit file with vi.\nUsage:\n vi <file_path>"
-  command vi "$@"
-}'  # Edit file with vi
+alias log2000='() {
+  echo "Display last 2000 lines of file and follow updates.\nUsage:\n log2000 <file_path>"
+  tail -f -n 2000 "$@"
+}'  # Display last 2000 lines of file and follow updates
 
 # 文件模板创建
-alias t_md='() { 
+alias t_md='() {
   echo "Create README.md file.\nUsage:\n t_md [directory_path]"
   file_path="${1:-.}/README.md"
   touch "$file_path" && echo "Created file: $file_path"
 }'  # Create README.md file
-alias t_txt='() { 
+alias t_txt='() {
   echo "Create README.txt file.\nUsage:\n t_txt [directory_path]"
   file_path="${1:-.}/README.txt"
   touch "$file_path" && echo "Created file: $file_path"
 }'  # Create README.txt file
-alias t_py='() { 
+alias t_py='() {
   echo "Create Python file.\nUsage:\n t_py [directory_path]"
   file_path="${1:-.}/main.py"
   touch "$file_path" && echo "Created file: $file_path"
 }'  # Create Python file
-alias t_sh='() { 
+alias t_sh='() {
   echo "Create executable Shell script.\nUsage:\n t_sh [directory_path]"
   file_path="${1:-.}/main.sh"
-  touch "$file_path" && echo "Created file: $file_path" 
+  touch "$file_path" && echo "Created file: $file_path"
   chmod +x "$file_path"
   echo "Made file executable"
 }'  # Create executable Shell script
-alias t_js='() { 
+alias t_js='() {
   echo "Create JavaScript file.\nUsage:\n t_js [directory_path]"
   file_path="${1:-.}/main.js"
   touch "$file_path" && echo "Created file: $file_path"
 }'  # Create JavaScript file
-alias t_json='() { 
+alias t_json='() {
   echo "Create JSON file.\nUsage:\n t_json [directory_path]"
   file_path="${1:-.}/main.json"
   touch "$file_path" && echo "Created file: $file_path"
 }'  # Create JSON file
-alias t_html='() { 
+alias t_html='() {
   echo "Create HTML file.\nUsage:\n t_html [directory_path]"
   file_path="${1:-.}/index.html"
   touch "$file_path" && echo "Created file: $file_path"
 }'  # Create HTML file
 
 # 批量文件创建
-alias cf_files='() { 
-  if [ $# -eq 0 ]; then 
+alias cf_files='() {
+  if [ $# -eq 0 ]; then
     echo "Create multiple files with specified prefix and suffix.\nUsage:\n cf_files <file_prefix> <file_suffix> [file_count] [target_path] [zero_padding]"
     return 0
-  fi 
+  fi
   file_prefix="${1}"
   file_suffix="${2}"
   file_count="${3:-1}"
   target_path="${4:-.}"
   zero_fill=${5:-4}
-  
+
   echo "Creating $file_count files with prefix '$file_prefix' and suffix '.$file_suffix' in $target_path"
   mkdir -p "$target_path"
-  for ((i=1;i<=$file_count;i++)); do 
+  for ((i=1;i<=$file_count;i++)); do
     fileName="${target_path}/${file_prefix}$(printf "%0${zero_fill}d" $i).${file_suffix}"
     touch "$fileName"
     echo "Created: $fileName"
   done
 }'  # Create multiple files with specified prefix and suffix
-alias tf_dir_ext_file='() { 
-  if [ $# -eq 0 ]; then 
+alias tf_dir_ext_file='() {
+  if [ $# -eq 0 ]; then
     echo "Create files with new extension based on existing files.\nUsage:\n tf_dir_ext_file <new_extension> [search_extension] [source_path] [target_path]"
     return 0
-  fi 
+  fi
   new_suffix="${1}"
   search_suffix="${2:-*}"
   source_path="${3:-.}"
   target_path="${4:-${source_path}}"
-  
+
   echo "Creating files with .$new_suffix extension based on .$search_suffix files in $source_path"
   mkdir -p "$target_path"
-  for source_file in "$source_path"/*.${search_suffix}; do 
-    if [ -e "$source_file" ]; then 
+  for source_file in "$source_path"/*.${search_suffix}; do
+    if [ -e "$source_file" ]; then
       file_name_no_ext=$(basename "$source_file" .$search_suffix)
       new_file="${target_path}/${file_name_no_ext}.${new_suffix}"
       touch "$new_file"
