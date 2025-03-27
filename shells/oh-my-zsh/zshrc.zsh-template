@@ -113,43 +113,9 @@ if [[ -d ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases ]]; then
   unsetopt nullglob
 fi
 
-# Install oh-my-zsh alias files from remote repository (Linux/macOS)
-alias install_omz_aliases='() {
-  REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/"
-  REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/"
-
-  # Check if CN mirror is accessible
-  if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
-    REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
-  fi
-
-  echo "Installing oh-my-zsh alias files from remote repository..."
-  echo "Using remote URL: $REMOTE_URL_PREFIX"
-
-  curl -fsSL "${REMOTE_URL_PREFIX}shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
-}'
-
-# Upgrade oh-my-zsh configuration from remote repository
-alias upgrade_omz_config='() {
-  REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/"
-  REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/"
-
-  # Check if CN mirror is accessible
-  if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
-    REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
-  fi
-
-  zsh_config_download_url="${REMOTE_URL_PREFIX}shells/oh-my-zsh/zshrc.zsh-template"
-
-  echo "Upgrading oh-my-zsh configuration from remote repository..."
-  echo "Using template URL: $zsh_config_download_url"
-
-  curl -fsSL "$zsh_config_download_url" > ~/.zshrc
-}'
-
 best_remote_url_prefix() {
-  REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/"
-  REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/"
+  local REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/"
+  local REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/"
 
   # Check if CN mirror is accessible
   if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
@@ -159,19 +125,56 @@ best_remote_url_prefix() {
   echo $REMOTE_URL_PREFIX
 }
 
-if [ ! -d "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-autosuggestions" ]; then
-  curl -L "$(best_remote_url_prefix)/templates/packages/zsh/plugins/zsh-autosuggestions.tar.gz" -o zsh-autosuggestions.tar.gz
-  tar -xzf zsh-autosuggestions.tar.gz -C "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/"
-  rm zsh-autosuggestions.tar.gz
-fi
+install_omz_plugins() {
+  local force=false
 
-if [ ! -d "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-syntax-highlighting" ]; then
-  curl -L "$(best_remote_url_prefix)/templates/packages/zsh/plugins/zsh-syntax-highlighting.tar.gz" -o zsh-syntax-highlighting.tar.gz
-  tar -xzf zsh-syntax-highlighting.tar.gz -C "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/"
-  rm zsh-syntax-highlighting.tar.gz
-fi
+  # Parse command line arguments
+  while [[ "$#" -gt 0 ]]; do
+    case $1 in
+      -f|--force) force=true; shift ;;
+      *) echo "Unknown parameter: $1"; return 1 ;;
+    esac
+  done
+  # Install zsh-autosuggestions
+  if [ ! -d "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-autosuggestions" ] || [ "$force" = true ]; then
+    mkdir -p "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-autosuggestions"
+    curl -L "$(best_remote_url_prefix)/templates/packages/zsh/plugins/zsh-autosuggestions-master.zip" -o zsh-autosuggestions.zip >/dev/null
+    unzip zsh-autosuggestions.zip -d "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-autosuggestions" >/dev/null
+    rm zsh-autosuggestions.zip
+  fi
 
-source ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-source ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+  # Install zsh-syntax-highlighting
+  if [ ! -d "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-syntax-highlighting" ] || [ "$force" = true ]; then
+    mkdir -p "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-syntax-highlighting"
+    curl -L "$(best_remote_url_prefix)/templates/packages/zsh/plugins/zsh-syntax-highlighting-master.tar.gz" -o zsh-syntax-highlighting.tar.gz >/dev/null
+    tar -xzf zsh-syntax-highlighting.tar.gz -C "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-syntax-highlighting" >/dev/null
+    rm zsh-syntax-highlighting.tar.gz
+  fi
+}
 
+install_omz_plugins
+source ${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+source ${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
+# Install oh-my-zsh alias files from remote repository (Linux/macOS)
+alias install_omz_aliases='() {
+  echo "Installing oh-my-zsh alias files from remote repository..."
+  curl -fsSL "$(best_remote_url_prefix)shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
+}'
+
+# Upgrade oh-my-zsh configuration from remote repository
+alias upgrade_omz_config='() {
+  local zsh_config_download_url="$(best_remote_url_prefix)shells/oh-my-zsh/zshrc.zsh-template"
+
+  echo "Upgrading oh-my-zsh configuration from remote repository..."
+  echo "Using template URL: $zsh_config_download_url"
+
+  curl -fsSL "$zsh_config_download_url" > ~/.zshrc
+  source ~/.zshrc  # Reload the configuration after upgrade
+}'
+
+alias force_install_omz_plugins='() {
+  install_omz_plugins -f
+  source ${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+  source ${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+}'
