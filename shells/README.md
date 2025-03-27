@@ -53,6 +53,13 @@ Oh My Zsh 目录下包含了多种类型的别名文件，每个文件都聚焦�
 
 如需新增或修改别名，可以在 `~/.oh-my-zsh/custom/aliases/` 目录下创建新的 `.zsh` 文件，或者直接编辑现有的别名文件。请在 `install_omz_aliases.sh` 脚本中添加新的别名文件路径，以便于下载和管理。
 
+#### Zshrc 模板
+
+```bash
+# 远程安装模板
+curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/zshrc.zsh-template -o ~/.zshrc
+```
+
 ### Oh My Zsh 脚本
 
 #### Oh My Zsh 安装维护
