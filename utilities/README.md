@@ -13,7 +13,6 @@ utilities/
 │   └── bria/                  # Bria相关工具
 │       └── background_remover.py  # 图片背景移除工具
 └── shell/                     # Shell脚本集合
-    └── batch_rename.sh        # 批量重命名工具
     └── cheatsheet.sh          # 命令行速查表工具
 ```
 
@@ -99,7 +98,7 @@ python3 <(curl -s https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/p
 - 覆盖系统、网络、工具、安卓、媒体、包管理、运行时和Web服务器等多个类别的命令
 
 **支持的命令类别**:
-- 系统类: apt, awk, cat, chmod, chown, df, du, grep, ip, iptables, less, mount, nano, operators, rclone, rsync, systemctl, vim, watch, yum
+- 系统类: apt, awk, cat, chmod, chown, df, du, grep, ip, iptables, less, mount, nano, operators, rclone, rsync, systemctl, vim, watch, yum, ln
 - 网络类: curl, netstat, nmcli, tcpdump, wget
 - 工具类: docker, git
 - 安卓类: adb
@@ -179,11 +178,3 @@ curl -sSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/che
 ```bash
 chmod +x script_name.sh
 ```
-
-## 贡献
-
-欢迎提出问题或建议，可以通过GitHub Issues或Pull Requests进行贡献。
-
-## 许可证
-
-此项目采用 [MIT 许可证](../LICENSE)。

@@ -40,51 +40,9 @@ shells/
 ├── zsh/                    # Zsh 专用配置
 ```
 
-## 脚本使用说明
+## Oh My Zsh
 
 ### Oh My Zsh 配置
-
-#### 别名下载工具
-
-`install_omz_aliases.sh` 是一个用于从远程仓库下载 Oh My Zsh 别名文件的工具脚本。
-
-**文件位置**: `/shells/oh-my-zsh/tools/install_omz_aliases.sh`
-
-**远程执行示例**:
-```bash
-curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
-```
-
-**使用方法**:
-```bash
-./install_omz_aliases.sh [选项] [别名文件...]
-```
-
-**选项**:
-- `-h, --help`: 显示帮助信息
-- `-d, --directory DIR`: 指定下载目录 (默认: $ZSH/custom/aliases/)
-- `-n, --no-overwrite`: 不覆盖已存在的文件
-- `-l, --list`: 列出可用的别名文件
-- `-v, --verbose`: 启用详细输出
-- `-f, --force`: 即使目录不存在也强制下载
-
-如果未指定别名文件，将下载所有可用的别名文件。
-
-**示例**:
-1. 列出所有可用的别名文件:
-```bash
-./install_omz_aliases.sh --list
-```
-
-1. 下载特定的别名文件:
-```bash
-./install_omz_aliases.sh git_aliases.zsh system_aliases.zsh
-```
-
-1. 下载所有别名文件到指定目录:
-```bash
-./install_omz_aliases.sh --directory ~/custom_aliases --force
-```
 
 #### 自定义别名
 
@@ -95,9 +53,9 @@ Oh My Zsh 目录下包含了多种类型的别名文件，每个文件都聚焦�
 
 如需新增或修改别名，可以在 `~/.oh-my-zsh/custom/aliases/` 目录下创建新的 `.zsh` 文件，或者直接编辑现有的别名文件。请在 `install_omz_aliases.sh` 脚本中添加新的别名文件路径，以便于下载和管理。
 
-## Oh My Zsh 脚本
+### Oh My Zsh 脚本
 
-### Oh My Zsh 安装脚本
+#### Oh My Zsh 安装维护
 
 `install_omz.sh` 是一个用于安装、更新或卸载 Oh My Zsh 的工具脚本，支持多种安装模式和配置选项。
 
@@ -167,13 +125,7 @@ OMZ_INSTALL_DIR=~/custom-omz ./install_omz.sh
 - `-r, --uninstall`: 卸载 Oh My Zsh
 - `-h, --help`: 显示帮助信息
 
-**必要条件**:
-1. Bash 环境
-2. Git
-3. curl 或 wget
-4. zsh
-
-### Oh My Zsh 别名安装脚本
+#### Oh My Zsh 别名安装
 
 `install_omz_aliases.sh` 是一个用于从远程仓库下载 Oh My Zsh 别名文件的工具脚本。
 
@@ -227,7 +179,3 @@ curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/t
 - `-f, --force`: 即使目录不存在也强制下载
 - `-u, --url URL`: 指定自定义仓库 URL
 - `-s, --default-list LIST`: 自定义默认别名列表（逗号分隔）
-
-**必要条件**:
-1. Bash 环境
-2. curl 或 wget
