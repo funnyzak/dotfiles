@@ -313,18 +313,18 @@ show_menu() {
         continue
         ;;
       *)
-        # 检查是否输入的是命令名而不是编号
-        if [[ -n "${COMMAND_DESCRIPTIONS[$choice]}" ]]; then
-          clear
-          get_cheatsheet "$choice" "$base_url" || {
-            echo -e "\n${YELLOW}按回车键返回菜单...${NC}"
-            read -r
-          }
         # 检查是否输入的是有效的编号
-        elif [[ "$choice" =~ ^[0-9]+$ ]] && [[ -n "${menu_items[$choice]}" ]]; then
+        if [[ "$choice" =~ ^[0-9]+$ ]] && [[ -n "${menu_items[$choice]}" ]]; then
           cmd="${menu_items[$choice]}"
           clear
           get_cheatsheet "$cmd" "$base_url" || {
+            echo -e "\n${YELLOW}按回车键返回菜单...${NC}"
+            read -r
+          }
+        # 检查是否输入的是命令名而不是编号
+        elif [[ -n "${COMMAND_DESCRIPTIONS[$choice]}" ]]; then
+          clear
+          get_cheatsheet "$choice" "$base_url" || {
             echo -e "\n${YELLOW}按回车键返回菜单...${NC}"
             read -r
           }
