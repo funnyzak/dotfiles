@@ -114,8 +114,8 @@ if [[ -d ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases ]]; then
 fi
 
 best_remote_url_prefix() {
-  local REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/"
-  local REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/"
+  local REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${DOTFILES_BRANCH:-main}/"
+  local REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/${DOTFILES_BRANCH:-main}/"
 
   # Check if CN mirror is accessible
   if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
@@ -125,54 +125,109 @@ best_remote_url_prefix() {
   echo $REMOTE_URL_PREFIX
 }
 
-install_omz_plugins() {
-  local force=false
-  while [[ "$#" -gt 0 ]]; do
-    case $1 in
-      -f|--force) force=true; shift ;;
-      *) echo "Unknown parameter: $1"; return 1 ;;
-    esac
+# Auto-install and load zsh-autosuggestions and zsh-syntax-highlighting plugins
+load_zsh_plugins() {
+  local ZSH_CUSTOM=${ZSH_CUSTOM:-$ZSH/custom}
+
+  # Define plugin variables using space-separated strings instead of arrays
+  local plugins="zsh-autosuggestions zsh-syntax-highlighting"
+  local plugin_files="zsh-autosuggestions.zsh zsh-syntax-highlighting.zsh"
+
+  # For colored message display
+  local RED="\033[0;31m"
+  local GREEN="\033[0;32m"
+  local YELLOW="\033[0;33m"
+  local NC="\033[0m"
+
+  if [[ ! -d "$ZSH_CUSTOM/plugins" ]]; then
+    mkdir -p "$ZSH_CUSTOM/plugins"
+  fi
+
+  # Temporary directory for downloads and extraction
+  local TEMP_DIR=$(mktemp -d)
+
+  # Split the space-separated strings and process each plugin
+  local plugin=""
+  local plugin_file=""
+  local i=1
+  for plugin in ${=plugins}; do
+    # Extract the corresponding plugin file using cut
+    plugin_file=$(echo $plugin_files | cut -d ' ' -f $i)
+    i=$((i+1))
+
+    local plugin_dir="$ZSH_CUSTOM/plugins/$plugin"
+    local plugin_path="$plugin_dir/$plugin_file"
+
+    # Check if plugin already exists and is valid
+    if [[ -d "$plugin_dir" && -f "$plugin_path" && -s "$plugin_path" ]]; then
+      source "$plugin_path"
+    else
+      echo -e "${YELLOW}Plugin $plugin doesnt exist or is invalid, attempting to download...${NC}"
+
+      # Get best remote URL prefix
+      local remote_url="$(best_remote_url_prefix)templates/packages/zsh/plugins/${plugin}.tar.gz"
+      local tarball="$TEMP_DIR/${plugin}.tar.gz"
+
+      # Create plugin directory
+      mkdir -p "$plugin_dir"
+
+      # Download plugin
+      echo -e "${YELLOW}Downloading $plugin from $remote_url...${NC}"
+      if curl -sL --connect-timeout 10 --retry 3 "$remote_url" -o "$tarball"; then
+        echo -e "${GREEN}Successfully downloaded $plugin, extracting...${NC}"
+
+        # Extract plugin to plugin directory
+        if tar -xzf "$tarball" -C "$ZSH_CUSTOM/plugins"; then
+          echo -e "${GREEN}Successfully extracted $plugin, loading...${NC}"
+
+          # Check if extracted file exists
+          if [[ -f "$plugin_path" && -s "$plugin_path" ]]; then
+            source "$plugin_path"
+          else
+            echo -e "${RED}Cannot load $plugin: Extracted file $plugin_path doesn't exist or is empty${NC}"
+          fi
+        else
+          echo -e "${RED}Failed to extract $plugin${NC}"
+        fi
+      else
+        echo -e "${RED}Failed to download $plugin, please check your network or install manually${NC}"
+      fi
+    fi
   done
-  # Install zsh-autosuggestions
-  if [ ! -d "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-autosuggestions" ] || [ "$force" = true ]; then
-    mkdir -p "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-autosuggestions"
-    curl -L "$(best_remote_url_prefix)templates/packages/zsh/plugins/zsh-autosuggestions.zip" -o zsh-autosuggestions.zip >/dev/null
-    unzip zsh-autosuggestions.zip -d "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-autosuggestions" >/dev/null
-    rm zsh-autosuggestions.zip
-  fi
 
-  # Install zsh-syntax-highlighting
-  if [ ! -d "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-syntax-highlighting" ] || [ "$force" = true ]; then
-    mkdir -p "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-syntax-highlighting"
-    curl -L "$(best_remote_url_prefix)templates/packages/zsh/plugins/zsh-syntax-highlighting-master.zip" -o zsh-syntax-highlighting.zip >/dev/null
-    unzip zsh-syntax-highlighting.zip -d "${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-syntax-highlighting" >/dev/null
-    rm zsh-syntax-highlighting.zip
-  fi
-
-  source ${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-  source ${ZSH:-$HOME/.oh-my-zsh}/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+  # Clean up temporary directory
+  rm -rf "$TEMP_DIR"
 }
 
-install_omz_plugins
+# Automatically load plugins
+load_zsh_plugins
+
+# Create alias for manually reloading plugins
+alias omz_reload_plugins='() {
+  load_zsh_plugins
+  echo "Zsh plugins reloaded."
+}'
 
 # Install oh-my-zsh alias files from remote repository (Linux/macOS)
-alias install_omz_aliases='() {
+alias omz_install_aliases='() {
   echo "Installing oh-my-zsh alias files from remote repository..."
   curl -fsSL "$(best_remote_url_prefix)shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
 }'
 
 # Upgrade oh-my-zsh configuration from remote repository
-alias upgrade_omz_config='() {
+alias omz_config='() {
   local zsh_config_download_url="$(best_remote_url_prefix)shells/oh-my-zsh/zshrc.zsh-template"
+
+  if [[ "$1" == "--bak" ]]; then
+    local backup_file="$HOME/.zshrc.$(date +%Y%m%d%H%M%S).bak"
+    echo "Backing up current .zshrc to $backup_file..."
+    cp ~/.zshrc "$backup_file"
+    echo "Backup completed. You can restore it by running: cp $backup_file ~/.zshrc"
+  fi
 
   echo "Upgrading oh-my-zsh configuration from remote repository..."
   echo "Using template URL: $zsh_config_download_url"
 
   curl -fsSL "$zsh_config_download_url" > ~/.zshrc
   source ~/.zshrc  # Reload the configuration after upgrade
-}'
-
-alias install_omz_plugins='() {
-  install_omz_plugins $@
-  echo "Installed oh-my-zsh plugins from remote repository."
 }'
