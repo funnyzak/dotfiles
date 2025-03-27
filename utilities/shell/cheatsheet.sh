@@ -19,9 +19,9 @@
 set -euo pipefail
 
 # 默认URL前缀
-DEFAULT_URL="https://github.com/funnyzak/dotfiles/raw/refs/heads/main/docs/command/"
+DEFAULT_URL="https://github.com/funnyzak/dotfiles/raw/refs/heads/${DOTFILES_BRANCH:-main}/docs/command/"
 # 中国地区加速URL前缀
-CN_URL="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/docs/command/"
+CN_URL="https://raw.gitcode.com/funnyzak/dotfiles/raw/${DOTFILES_BRANCH:-main}/docs/command/"
 
 # 支持的命令列表及其描述和所属分类
 declare -A COMMANDS
@@ -61,6 +61,9 @@ COMMAND_DESCRIPTIONS["iptables"]="Linux防火墙工具"
 
 COMMAND_CATEGORIES["less"]="system"
 COMMAND_DESCRIPTIONS["less"]="文件内容分页查看器"
+
+COMMAND_CATEGORIES["ln"]="system"
+COMMAND_DESCRIPTIONS["ln"]="创建链接文件"
 
 COMMAND_CATEGORIES["mount"]="system"
 COMMAND_DESCRIPTIONS["mount"]="挂载文件系统"
