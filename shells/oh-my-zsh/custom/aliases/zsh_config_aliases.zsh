@@ -13,14 +13,11 @@ alias asg='(){ echo "Search alias.\nUsage:\n asg <alias_name>"; alias_name=${@};
 
 alias install_omz_aliases='() {
   echo "Installing oh-my-zsh alias files from remote repository."
-  local remote_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/"
-  curl -fsSL "${remote_url}shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
+  if curl -s --connect-timeout "3" "$remote_prefix" >/dev/null 2>&1; then
+    remote_prefix="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/"
+  else
+    remote_prefix="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/"
+  fi
+  echo "Using remote URL: $remote_prefix"
+  curl -fsSL "${remote_prefix}shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
 }' # Install oh-my-zsh alias files from a remote repository (Linux/macOS)
-
-alias install_omz_aliases_cn='() {
-  echo "Installing oh-my-zsh alias files from China mirror."
-  echo "You can speed up the download using China mirrors."
-  echo "Usage: export CN=true; install_omz_aliases_cn"
-  local remote_url="https://raw.gitcode.com/funnyzak/dotfiles/raw/main/"
-  curl -fsSL "${remote_url}shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
-}' # Install oh-my-zsh alias files from a remote repository (China)
