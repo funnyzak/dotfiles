@@ -49,3 +49,5 @@ Thumbs.db
 .config/karabiner/karabiner.json # Example: If you manage Karabiner config
 
 # Add any other project-specific ignores below
+
+*.code-workspace
