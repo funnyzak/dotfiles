@@ -51,3 +51,5 @@ Thumbs.db
 # Add any other project-specific ignores below
 
 *.code-workspace
+
+.cursor/
