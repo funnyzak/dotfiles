@@ -23,7 +23,6 @@ dotfiles/
 ├── shells/              # Shell configuration collection
 │   ├── zshrc.zsh-template # Zsh configuration template
 │   ├── oh-my-zsh/       # Oh My Zsh related configurations
-│   │   └── custom/      # Oh My Zsh custom content
 │   ├── zsh/             # Zsh configuration
 ├── system/              # Linux system setup scripts
 │   ├── config/          # Scripts related to system configuration files (e.g., sysctl, bashrc)
@@ -35,10 +34,9 @@ dotfiles/
 │   ├── ...              # Directories for other languages or types of general scripts
 ├── docs/                # Documentation
 │   ├── help/            # Help documentation for applications or tools
-│   ├── command/         # Command documentation`
+│   ├── command/         # Command documentation
 │   ├── general/         # General documentation
 │   ├── templates/       # Documentation templates
-│   │   └── report-template.md
 ```
 
 ## License
