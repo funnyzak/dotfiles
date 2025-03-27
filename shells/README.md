@@ -47,7 +47,6 @@ shells/
 
 `install_omz_aliases.sh` 是一个用于从远程仓库下载 Oh My Zsh 别名文件的工具脚本。
 
-- [ ] 支持通过环境变量设置下载地址
 **文件位置**: `/shells/oh-my-zsh/tools/install_omz_aliases.sh`
 
 **远程执行示例**:
@@ -76,12 +75,12 @@ curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/s
 ./install_omz_aliases.sh --list
 ```
 
-2. 下载特定的别名文件:
+1. 下载特定的别名文件:
 ```bash
 ./install_omz_aliases.sh git_aliases.zsh system_aliases.zsh
 ```
 
-3. 下载所有别名文件到指定目录:
+1. 下载所有别名文件到指定目录:
 ```bash
 ./install_omz_aliases.sh --directory ~/custom_aliases --force
 ```
@@ -110,7 +109,7 @@ curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/s
 curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
 
 # 中国大陆用户可以使用以下命令下载:
-curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force --url https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/custom/aliases/
+curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
 
 # 下载特定的别名文件
 curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- -s git_aliases.zsh
