@@ -1006,3 +1006,7 @@ alias dkr-help='() {
     echo "  dclean-vol       - Removes unused Docker volumes"
   fi
 }' # Shows all available Docker aliases with their descriptions
+
+alias docker-help='dkr-help' # Alias for dkr-help
+alias docker-h='dkr-help' # Alias for dkr-help
+alias dkr='docker' # Alias for docker command
