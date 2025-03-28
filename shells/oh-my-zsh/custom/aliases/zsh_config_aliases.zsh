@@ -144,7 +144,7 @@ alias omz-aedit='() {
   fi
 
   local alias_name="$1"
-  local alias_dir="${ZSH:-$HOME/.oh-my-zsh}/custom/aliases"
+  local alias_dir="$HOME/.oh-my-zsh/custom/aliases"
   local alias_file="${alias_dir}/${alias_name}_aliases.zsh"
 
   if [ ! -d "$alias_dir" ]; then
@@ -185,7 +185,7 @@ alias omz-adel='() {
   echo "  -a, --all           Delete all alias files"
   echo "  file_name           File name(s) without _aliases.zsh extension"
 
-  local aliases_dir="${ZSH:-$HOME/.oh-my-zsh}/custom/aliases"
+  local aliases_dir="$HOME/.oh-my-zsh/custom/aliases"
   local interactive=false
   local delete_all=false
   local files_to_delete=()
