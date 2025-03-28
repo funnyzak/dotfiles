@@ -1,6 +1,10 @@
 # Description: Image processing aliases for resizing, conversion, effects, manipulation and batch operations.
 
 # --------------------------------
+# Help Function
+# --------------------------------
+
+# --------------------------------
 # Helper Functions
 # --------------------------------
 
@@ -88,9 +92,9 @@ alias _image_aliases_magick_cmd='() {
 # Basic Image Processing
 # --------------------------------
 
-alias img_resize='() {
+alias img-resize='() {
   echo "Resize image to specified dimensions."
-  echo "Usage: img_resize <image_path> [size:200x] [quality:80]"
+  echo "Usage: img-resize <image_path> [size:200x] [quality:80]"
 
   if [ $# -eq 0 ]; then
     return 0
@@ -100,10 +104,10 @@ alias img_resize='() {
   _image_resize "$1" "${2:-200x}" "${3:-80}"
 }'  # Resize image to specified dimensions
 
-alias img_resize_dir='() {
+alias img-resize-dir='() {
   if [ $# -lt 2 ]; then
     echo "Batch resize images in directory."
-    echo "Usage: img_resize_dir <source_dir> <size> [quality:100]"
+    echo "Usage: img-resize-dir <source_dir> <size> [quality:100]"
     return 0
   fi
 
@@ -127,10 +131,10 @@ alias img_resize_dir='() {
 # Preset Image Sizes
 # --------------------------------
 
-alias img_resize_24='() {
+alias img-resize-24='() {
   if [ $# -eq 0 ]; then
     echo "Resize image(s) to 24px width."
-    echo "Usage: img_resize_24 <image_path> [more_files...]"
+    echo "Usage: img-resize-24 <image_path> [more_files...]"
     return 0
   fi
 
@@ -142,10 +146,10 @@ alias img_resize_24='() {
   return $result_status
 }'  # Resize image(s) to 24px width
 
-alias img_resize_28='() {
+alias img-resize-28='() {
   if [ $# -eq 0 ]; then
     echo "Resize image(s) to 28px width."
-    echo "Usage: img_resize_28 <image_path> [more_files...]"
+    echo "Usage: img-resize-28 <image_path> [more_files...]"
     return 0
   fi
 
@@ -157,10 +161,10 @@ alias img_resize_28='() {
   return $result_status
 }'  # Resize image(s) to 28px width
 
-alias img_resize_50='() {
+alias img-resize-50='() {
   if [ $# -eq 0 ]; then
     echo "Resize image(s) to 50px width."
-    echo "Usage: img_resize_50 <image_path> [more_files...]"
+    echo "Usage: img-resize-50 <image_path> [more_files...]"
     return 0
   fi
 
@@ -172,10 +176,10 @@ alias img_resize_50='() {
   return $result_status
 }'  # Resize image(s) to 50px width
 
-alias img_resize_100='() {
+alias img-resize-100='() {
   if [ $# -eq 0 ]; then
     echo "Resize image(s) to 100px width."
-    echo "Usage: img_resize_100 <image_path> [more_files...]"
+    echo "Usage: img-resize-100 <image_path> [more_files...]"
     return 0
   fi
 
@@ -187,10 +191,10 @@ alias img_resize_100='() {
   return $result_status
 }'  # Resize image(s) to 100px width
 
-alias img_resize_200='() {
+alias img-resize-200='() {
   if [ $# -eq 0 ]; then
     echo "Resize image(s) to 200px width."
-    echo "Usage: img_resize_200 <image_path> [more_files...]"
+    echo "Usage: img-resize-200 <image_path> [more_files...]"
     return 0
   fi
 
@@ -202,10 +206,10 @@ alias img_resize_200='() {
   return $result_status
 }'  # Resize image(s) to 200px width
 
-alias img_resize_512='() {
+alias img-resize-512='() {
   if [ $# -eq 0 ]; then
     echo "Resize image(s) to 512px width."
-    echo "Usage: img_resize_512 <image_path> [more_files...]"
+    echo "Usage: img-resize-512 <image_path> [more_files...]"
     return 0
   fi
 
@@ -217,10 +221,10 @@ alias img_resize_512='() {
   return $result_status
 }'  # Resize image(s) to 512px width
 
-alias img_resize_1024='() {
+alias img-resize-1024='() {
   if [ $# -eq 0 ]; then
     echo "Resize image(s) to 1024px width."
-    echo "Usage: img_resize_1024 <image_path> [more_files...]"
+    echo "Usage: img-resize-1024 <image_path> [more_files...]"
     return 0
   fi
 
@@ -236,10 +240,10 @@ alias img_resize_1024='() {
 # Format Conversion
 # --------------------------------
 
-alias img_convert_format='() {
+alias img-convert-format='() {
   if [ $# -lt 2 ]; then
     echo "Convert image files to different format."
-    echo "Usage: img_convert_format <source_dir> <new_extension>"
+    echo "Usage: img-convert-format <source_dir> <new_extension>"
     return 0
   fi
 
@@ -270,10 +274,10 @@ alias img_convert_format='() {
 # Image Effects
 # --------------------------------
 
-alias img_opacity='() {
+alias img-opacity='() {
   if [ $# -lt 2 ]; then
     echo "Adjust image opacity."
-    echo "Usage: img_opacity <source_image> <opacity_percent:50>"
+    echo "Usage: img-opacity <source_image> <opacity_percent:50>"
     return 0
   fi
 
@@ -291,10 +295,10 @@ alias img_opacity='() {
   fi
 }'  # Adjust image opacity
 
-alias img_rotate='() {
+alias img-rotate='() {
   if [ $# -lt 2 ]; then
     echo "Rotate image."
-    echo "Usage: img_rotate <source_image> <rotation_degrees:90>"
+    echo "Usage: img-rotate <source_image> <rotation_degrees:90>"
     return 0
   fi
 
@@ -312,10 +316,10 @@ alias img_rotate='() {
   fi
 }'  # Rotate image
 
-alias img_grayscale_binary='() {
+alias img-grayscale-binary='() {
   if [ $# -eq 0 ]; then
     echo "Convert image to grayscale and binarize."
-    echo "Usage: img_grayscale_binary <source_image>"
+    echo "Usage: img-grayscale-binary <source_image>"
     return 0
   fi
 
@@ -332,10 +336,10 @@ alias img_grayscale_binary='() {
   fi
 }'  # Convert image to grayscale and binarize
 
-alias img_grayscale='() {
+alias img-grayscale='() {
   if [ $# -eq 0 ]; then
     echo "Convert image to grayscale."
-    echo "Usage: img_grayscale <source_image>"
+    echo "Usage: img-grayscale <source_image>"
     return 0
   fi
 
@@ -356,10 +360,10 @@ alias img_grayscale='() {
 # Batch Processing
 # --------------------------------
 
-alias img_grayscale_binary_dir='() {
+alias img-grayscale-binary-dir='() {
   if [ $# -eq 0 ]; then
     echo "Convert directory of images to grayscale and binarize."
-    echo "Usage: img_grayscale_binary_dir <source_dir>"
+    echo "Usage: img-grayscale-binary-dir <source_dir>"
     return 0
   fi
 
@@ -377,10 +381,10 @@ alias img_grayscale_binary_dir='() {
   fi
 }'  # Convert directory of images to grayscale and binarize
 
-alias img_grayscale_dir='() {
+alias img-grayscale-dir='() {
   if [ $# -eq 0 ]; then
     echo "Convert directory of images to grayscale."
-    echo "Usage: img_grayscale_dir <source_dir>"
+    echo "Usage: img-grayscale-dir <source_dir>"
     return 0
   fi
 
@@ -402,10 +406,10 @@ alias img_grayscale_dir='() {
 # Image Splitting
 # --------------------------------
 
-alias img_split_horizontal='() {
+alias img-split-horizontal='() {
   if [ $# -eq 0 ]; then
     echo "Split image into left and right halves."
-    echo "Usage: img_split_horizontal <source_image>"
+    echo "Usage: img-split-horizontal <source_image>"
     return 0
   fi
 
@@ -423,10 +427,10 @@ alias img_split_horizontal='() {
   fi
 }'  # Split image into left and right halves
 
-alias img_split_vertical='() {
+alias img-split-vertical='() {
   if [ $# -eq 0 ]; then
     echo "Split image into top and bottom halves."
-    echo "Usage: img_split_vertical <source_image>"
+    echo "Usage: img-split-vertical <source_image>"
     return 0
   fi
 
@@ -444,10 +448,10 @@ alias img_split_vertical='() {
   fi
 }'  # Split image into top and bottom halves
 
-alias img_split_horizontal_dir='() {
+alias img-split-horizontal-dir='() {
   if [ $# -eq 0 ]; then
     echo "Split directory of images into left and right halves."
-    echo "Usage: img_split_horizontal_dir <source_dir>"
+    echo "Usage: img-split-horizontal-dir <source_dir>"
     return 0
   fi
 
@@ -474,10 +478,10 @@ alias img_split_horizontal_dir='() {
   [ $errors -eq 0 ] || return 1
 }'  # Split directory of images into left and right halves
 
-alias img_split_vertical_dir='() {
+alias img-split-vertical-dir='() {
   if [ $# -eq 0 ]; then
     echo "Split directory of images into top and bottom halves."
-    echo "Usage: img_split_vertical_dir <source_dir>"
+    echo "Usage: img-split-vertical-dir <source_dir>"
     return 0
   fi
 
@@ -508,10 +512,10 @@ alias img_split_vertical_dir='() {
 # Image Merging
 # --------------------------------
 
-alias img_dir_to_pdf='() {
+alias img-dir-to-pdf='() {
   if [ $# -eq 0 ]; then
     echo "Merge directory of images into PDF."
-    echo "Usage: img_dir_to_pdf <source_dir> [output_pdf_name]"
+    echo "Usage: img-dir-to-pdf <source_dir> [output_pdf_name]"
     return 0
   fi
 
@@ -529,10 +533,10 @@ alias img_dir_to_pdf='() {
   fi
 }'  # Merge directory of images into PDF
 
-alias img_to_pdf='() {
+alias img-to-pdf='() {
   if [ $# -eq 0 ]; then
     echo "Convert single image to PDF."
-    echo "Usage: img_to_pdf <source_image> [output_pdf_name]"
+    echo "Usage: img-to-pdf <source_image> [output_pdf_name]"
     return 0
   fi
 
@@ -553,10 +557,10 @@ alias img_to_pdf='() {
 # Watermarking
 # --------------------------------
 
-alias img_watermark='() {
+alias img-watermark='() {
   if [ $# -lt 2 ]; then
     echo "Add watermark to image."
-    echo "Usage: img_watermark <source_image> <watermark_image> [position:southeast]"
+    echo "Usage: img-watermark <source_image> <watermark_image> [position:southeast]"
     return 0
   fi
 
@@ -576,10 +580,10 @@ alias img_watermark='() {
   fi
 }'  # Add watermark to image
 
-alias img_watermark_dir='() {
+alias img-watermark-dir='() {
   if [ $# -lt 2 ]; then
     echo "Batch add watermark to images."
-    echo "Usage: img_watermark_dir <watermark_image> <source_dir> [position:southeast] [opacity:100]"
+    echo "Usage: img-watermark-dir <watermark_image> <source_dir> [position:southeast] [opacity:100]"
     return 0
   fi
 
@@ -613,10 +617,10 @@ alias img_watermark_dir='() {
 # Image Optimization
 # --------------------------------
 
-alias img_optimize_batch='() {
+alias img-optimize-batch='() {
   if [ $# -eq 0 ]; then
     echo "Batch optimize images by size."
-    echo "Usage: img_optimize_batch [directory:.] [width:1024] [quality:85]"
+    echo "Usage: img-optimize-batch [directory:.] [width:1024] [quality:85]"
     return 0
   fi
 
@@ -647,9 +651,9 @@ alias img_optimize_batch='() {
 # New Image Information Functions
 # --------------------------------
 
-alias img_info='() {
+alias img-info='() {
   echo "Display basic information about image files."
-  echo "Usage: img_info <image_file> [more_files...]"
+  echo "Usage: img-info <image_file> [more_files...]"
 
   if [ $# -eq 0 ]; then
     return 0
@@ -673,9 +677,9 @@ alias img_info='() {
   return $result_status
 }'  # Display basic information about image files
 
-alias img_metadata='() {
+alias img-metadata='() {
   echo "Extract EXIF metadata from image files."
-  echo "Usage: img_metadata <image_file> [more_files...]"
+  echo "Usage: img-metadata <image_file> [more_files...]"
 
   if [ $# -eq 0 ]; then
     return 0
@@ -707,10 +711,10 @@ alias img_metadata='() {
 # Image Cropping Functions
 # --------------------------------
 
-alias img_crop='() {
+alias img-crop='() {
   echo "Crop an image to specified dimensions."
-  echo "Usage: img_crop <image_file> <width>x<height>+<x_offset>+<y_offset>"
-  echo "Example: img_crop photo.jpg 300x200+50+30"
+  echo "Usage: img-crop <image_file> <width>x<height>+<x_offset>+<y_offset>"
+  echo "Example: img-crop photo.jpg 300x200+50+30"
 
   if [ $# -lt 2 ]; then
     return 0
@@ -733,10 +737,10 @@ alias img_crop='() {
   fi
 }'  # Crop an image to specified dimensions
 
-alias img_crop_center='() {
+alias img-crop-center='() {
   echo "Crop an image from the center."
-  echo "Usage: img_crop_center <image_file> <width>x<height>"
-  echo "Example: img_crop_center photo.jpg 300x200"
+  echo "Usage: img-crop-center <image_file> <width>x<height>"
+  echo "Example: img-crop-center photo.jpg 300x200"
 
   if [ $# -lt 2 ]; then
     return 0
@@ -763,9 +767,9 @@ alias img_crop_center='() {
 # Image Compression Functions
 # --------------------------------
 
-alias img_compress='() {
+alias img-compress='() {
   echo "Compress an image while preserving dimensions."
-  echo "Usage: img_compress <image_file> [quality:75] [more_files...]"
+  echo "Usage: img-compress <image_file> [quality:75] [more_files...]"
 
   if [ $# -eq 0 ]; then
     return 0
@@ -775,7 +779,7 @@ alias img_compress='() {
   local quality="75"
   local magick_cmd=$(_image_aliases_magick_cmd)
 
-  # If first arg is a number, it's the quality
+  # If first arg is a number, its the quality
   if [[ "$1" =~ ^[0-9]+$ ]]; then
     quality="$1"
     shift
@@ -797,9 +801,9 @@ alias img_compress='() {
   return $result_status
 }'  # Compress an image while preserving dimensions
 
-alias img_compress_dir='() {
+alias img-compress-dir='() {
   echo "Batch compress all images in a directory."
-  echo "Usage: img_compress_dir [directory:.] [quality:75]"
+  echo "Usage: img-compress-dir [directory:.] [quality:75]"
 
   local dir="${1:-.}"
   local quality="${2:-75}"
@@ -829,9 +833,9 @@ alias img_compress_dir='() {
 # Image Joining Functions
 # --------------------------------
 
-alias img_join_horizontal='() {
+alias img-join-horizontal='() {
   echo "Join multiple images horizontally."
-  echo "Usage: img_join_horizontal <output_file> <image1> <image2> [more_images...]"
+  echo "Usage: img-join-horizontal <output_file> <image1> <image2> [more_images...]"
 
   if [ $# -lt 3 ]; then
     return 0
@@ -864,9 +868,9 @@ alias img_join_horizontal='() {
   fi
 }'  # Join multiple images horizontally
 
-alias img_join_vertical='() {
+alias img-join-vertical='() {
   echo "Join multiple images vertically."
-  echo "Usage: img_join_vertical <output_file> <image1> <image2> [more_images...]"
+  echo "Usage: img-join-vertical <output_file> <image1> <image2> [more_images...]"
 
   if [ $# -lt 3 ]; then
     return 0
@@ -903,9 +907,9 @@ alias img_join_vertical='() {
 # Image Special Effects
 # --------------------------------
 
-alias img_sepia='() {
+alias img-sepia='() {
   echo "Apply sepia tone effect to an image."
-  echo "Usage: img_sepia <image_file> [more_files...]"
+  echo "Usage: img-sepia <image_file> [more_files...]"
 
   if [ $# -eq 0 ]; then
     return 0
@@ -930,9 +934,9 @@ alias img_sepia='() {
   return $result_status
 }'  # Apply sepia tone effect to an image
 
-alias img_blur='() {
+alias img-blur='() {
   echo "Apply blur effect to an image."
-  echo "Usage: img_blur <image_file> [radius:5] [more_files...]"
+  echo "Usage: img-blur <image_file> [radius:5] [more_files...]"
 
   if [ $# -eq 0 ]; then
     return 0
@@ -974,10 +978,10 @@ alias img_blur='() {
 # Batch Rename Functions
 # --------------------------------
 
-alias img_rename_sequential='() {
+alias img-rename-sequential='() {
   echo "Rename images in a directory with sequential numbering."
-  echo "Usage: img_rename_sequential <directory> <prefix>"
-  echo "Example: img_rename_sequential vacation_photos vacation"
+  echo "Usage: img-rename-sequential <directory> <prefix>"
+  echo "Example: img-rename-sequential vacation_photos vacation"
 
   if [ $# -lt 2 ]; then
     return 0
@@ -1027,76 +1031,80 @@ alias img_rename_sequential='() {
   [ $errors -eq 0 ] || return 1
 }'  # Rename images in a directory with sequential numbering
 
-# --------------------------------
-# Help Function
-# --------------------------------
-
 alias image-help='() {
   echo "Image Processing Aliases Help"
   echo "============================"
   echo "This module provides aliases for common image processing operations."
   echo
   echo "Basic Image Processing:"
-  echo "  img_resize           - Resize image to specified dimensions"
-  echo "  img_resize_dir       - Batch resize images in directory"
+  echo "  img-resize           - Resize image to specified dimensions"
+  echo "  img-resize-dir       - Batch resize images in directory"
   echo
   echo "Preset Image Sizes:"
-  echo "  img_resize_24        - Resize image(s) to 24px width"
-  echo "  img_resize_28        - Resize image(s) to 28px width"
-  echo "  img_resize_50        - Resize image(s) to 50px width"
-  echo "  img_resize_100       - Resize image(s) to 100px width"
-  echo "  img_resize_200       - Resize image(s) to 200px width"
-  echo "  img_resize_512       - Resize image(s) to 512px width"
-  echo "  img_resize_1024      - Resize image(s) to 1024px width"
+  echo "  img-resize-24        - Resize image(s) to 24px width"
+  echo "  img-resize-28        - Resize image(s) to 28px width"
+  echo "  img-resize-50        - Resize image(s) to 50px width"
+  echo "  img-resize-100       - Resize image(s) to 100px width"
+  echo "  img-resize-200       - Resize image(s) to 200px width"
+  echo "  img-resize-512       - Resize image(s) to 512px width"
+  echo "  img-resize-1024      - Resize image(s) to 1024px width"
   echo
   echo "Format Conversion:"
-  echo "  img_convert_format   - Convert image files to different format"
+  echo "  img-convert-format   - Convert image files to different format"
   echo
   echo "Image Effects:"
-  echo "  img_opacity          - Adjust image opacity"
-  echo "  img_rotate           - Rotate image"
-  echo "  img_grayscale        - Convert image to grayscale"
-  echo "  img_grayscale_binary - Convert image to grayscale and binarize"
-  echo "  img_grayscale_dir    - Convert directory of images to grayscale"
-  echo "  img_grayscale_binary_dir - Convert directory of images to grayscale and binarize"
-  echo "  img_sepia            - Apply sepia tone effect to an image"
-  echo "  img_blur             - Apply blur effect to an image"
+  echo "  img-opacity          - Adjust image opacity"
+  echo "  img-rotate           - Rotate image"
+  echo "  img-grayscale        - Convert image to grayscale"
+  echo "  img-grayscale-binary - Convert image to grayscale and binarize"
+  echo "  img-grayscale-dir    - Convert directory of images to grayscale"
+  echo "  img-grayscale-binary-dir - Convert directory of images to grayscale and binarize"
+  echo "  img-sepia            - Apply sepia tone effect to an image"
+  echo "  img-blur             - Apply blur effect to an image"
   echo
   echo "Image Information:"
-  echo "  img_info             - Display basic information about image files"
-  echo "  img_metadata         - Extract EXIF metadata from image files"
+  echo "  img-info             - Display basic information about image files"
+  echo "  img-metadata         - Extract EXIF metadata from image files"
   echo
   echo "Image Cropping:"
-  echo "  img_crop             - Crop an image to specified dimensions"
-  echo "  img_crop_center      - Crop an image from the center"
+  echo "  img-crop             - Crop an image to specified dimensions"
+  echo "  img-crop-center      - Crop an image from the center"
   echo
   echo "Image Compression:"
-  echo "  img_compress         - Compress an image while preserving dimensions"
-  echo "  img_compress_dir     - Batch compress all images in a directory"
+  echo "  img-compress         - Compress an image while preserving dimensions"
+  echo "  img-compress-dir     - Batch compress all images in a directory"
   echo
   echo "Image Splitting:"
-  echo "  img_split_horizontal - Split image into left and right halves"
-  echo "  img_split_vertical   - Split image into top and bottom halves"
-  echo "  img_split_horizontal_dir - Split directory of images into left and right halves"
-  echo "  img_split_vertical_dir - Split directory of images into top and bottom halves"
+  echo "  img-split-horizontal - Split image into left and right halves"
+  echo "  img-split-vertical   - Split image into top and bottom halves"
+  echo "  img-split-horizontal-dir - Split directory of images into left and right halves"
+  echo "  img-split-vertical-dir - Split directory of images into top and bottom halves"
   echo
   echo "Image Joining:"
-  echo "  img_join_horizontal  - Join multiple images horizontally"
-  echo "  img_join_vertical    - Join multiple images vertically"
+  echo "  img-join-horizontal  - Join multiple images horizontally"
+  echo "  img-join-vertical    - Join multiple images vertically"
   echo
   echo "Image Merging:"
-  echo "  img_to_pdf           - Convert single image to PDF"
-  echo "  img_dir_to_pdf       - Merge directory of images into PDF"
+  echo "  img-to-pdf           - Convert single image to PDF"
+  echo "  img-dir-to-pdf       - Merge directory of images into PDF"
   echo
   echo "Watermarking:"
-  echo "  img_watermark        - Add watermark to image"
-  echo "  img_watermark_dir    - Batch add watermark to images"
+  echo "  img-watermark        - Add watermark to image"
+  echo "  img-watermark-dir    - Batch add watermark to images"
   echo
   echo "Image Optimization:"
-  echo "  img_optimize_batch   - Batch optimize images by size"
+  echo "  img-optimize-batch   - Batch optimize images by size"
   echo
   echo "Batch Rename:"
-  echo "  img_rename_sequential - Rename images in a directory with sequential numbering"
+  echo "  img-rename-sequential - Rename images in a directory with sequential numbering"
   echo
   echo "For more details about a specific command, just run the command without arguments."
 }'  # Help function showing all available image processing aliases
+
+alias img-help='() {
+  image-help
+}'  # Alias to call the help function
+
+alias img-aliases='() {
+  image-help
+}'  # Alias to call the help function
