@@ -216,7 +216,7 @@ alias omz-aliase-install='() {
 }'
 
 # Upgrade oh-my-zsh configuration from remote repository
-alias upgrade-zsh-config='() {
+alias zsh-config-upgrade='() {
   local zsh_config_download_url="$(best_remote_url_prefix)shells/oh-my-zsh/zshrc.zsh-template"
 
   if [[ "$1" == "--bak" ]]; then
@@ -229,6 +229,27 @@ alias upgrade-zsh-config='() {
   echo "Upgrading oh-my-zsh configuration from remote repository..."
   echo "Using template URL: $zsh_config_download_url"
 
-  curl -fsSL "$zsh_config_download_url" > ~/.zshrc
-  source ~/.zshrc  # Reload the configuration after upgrade
+  local tmp_file=$(mktemp)
+  curl -fsSL "$zsh_config_download_url" > "$tmp_file"
+  if [[ $? -ne 0 ]]; then
+    echo "Failed to download the new .zshrc file. Please check your network connection."
+    rm -f "$tmp_file"
+    return 1
+  fi
+  echo "Downloaded new .zshrc file to $tmp_file"
+  echo "Backing up current .zshrc to ~/.zshrc.bak..."
+  cp ~/.zshrc ~/.zshrc.bak
+  echo "Backing up completed. You can restore it by running: cp ~/.zshrc.bak ~/.zshrc"
+  echo "Replacing current .zshrc with the new one..."
+  mv "$tmp_file" ~/.zshrc
+  echo "New .zshrc file installed. Please check the file for any customizations."
+  echo "To apply the changes, please restart your terminal or run:"
+  echo "  source ~/.zshrc"
+  read -p "Do you want to apply the changes now? (y/n): " confirm
+  if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+    source ~/.zshrc
+    echo "Changes applied. Please restart your terminal for the changes to take effect."
+  else
+    echo "Changes not applied. Please restart your terminal for the changes to take effect."
+  fi
 }'
