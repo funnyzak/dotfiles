@@ -203,14 +203,14 @@ zsh_plugins_load() {
 zsh_plugins_load
 
 # Create alias for manually reloading plugins
-alias zsh-plugins-reload='() {
+alias zsh-reload-plugins='() {
   echo "Reloading zsh plugins..."
   zsh_plugins_load
   echo "Zsh plugins reloaded."
 }'
 
 # Install oh-my-zsh alias files from remote repository (Linux/macOS)
-alias omz-install-aliase='() {
+alias omz-install-aliases='() {
   echo "Installing oh-my-zsh alias files from remote repository..."
   curl -fsSL "$(best_remote_url_prefix)shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
 }'
