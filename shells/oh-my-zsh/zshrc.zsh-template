@@ -245,7 +245,10 @@ alias zsh-config-upgrade='() {
   echo "New .zshrc file installed. Please check the file for any customizations."
   echo "To apply the changes, please restart your terminal or run:"
   echo "  source ~/.zshrc"
-  read -p "Do you want to apply the changes now? (y/n): " confirm
+  echo ""
+
+  echo "Do you want to apply the changes now? (y/n):"
+  read -r confirm
   if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
     source ~/.zshrc
     echo "Changes applied. Please restart your terminal for the changes to take effect."
