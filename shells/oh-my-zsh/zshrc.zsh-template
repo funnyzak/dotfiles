@@ -103,7 +103,6 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
-# Load all alias files from custom/aliases directory
 if [[ -d ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases ]]; then
   setopt nullglob
   for alias_file in ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases/*_aliases.zsh; do
@@ -114,163 +113,115 @@ if [[ -d ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases ]]; then
   unsetopt nullglob
 fi
 
-get_best_remote() {
-  local remote_url_prefix="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
-  local remote_url_prefix_cn="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
+best_remote_url_prefix() {
+  local REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
+  local REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
 
   # Check if CN mirror is accessible
-  if curl -s --connect-timeout 2 "$remote_url_prefix_cn" >/dev/null 2>&1; then
-    remote_url_prefix=$remote_url_prefix_cn
+  if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
+    REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
   fi
 
-  echo "$remote_url_prefix"
+  echo $REMOTE_URL_PREFIX
 }
 
-# Function to load and install ZSH plugins
-alias load-zsh-plugins='() {
-  local zsh_custom=${ZSH_CUSTOM:-$ZSH/custom}
+# Auto-install and load zsh-autosuggestions and zsh-syntax-highlighting plugins
+load_zsh_plugins() {
+  local ZSH_CUSTOM=${ZSH_CUSTOM:-$ZSH/custom}
 
-  # Define plugin variables using space-separated strings
+  # Define plugin variables using space-separated strings instead of arrays
   local plugins="zsh-autosuggestions zsh-syntax-highlighting"
   local plugin_files="zsh-autosuggestions.zsh zsh-syntax-highlighting.zsh"
 
   # For colored message display
-  local red="\033[0;31m"
-  local green="\033[0;32m"
-  local yellow="\033[0;33m"
-  local nc="\033[0m"
+  local RED="\033[0;31m"
+  local GREEN="\033[0;32m"
+  local YELLOW="\033[0;33m"
+  local NC="\033[0m"
 
-  if [[ ! -d "$zsh_custom/plugins" ]]; then
-    mkdir -p "$zsh_custom/plugins"
-    if [[ $? -ne 0 ]]; then
-      echo "Error: Failed to create plugins directory at $zsh_custom/plugins" >&2
-      return 1
-    fi
+  if [[ ! -d "$ZSH_CUSTOM/plugins" ]]; then
+    mkdir -p "$ZSH_CUSTOM/plugins"
   fi
 
   # Temporary directory for downloads and extraction
-  local temp_dir=$(mktemp -d)
-  if [[ $? -ne 0 ]]; then
-    echo "Error: Failed to create temporary directory for plugin downloads" >&2
-    return 1
-  fi
+  local TEMP_DIR=$(mktemp -d)
 
   # Split the space-separated strings and process each plugin
   local plugin=""
   local plugin_file=""
   local i=1
-
   for plugin in ${=plugins}; do
     # Extract the corresponding plugin file using cut
-    plugin_file=$(echo $plugin_files | cut -d " " -f $i)
+    plugin_file=$(echo $plugin_files | cut -d ' ' -f $i)
     i=$((i+1))
 
-    local plugin_dir="$zsh_custom/plugins/$plugin"
+    local plugin_dir="$ZSH_CUSTOM/plugins/$plugin"
     local plugin_path="$plugin_dir/$plugin_file"
 
     # Check if plugin already exists and is valid
     if [[ -d "$plugin_dir" && -f "$plugin_path" && -s "$plugin_path" ]]; then
       source "$plugin_path"
-      if [[ $? -ne 0 ]]; then
-        echo -e "${yellow}Warning: Failed to source plugin $plugin from $plugin_path${nc}" >&2
-      fi
     else
-      echo -e "${yellow}Plugin $plugin doesnt exist or is invalid, attempting to download...${nc}"
+      echo -e "${YELLOW}Plugin $plugin doesnt exist or is invalid, attempting to download...${NC}"
 
       # Get best remote URL prefix
-      local remote_url="$(get_best_remote)templates/packages/zsh/plugins/${plugin}.tar.gz"
-      local tarball="$temp_dir/${plugin}.tar.gz"
+      local remote_url="$(best_remote_url_prefix)templates/packages/zsh/plugins/${plugin}.tar.gz"
+      local tarball="$TEMP_DIR/${plugin}.tar.gz"
 
       # Create plugin directory
       mkdir -p "$plugin_dir"
-      if [[ $? -ne 0 ]]; then
-        echo -e "${red}Error: Failed to create plugin directory $plugin_dir${nc}" >&2
-        continue
-      fi
 
       # Download plugin
-      echo -e "${yellow}Downloading $plugin from $remote_url...${nc}"
+      echo -e "${YELLOW}Downloading $plugin from $remote_url...${NC}"
       if curl -sL --connect-timeout 10 --retry 3 "$remote_url" -o "$tarball"; then
-        echo -e "${green}Successfully downloaded $plugin, extracting...${nc}"
+        echo -e "${GREEN}Successfully downloaded $plugin, extracting...${NC}"
 
         # Extract plugin to plugin directory
-        if tar -xzf "$tarball" -C "$zsh_custom/plugins"; then
-          echo -e "${green}Successfully extracted $plugin, loading...${nc}"
+        if tar -xzf "$tarball" -C "$ZSH_CUSTOM/plugins"; then
+          echo -e "${GREEN}Successfully extracted $plugin, loading...${NC}"
 
           # Check if extracted file exists
           if [[ -f "$plugin_path" && -s "$plugin_path" ]]; then
             source "$plugin_path"
-            if [[ $? -ne 0 ]]; then
-              echo -e "${red}Error: Failed to source plugin $plugin from $plugin_path${nc}" >&2
-            fi
           else
-            echo -e "${red}Error: Extracted file $plugin_path does not exist or is empty${nc}" >&2
+            echo -e "${RED}Cannot load $plugin: Extracted file $plugin_path doesn't exist or is empty${NC}"
           fi
         else
-          echo -e "${red}Error: Failed to extract $plugin${nc}" >&2
+          echo -e "${RED}Failed to extract $plugin${NC}"
         fi
       else
-        echo -e "${red}Error: Failed to download $plugin, please check your network or install manually${nc}" >&2
+        echo -e "${RED}Failed to download $plugin, please check your network or install manually${NC}"
       fi
     fi
   done
 
   # Clean up temporary directory
-  rm -rf "$temp_dir"
-  if [[ $? -ne 0 ]]; then
-    echo -e "${yellow}Warning: Failed to clean up temporary directory $temp_dir${nc}" >&2
-  fi
-}'
+  rm -rf "$TEMP_DIR"
+}
 
 # Automatically load plugins
-load-zsh-plugins
+load_zsh_plugins
 
-# Alias to reload ZSH plugins
-alias reload-zsh-plugins='() {
-  echo "Reload all ZSH plugins.\nUsage:\n reload-zsh-plugins"
-
-  load-zsh-plugins
-  if [[ $? -eq 0 ]]; then
-    echo "ZSH plugins successfully reloaded."
-  else
-    echo "Error: Failed to reload ZSH plugins." >&2
-    return 1
-  fi
+# Create alias for manually reloading plugins
+alias omz_reload_plugins='() {
+  load_zsh_plugins
+  echo "Zsh plugins reloaded."
 }'
 
-# Install oh-my-zsh alias files from remote repository
-alias install-omz-aliases='() {
-  echo "Install oh-my-zsh alias files from remote repository.\nUsage:\n install-omz-aliases [options]"
-
+# Install oh-my-zsh alias files from remote repository (Linux/macOS)
+alias omz_install_aliases='() {
   echo "Installing oh-my-zsh alias files from remote repository..."
-  curl -fsSL "$(get_best_remote)shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
-
-  if [[ $? -ne 0 ]]; then
-    echo "Error: Failed to install oh-my-zsh alias files." >&2
-    return 1
-  fi
-
-  # Reload the configuration after installation
-  source ~/.zshrc
-  echo "Oh-My-Zsh aliases installed and configuration reloaded."
+  curl -fsSL "$(best_remote_url_prefix)shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
 }'
 
 # Upgrade oh-my-zsh configuration from remote repository
-alias upgrade-zsh-config='() {
-  echo "Upgrade oh-my-zsh configuration from remote repository.\nUsage:\n upgrade-zsh-config [--bak]"
-
-  local zsh_config_download_url="$(get_best_remote)shells/oh-my-zsh/zshrc.zsh-template"
+alias omz_config='() {
+  local zsh_config_download_url="$(best_remote_url_prefix)shells/oh-my-zsh/zshrc.zsh-template"
 
   if [[ "$1" == "--bak" ]]; then
     local backup_file="$HOME/.zshrc.$(date +%Y%m%d%H%M%S).bak"
     echo "Backing up current .zshrc to $backup_file..."
     cp ~/.zshrc "$backup_file"
-
-    if [[ $? -ne 0 ]]; then
-      echo "Error: Failed to create backup of .zshrc file." >&2
-      return 1
-    fi
-
     echo "Backup completed. You can restore it by running: cp $backup_file ~/.zshrc"
   fi
 
@@ -278,12 +229,5 @@ alias upgrade-zsh-config='() {
   echo "Using template URL: $zsh_config_download_url"
 
   curl -fsSL "$zsh_config_download_url" > ~/.zshrc
-  if [[ $? -ne 0 ]]; then
-    echo "Error: Failed to download and update .zshrc from remote repository." >&2
-    return 1
-  fi
-
-  # Reload the configuration after upgrade
-  source ~/.zshrc
-  echo "Oh-My-Zsh configuration successfully upgraded and reloaded."
+  source ~/.zshrc  # Reload the configuration after upgrade
 }'
