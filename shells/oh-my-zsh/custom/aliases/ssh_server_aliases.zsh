@@ -237,3 +237,13 @@ alias ssh-srv-test='() {
   fi
 }' # Test SSH server configuration syntax
 
+alias ssh-srv-help='() {
+  echo "SSH server management aliases and functions:"
+  echo "  ssh-srv-config   - View SSH server configuration file"
+  echo "  ssh-srv-edit     - Edit SSH server configuration file"
+  echo "  ssh-srv-restart  - Restart SSH server"
+  echo "  ssh-srv-status   - Check SSH server status"
+  echo "  ssh-srv-logs     - View SSH server logs"
+  echo "  ssh-srv-test     - Test SSH server configuration syntax"
+}' # Show help for SSH server management aliases
+
