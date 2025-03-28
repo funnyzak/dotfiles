@@ -216,3 +216,41 @@ alias omz-remove-custom-aliases='() {
     return 1
   fi
 }' # Remove custom aliases from Oh-My-Zsh
+
+alias omz-clear-empty-aliases='() {
+  local aliases_dir="$HOME/.oh-my-zsh/custom/aliases"
+
+  echo "Clear empty alias files from Oh-My-Zsh"
+
+  # Check if aliases directory exists
+  if [ ! -d "$aliases_dir" ]; then
+    echo "Error: Custom aliases directory does not exist: $aliases_dir" >&2
+    return 1
+  fi
+
+  # Find and remove empty files
+  local empty_files=$(find "$aliases_dir" -type f -empty)
+  if [ -z "$empty_files" ]; then
+    echo "No empty alias files found"
+    return 0
+  fi
+
+  # Ask for confirmation
+  echo "Found empty alias files:"
+  echo "$empty_files"
+  echo -n "Are you sure you want to remove all empty alias files? [y/N] "
+  read -r confirmation
+  if [[ ! "$confirmation" =~ ^[yY]$ ]]; then
+    echo "Operation cancelled"
+    return 0
+  fi
+  # Remove empty files
+  echo "Removing empty alias files..."
+  if rm -f $empty_files; then
+    echo "Empty alias files removed successfully"
+    echo "Run 'omz-reload' to apply changes"
+  else
+    echo "Error: Failed to remove empty alias files" >&2
+    return 1
+  fi
+}' # Clear empty alias files from Oh-My-Zsh
