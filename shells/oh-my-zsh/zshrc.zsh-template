@@ -210,13 +210,13 @@ alias zsh-plugins-reload='() {
 }'
 
 # Install oh-my-zsh alias files from remote repository (Linux/macOS)
-alias omz-aliase-install='() {
+alias omz-install-aliase='() {
   echo "Installing oh-my-zsh alias files from remote repository..."
   curl -fsSL "$(best_remote_url_prefix)shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
 }'
 
 # Upgrade oh-my-zsh configuration from remote repository
-alias zsh-config-upgrade='() {
+alias zsh-upgrade-config='() {
   local zsh_config_download_url="$(best_remote_url_prefix)shells/oh-my-zsh/zshrc.zsh-template"
 
   if [[ "$1" == "--bak" ]]; then
