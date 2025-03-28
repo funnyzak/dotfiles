@@ -175,157 +175,19 @@ alias omz-aedit='() {
   echo "Alias file edited successfully. Run 'zreload' to apply changes."
 }'
 
-alias omz-adel='() {
-  echo "Delete custom alias files from Oh-My-Zsh custom aliases directory."
-  echo "Usage:"
-  echo " omz-adel [-i|--interactive] [-a|--all] [file_name1 file_name2 ...]"
-  echo ""
-  echo "Options:"
-  echo "  -i, --interactive   Interactive mode for selection"
-  echo "  -a, --all           Delete all alias files"
-  echo "  file_name           File name(s) without _aliases.zsh extension"
-
-  # Use ZSH env variable if available, otherwise fall back to default path
-  local aliases_dir
-  if [ -n "$ZSH" ]; then
-    aliases_dir="$ZSH/custom/aliases"
-  else
-    aliases_dir="$HOME/.oh-my-zsh/custom/aliases"
+alias omz-remove-custom-aliases='(){
+  echo "Remove custom aliases from Oh-My-Zsh"
+  echo -e "Are you sure you want to remove all custom aliases($HOME/.oh-my-zsh/custom/aliases)? [y/N]"
+  read -r confirmation
+  if [ "$confirmation" != y ] && [ "$confirmation" != Y ]; then
+    echo "Uninstall cancelled"
+    return 0
   fi
-  local interactive=false
-  local delete_all=false
-  local files_to_delete=()
-
-  # Check if aliases directory exists
-  if [ ! -d "$aliases_dir" ]; then
-    echo "Error: Custom aliases directory not found: $aliases_dir" >&2
-    return 1
+  echo "Removing custom aliases directory: $HOME/.oh-my-zsh/custom/aliases"
+  if [ -d "$HOME/.oh-my-zsh/custom/aliases" ]; then
+    rm -rf "$HOME/.oh-my-zsh/custom/aliases"
   fi
-
-  # No arguments provided
-  if [ $# -eq 0 ]; then
-    echo "Error: No action specified. Use -i for interactive mode, -a for all files, or provide file names." >&2
-    return 1
-  fi
-
-  # Process arguments
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      -i|--interactive)
-        interactive=true
-        shift
-        ;;
-      -a|--all)
-        delete_all=true
-        shift
-        ;;
-      -*)
-        echo "Error: Unknown option: $1" >&2
-        return 1
-        ;;
-      *)
-        files_to_delete+=("$1")
-        shift
-        ;;
-    esac
-  done
-
-  # Interactive mode
-  if [ "$interactive" = true ]; then
-    echo "Available alias files:"
-    local all_files=($(find "$aliases_dir" -name "*_aliases.zsh" -type f -exec basename {} \; | sort))
-
-    if [ ${#all_files[@]} -eq 0 ]; then
-      echo "No alias files found in $aliases_dir" >&2
-      return 1
-    fi
-
-    local i=1
-    for file in "${all_files[@]}"; do
-      # Strip _aliases.zsh suffix for display
-      local display_name="${file%_aliases.zsh}"
-      echo "[$i] $display_name"
-      ((i++))
-    done
-
-    echo ""
-    echo "Enter numbers to delete (space-separated), or 'q' to quit:"
-    read -r selection
-
-    if [[ "$selection" == "q" ]]; then
-      echo "Operation cancelled."
-      return 0
-    fi
-
-    for num in $selection; do
-      if [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -ge 1 ] && [ "$num" -le ${#all_files[@]} ]; then
-        local file_index=$((num - 1))
-        local file_path="$aliases_dir/${all_files[$file_index]}"
-        local file_name="${all_files[$file_index]%_aliases.zsh}"
-
-        echo "Deleting $file_name..."
-        if ! rm "$file_path"; then
-          echo "Error: Failed to delete $file_path" >&2
-        fi
-      else
-        echo "Warning: Invalid selection '$num' - skipping" >&2
-      fi
-    done
-
-  # Delete all files
-  elif [ "$delete_all" = true ]; then
-    echo "WARNING: This will delete ALL custom alias files!"
-    echo "Are you sure? (y/N)"
-    read -r confirm
-
-    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-      echo "Deleting all alias files..."
-      local count=0
-      for file in "$aliases_dir"/*_aliases.zsh; do
-        if [ -f "$file" ]; then
-          if rm "$file"; then
-            ((count++))
-          else
-            echo "Error: Failed to delete $file" >&2
-          fi
-        fi
-      done
-
-      if [ $count -eq 0 ]; then
-        echo "No alias files found to delete."
-      else
-        echo "$count alias files deleted successfully."
-      fi
-    else
-      echo "Operation cancelled."
-      return 0
-    fi
-
-  # Delete specific files
-  elif [ ${#files_to_delete[@]} -gt 0 ]; then
-    local success_count=0
-    local error_count=0
-
-    for name in "${files_to_delete[@]}"; do
-      local file_path="$aliases_dir/${name}_aliases.zsh"
-
-      if [ -f "$file_path" ]; then
-        echo "Deleting $name..."
-        if rm "$file_path"; then
-          ((success_count++))
-        else
-          echo "Error: Failed to delete $name" >&2
-          ((error_count++))
-        fi
-      else
-        echo "Error: File not found: $file_path" >&2
-        ((error_count++))
-      fi
-    done
-
-    echo "$success_count file(s) deleted successfully, $error_count error(s)."
-  fi
-
-  echo "Run 'zreload' to apply changes."
+  echo "Custom aliases removed successfully."
+  echo "Don't forget to restart your terminal!"
   return 0
 }'
