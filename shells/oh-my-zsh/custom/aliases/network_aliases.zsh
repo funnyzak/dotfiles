@@ -566,3 +566,4 @@ alias net-help='() {
   echo "  net-help          - Display this help message"
   echo
   echo "For detailed usage information, run any command without arguments or with -h/--help flag"
+} # Display help for network aliases
