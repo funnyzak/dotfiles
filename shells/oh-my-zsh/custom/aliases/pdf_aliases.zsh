@@ -1,39 +1,62 @@
 # Description: PDF related aliases for conversion, compression, encryption, and manipulation.
 
-# Helper function - Validate PDF file
-_validate_pdf_path_pdf() {
+# Helper Functions
+_validate_pdf_path() {
   if [ ! -f "$1" ]; then
-    echo "Error: File \"$1\" does not exist or is not a regular file"
+    echo "Error: File \"$1\" does not exist or is not a regular file" >&2
     return 1
   fi
 
   if [[ "${1##*.}" != "pdf" ]]; then
-    echo "Error: File \"$1\" is not a PDF file"
+    echo "Error: File \"$1\" is not a PDF file" >&2
     return 1
   fi
 
   return 0
 }
 
-# Helper function - Validate directory
-_validate_directory_pdf() {
+_validate_directory() {
   if [ ! -d "$1" ]; then
-    echo "Error: Directory \"$1\" does not exist"
+    echo "Error: Directory \"$1\" does not exist" >&2
     return 1
   fi
 
   return 0
 }
 
-# PDF to Image Conversion
-alias pdf_to_images='(){
+# PDF Information
+alias pdf-info='() {
   if [ $# -eq 0 ]; then
-    echo "Convert PDF to images (using pdf2pic).\nUsage:\n pdf_to_images <pdf_path>"
+    echo "Display PDF file information.\nUsage:\n pdf-info <pdf_path>"
     return 1
   fi
   pdf_path=$1
 
-  if ! _validate_pdf_path_pdf "$pdf_path"; then
+  if ! _validate_pdf_path "$pdf_path"; then
+    return 1
+  fi
+
+  if ! command -v pdfinfo &> /dev/null; then
+    echo "Error: pdfinfo not found, please install poppler-utils first" >&2
+    return 1
+  fi
+
+  echo "Fetching information for PDF \"$pdf_path\"..."
+  if ! pdfinfo "$pdf_path"; then
+    echo "Error: Could not get PDF information" >&2
+    return 1
+  fi
+}' # Display PDF file information using pdfinfo
+
+# PDF to Image Conversion
+alias pdf-to-images='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert PDF to images.\nUsage:\n pdf-to-images <pdf_path>"
+    return 1
+  fi
+  pdf_path=$1
+
+  if ! _validate_pdf_path "$pdf_path"; then
     return 1
   fi
 
@@ -41,19 +64,19 @@ alias pdf_to_images='(){
   if pdf2pic -i "$@"; then
     echo "Conversion complete"
   else
-    echo "Error: Conversion failed, please check if pdf2pic is installed correctly"
+    echo "Error: Conversion failed, please check if pdf2pic is installed correctly" >&2
     return 1
   fi
-}'  # Convert PDF to images using pdf2pic
+}' # Convert PDF to images using pdf2pic
 
-alias pdf_batch_to_images='(){
+alias pdf-batch-to-images='(){
   if [ $# -eq 0 ]; then
     echo "Convert all PDF files in a directory to images (using pdf2pic).\nUsage:\n pdf_batch_to_images <directory_path>"
     return 1
   fi
   dir_path=$1
 
-  if ! _validate_directory_pdf "$dir_path"; then
+  if ! _validate_directory "$dir_path"; then
     return 1
   fi
 
@@ -79,7 +102,7 @@ alias pdf_batch_to_images='(){
   echo "Batch conversion complete: Successfully converted $conversion_count/$pdf_count files"
 }'  # Batch convert PDF files in a directory to images
 
-alias pdf_to_jpg='(){
+alias pdf-to-jpg='(){
   if [ $# -eq 0 ]; then
     echo "Convert PDF to JPG images (using ImageMagick).\nUsage:\n pdf_to_jpg <pdf_path> [resolution=300]"
     return 1
@@ -87,12 +110,12 @@ alias pdf_to_jpg='(){
   pdf_path=$1
   density=${2:-300}
 
-  if ! _validate_pdf_path_pdf "$pdf_path"; then
+  if ! _validate_pdf_path "$pdf_path"; then
     return 1
   fi
 
   if ! command -v magick &> /dev/null; then
-    echo "Error: ImageMagick not found, please install it first"
+    echo "Error: ImageMagick not found, please install it first" >&2
     return 1
   fi
 
@@ -102,13 +125,13 @@ alias pdf_to_jpg='(){
   if magick convert -density "$density" "$pdf_path" "${output_prefix}_%02d.jpg"; then
     echo "Conversion complete, exported as ${output_prefix}_%02d.jpg"
   else
-    echo "Error: Conversion failed"
+    echo "Error: Conversion failed" >&2
     return 1
   fi
 }'  # Convert PDF to JPG images using ImageMagick
 
 # PDF Compression
-alias pdf_compress='(){
+alias pdf-compress='(){
   if [ $# -eq 0 ]; then
     echo "Compress PDF file (using Ghostscript).\nUsage:\n pdf_compress <pdf_path> [compression_level:ebook|printer|screen]"
     echo "Compression level description:\n - screen: Screen quality (72dpi) - smallest file size\n - ebook: E-book quality (150dpi) - medium size\n - printer: Print quality (300dpi) - larger file size"
@@ -117,7 +140,7 @@ alias pdf_compress='(){
   pdf_path=$1
   option=${2:-"screen"}
 
-  if ! _validate_pdf_path_pdf "$pdf_path"; then
+  if ! _validate_pdf_path "$pdf_path"; then
     return 1
   fi
 
@@ -127,7 +150,7 @@ alias pdf_compress='(){
   fi
 
   if ! command -v gs &> /dev/null; then
-    echo "Error: Ghostscript not found, please install it first"
+    echo "Error: Ghostscript not found, please install it first" >&2
     return 1
   fi
 
@@ -145,12 +168,12 @@ alias pdf_compress='(){
       return 1
     fi
   else
-    echo "Error: Compression failed"
+    echo "Error: Compression failed" >&2
     return 1
   fi
 }'  # Compress PDF file using Ghostscript
 
-alias pdf_batch_compress='(){
+alias pdf-batch-compress='(){
   if [ $# -eq 0 ]; then
     echo "Batch compress PDF files in a directory (using Ghostscript).\nUsage:\n pdf_batch_compress <directory_path> [compression_level:ebook|printer|screen]"
     echo "Compression level description:\n - screen: Screen quality (72dpi) - smallest file size\n - ebook: E-book quality (150dpi) - medium size\n - printer: Print quality (300dpi) - larger file size"
@@ -159,7 +182,7 @@ alias pdf_batch_compress='(){
   dir_path=$1
   option=${2:-"screen"}
 
-  if ! _validate_directory_pdf "$dir_path"; then
+  if ! _validate_directory "$dir_path"; then
     return 1
   fi
 
@@ -169,7 +192,7 @@ alias pdf_batch_compress='(){
   fi
 
   if ! command -v gs &> /dev/null; then
-    echo "Error: Ghostscript not found, please install it first"
+    echo "Error: Ghostscript not found, please install it first" >&2
     return 1
   fi
 
@@ -205,7 +228,7 @@ alias pdf_batch_compress='(){
 }'  # Batch compress PDF files in a directory
 
 # PDF Encryption
-alias pdf_encrypt='(){
+alias pdf-encrypt='(){
   if [ $# -eq 0 ]; then
     echo "Encrypt PDF file (using Ghostscript).\nUsage:\n pdf_encrypt <source_pdf_path> [output_pdf_path] [owner_password] [user_password]"
     echo "Description:\n - If no output path is specified, a new file with a random suffix will be created in the same directory\n - If no password is specified, a random password will be automatically generated"
@@ -216,12 +239,12 @@ alias pdf_encrypt='(){
   owner_password="${3:-"$(openssl rand -base64 12)"}"
   user_password="${4:-"$(openssl rand -base64 12)"}"
 
-  if ! _validate_pdf_path_pdf "$source_pdf_path"; then
+  if ! _validate_pdf_path "$source_pdf_path"; then
     return 1
   fi
 
   if ! command -v gs &> /dev/null; then
-    echo "Error: Ghostscript not found, please install it first"
+    echo "Error: Ghostscript not found, please install it first" >&2
     return 1
   fi
 
@@ -251,7 +274,177 @@ alias pdf_encrypt='(){
       return 1
     fi
   else
-    echo "Error: Encryption failed"
+    echo "Error: Encryption failed" >&2
     return 1
   fi
 }'  # Add password protection to PDF using Ghostscript
+
+# PDF Merging
+alias pdf-merge='() {
+  if [ $# -lt 2 ]; then
+    echo "Merge multiple PDF files into one.\nUsage:\n pdf-merge <output_pdf> <input_pdf1> <input_pdf2> [input_pdf3...]"
+    return 1
+  fi
+  output_pdf=$1
+  shift
+
+  if ! command -v gs &> /dev/null; then
+    echo "Error: Ghostscript not found, please install it first" >&2
+    return 1
+  fi
+
+  for pdf in "$@"; do
+    if ! _validate_pdf_path "$pdf"; then
+      return 1
+    fi
+  done
+
+  echo "Merging PDFs into \"$output_pdf\"..."
+  if gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile="$output_pdf" "$@"; then
+    echo "Merge complete: \"$output_pdf\""
+  else
+    echo "Error: Merge failed" >&2
+    return 1
+  fi
+}' # Merge multiple PDF files into one using Ghostscript
+
+# PDF Split
+alias pdf-split='() {
+  if [ $# -lt 1 ]; then
+    echo "Split PDF file into separate pages.\nUsage:\n pdf-split <pdf_path>"
+    return 1
+  fi
+  pdf_path=$1
+
+  if ! _validate_pdf_path "$pdf_path"; then
+    return 1
+  fi
+
+  if ! command -v pdftk &> /dev/null; then
+    echo "Error: pdftk not found, please install it first" >&2
+    return 1
+  fi
+
+  output_pattern="$(basename "$pdf_path" .pdf)_page_%04d.pdf"
+  echo "Splitting PDF \"$pdf_path\" into separate pages..."
+  if pdftk "$pdf_path" burst output "$output_pattern"; then
+    rm -f doc_data.txt
+    echo "Split complete: Pages saved as ${output_pattern%_*}_page_*.pdf"
+  else
+    echo "Error: Split failed" >&2
+    return 1
+  fi
+}' # Split PDF into separate pages using pdftk
+
+# PDF Rotation
+alias pdf-rotate='() {
+  if [ $# -lt 2 ]; then
+    echo "Rotate PDF pages.\nUsage:\n pdf-rotate <pdf_path> <degrees> [output_path]"
+    echo "Degrees must be one of: 90, 180, 270"
+    return 1
+  fi
+  pdf_path=$1
+  degrees=$2
+  output_path="${3:-${pdf_path%.*}_rotated.pdf}"
+
+  if ! _validate_pdf_path "$pdf_path"; then
+    return 1
+  fi
+
+  if ! [[ "$degrees" =~ ^(90|180|270)$ ]]; then
+    echo "Error: Invalid rotation degree. Must be 90, 180, or 270" >&2
+    return 1
+  fi
+
+  if ! command -v pdftk &> /dev/null; then
+    echo "Error: pdftk not found, please install it first" >&2
+    return 1
+  fi
+
+  echo "Rotating PDF \"$pdf_path\" by $degrees degrees..."
+  if pdftk "$pdf_path" rotate allpages $degrees output "$output_path"; then
+    echo "Rotation complete: \"$output_path\""
+  else
+    echo "Error: Rotation failed" >&2
+    return 1
+  fi
+}' # Rotate all pages in a PDF file using pdftk
+
+# PDF Extract Pages
+alias pdf-extract='() {
+  if [ $# -lt 3 ]; then
+    echo "Extract pages from PDF file.\nUsage:\n pdf-extract <pdf_path> <start_page> <end_page> [output_path]"
+    return 1
+  fi
+  pdf_path=$1
+  start_page=$2
+  end_page=$3
+  output_path="${4:-${pdf_path%.*}_p${start_page}-${end_page}.pdf}"
+
+  if ! _validate_pdf_path "$pdf_path"; then
+    return 1
+  fi
+
+  if ! command -v pdftk &> /dev/null; then
+    echo "Error: pdftk not found, please install it first" >&2
+    return 1
+  fi
+
+  if ! [[ "$start_page" =~ ^[0-9]+$ ]] || ! [[ "$end_page" =~ ^[0-9]+$ ]]; then
+    echo "Error: Page numbers must be positive integers" >&2
+    return 1
+  fi
+
+  echo "Extracting pages $start_page-$end_page from \"$pdf_path\"..."
+  if pdftk "$pdf_path" cat $start_page-$end_page output "$output_path"; then
+    echo "Extraction complete: \"$output_path\""
+  else
+    echo "Error: Extraction failed" >&2
+    return 1
+  fi
+}' # Extract page range from PDF file using pdftk
+
+# PDF to Text
+alias pdf-to-text='() {
+  if [ $# -eq 0 ]; then
+    echo "Extract text from PDF file.\nUsage:\n pdf-to-text <pdf_path> [output_path]"
+    return 1
+  fi
+  pdf_path=$1
+  output_path="${2:-${pdf_path%.*}.txt}"
+
+  if ! _validate_pdf_path "$pdf_path"; then
+    return 1
+  fi
+
+  if ! command -v pdftotext &> /dev/null; then
+    echo "Error: pdftotext not found, please install poppler-utils first" >&2
+    return 1
+  fi
+
+  echo "Extracting text from \"$pdf_path\"..."
+  if pdftotext "$pdf_path" "$output_path"; then
+    echo "Text extraction complete: \"$output_path\""
+  else
+    echo "Error: Text extraction failed" >&2
+    return 1
+  fi
+}' # Extract text from PDF file using pdftotext
+
+# Update help function
+alias pdf-help='() {
+  echo "PDF Manipulation Aliases Help\n"
+  echo "Available commands:"
+  echo "  pdf-info           - Display PDF file information"
+  echo "  pdf-to-images      - Convert PDF to images"
+  echo "  pdf-to-jpg         - Convert PDF to JPG images"
+  echo "  pdf-compress       - Compress PDF file"
+  echo "  pdf-batch-compress - Batch compress PDF files"
+  echo "  pdf-encrypt        - Add password protection to PDF"
+  echo "  pdf-merge         - Merge multiple PDF files"
+  echo "  pdf-split         - Split PDF into separate pages"
+  echo "  pdf-rotate        - Rotate all pages in PDF file"
+  echo "  pdf-extract       - Extract page range from PDF"
+  echo "  pdf-to-text       - Extract text from PDF file"
+  echo "\nUse <command> without arguments to see detailed usage information."
+}' # Show help information for PDF aliases
