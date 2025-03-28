@@ -126,7 +126,7 @@ best_remote_url_prefix() {
 }
 
 # Auto-install and load zsh-autosuggestions and zsh-syntax-highlighting plugins
-load_zsh_plugins() {
+zsh_plugins_load() {
   local ZSH_CUSTOM=${ZSH_CUSTOM:-$ZSH/custom}
 
   # Define plugin variables using space-separated strings instead of arrays
@@ -200,17 +200,17 @@ load_zsh_plugins() {
 }
 
 # Automatically load plugins
-load_zsh_plugins
+zsh_plugins_load
 
 # Create alias for manually reloading plugins
-alias reload-zsh-plugins='() {
+alias zsh-plugins-reload='() {
   echo "Reloading zsh plugins..."
-  load_zsh_plugins
+  zsh_plugins_load
   echo "Zsh plugins reloaded."
 }'
 
 # Install oh-my-zsh alias files from remote repository (Linux/macOS)
-alias install-omz-aliase='() {
+alias omz-aliase-install='() {
   echo "Installing oh-my-zsh alias files from remote repository..."
   curl -fsSL "$(best_remote_url_prefix)shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
 }'
