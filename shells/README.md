@@ -14,24 +14,6 @@ shells/
 │   ├── zshrc.zsh-template  # Zsh 配置模板文件
 │   ├── custom/             # Oh My Zsh 自定义内容
 │   │   ├── aliases/        # 自定义别名集合
-│   │   │   ├── archive_aliases.zsh    # 归档相关别名
-│   │   │   ├── brew_aliases.zsh       # Homebrew 相关别名
-│   │   │   ├── bria_aliases.zsh       # Bria 相关别名
-│   │   │   ├── dependency_aliases.zsh # 依赖管理相关别名
-│   │   │   ├── directory_aliases.zsh  # 目录操作相关别名
-│   │   │   ├── docker_aliases.zsh     # Docker 相关别名
-│   │   │   ├── filesystem_aliases.zsh # 文件系统相关别名
-│   │   │   ├── git_aliases.zsh        # Git 相关别名
-│   │   │   ├── help_aliases.zsh       # 帮助相关别名
-│   │   │   ├── image_aliases.zsh      # 图像处理相关别名
-│   │   │   ├── mc_aliases.zsh         # MC 相关别名
-│   │   │   ├── network_aliases.zsh    # 网络相关别名
-│   │   │   ├── notification_aliases.zsh # 通知相关别名
-│   │   │   ├── pdf_aliases.zsh        # PDF 处理相关别名
-│   │   │   ├── system_aliases.zsh     # 系统操作相关别名
-│   │   │   ├── tcpdump_aliases.zsh    # Tcpdump 相关别名
-│   │   │   ├── video_aliases.zsh      # 视频处理相关别名
-│   │   │   └── zsh_config_aliases.zsh # Zsh 配置相关别名
 │   │   ├── plugins/        # 自定义插件
 │   │   └── themes/         # 自定义主题
 │   └── tools/              # 工具脚本
