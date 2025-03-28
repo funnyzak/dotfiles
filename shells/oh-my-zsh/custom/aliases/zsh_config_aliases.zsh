@@ -173,21 +173,46 @@ alias omz-aedit='() {
   fi
 
   echo "Alias file edited successfully. Run 'zreload' to apply changes."
-}'
+}' # Edit or create an alias script file in Oh-My-Zsh custom aliases directory
 
-alias omz-remove-custom-aliases='(){
+alias omz-remove-custom-aliases='() {
+  local aliases_dir="$HOME/.oh-my-zsh/custom/aliases"
+
   echo "Remove custom aliases from Oh-My-Zsh"
-  echo -e "Are you sure you want to remove all custom aliases($HOME/.oh-my-zsh/custom/aliases)? [y/N]"
+
+  # Check if aliases directory exists
+  if [ ! -d "$aliases_dir" ]; then
+    echo "Error: Custom aliases directory does not exist: $aliases_dir" >&2
+    return 1
+  fi
+
+  # Count number of alias files
+  local file_count=$(find "$aliases_dir" -type f -name "*_aliases.zsh" | wc -l | tr -d " ")
+  echo "Found $file_count alias file(s) in $aliases_dir"
+
+  # Ask for confirmation
+  echo -n "Are you sure you want to remove all custom aliases? [y/N] "
   read -r confirmation
-  if [ "$confirmation" != y ] && [ "$confirmation" != Y ]; then
-    echo "Uninstall cancelled"
+  if [[ ! "$confirmation" =~ ^[yY]$ ]]; then
+    echo "Operation cancelled"
     return 0
   fi
-  echo "Removing custom aliases directory: $HOME/.oh-my-zsh/custom/aliases"
-  if [ -d "$HOME/.oh-my-zsh/custom/aliases" ]; then
-    rm -rf "$HOME/.oh-my-zsh/custom/aliases"
+
+  # # Create backup before removal
+  # local backup_dir="$HOME/.oh-my-zsh-aliases-backup-$(date +%Y%m%d%H%M%S)"
+  # echo "Creating backup in $backup_dir"
+  # if ! cp -r "$aliases_dir" "$backup_dir"; then
+  #   echo "Warning: Failed to create backup, proceeding anyway" >&2
+  # fi
+
+  # Remove directory
+  echo "Removing custom aliases directory: $aliases_dir"
+  if rm -rf "$aliases_dir"; then
+    echo "Custom aliases removed successfully"
+    # echo "Backup saved to $backup_dir"
+    echo "Run 'omz-reload' to apply changes"
+  else
+    echo "Error: Failed to remove $aliases_dir" >&2
+    return 1
   fi
-  echo "Custom aliases removed successfully."
-  echo "Don't forget to restart your terminal!"
-  return 0
-}'
+}' # Remove custom aliases from Oh-My-Zsh
