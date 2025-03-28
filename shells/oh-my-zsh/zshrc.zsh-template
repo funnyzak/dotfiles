@@ -212,6 +212,7 @@ alias omz_reload_plugins='() {
 alias omz_install_aliases='() {
   echo "Installing oh-my-zsh alias files from remote repository..."
   curl -fsSL "$(best_remote_url_prefix)shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
+  source ~/.zshrc  # Reload the configuration after installation
 }'
 
 # Upgrade oh-my-zsh configuration from remote repository
