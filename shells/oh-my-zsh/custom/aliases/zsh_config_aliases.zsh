@@ -229,9 +229,9 @@ alias omz-clear-empty-aliases='() {
   fi
 
   # Find and remove empty files
-  local empty_files=$(find "$aliases_dir" -type f -empty)
+  local empty_files=$(find "$aliases_dir" -type f -size 0)
   if [ -z "$empty_files" ]; then
-    echo "No empty alias files found"
+    echo "No empty alias files found in $aliases_dir"
     return 0
   fi
 
