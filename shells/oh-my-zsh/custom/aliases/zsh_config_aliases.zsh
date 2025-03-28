@@ -185,7 +185,13 @@ alias omz-adel='() {
   echo "  -a, --all           Delete all alias files"
   echo "  file_name           File name(s) without _aliases.zsh extension"
 
-  local aliases_dir="$HOME/.oh-my-zsh/custom/aliases"
+  # Use ZSH env variable if available, otherwise fall back to default path
+  local aliases_dir
+  if [ -n "$ZSH" ]; then
+    aliases_dir="$ZSH/custom/aliases"
+  else
+    aliases_dir="$HOME/.oh-my-zsh/custom/aliases"
+  fi
   local interactive=false
   local delete_all=false
   local files_to_delete=()
