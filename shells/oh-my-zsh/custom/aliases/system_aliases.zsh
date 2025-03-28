@@ -29,18 +29,18 @@ alias sha256='shasum -a 256'  # Calculate SHA256 hash of a file
 alias sha512='shasum -a 512'  # Calculate SHA512 hash of a file
 
 # SSL utilities
-alias sslscan='() {
+alias ssl_scan='() {
   if [ $# -eq 0 ]; then
-    _show_usage_system_aliases "Scan SSL/TLS configuration.\nUsage:\n sslscan <domain> <port:443>"
+    _show_usage_system_aliases "Scan SSL/TLS configuration.\nUsage:\n ssl_scan <domain> <port:443>"
     return 1
   fi
   nmap --script ssl-enum-ciphers -p "${2:-443}" "$1" || _show_error_system_aliases "Failed to scan SSL configuration for $1"
 }'
 
-alias sslscan2='sslscan -tlsall'  # Scan with all TLS protocol versions
+alias ssl_scan_all='sslscan -tlsall'  # Scan with all TLS protocol versions
 
 # Internet speed testing
-alias speedtest='() {
+alias speed_test='() {
   echo "Running internet speed test..."
   curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python - || _show_error_system_aliases "Failed to run speed test"
 }'
@@ -58,35 +58,44 @@ _generate_random_string_system_aliases() {
 }
 
 # Random password generation
-alias rand_pass='() {
-  if [ $# -eq 0 ]; then
-    _show_usage_system_aliases "Generate random password.\nUsage:\n rand_pass <length:16> <count:1>"
-  fi
+alias generate_password='() {
   local length="${1:-16}"
   local count="${2:-1}"
+
+  if [ $# -eq 0 ]; then
+    _show_usage_system_aliases "Generate random password.\nUsage:\n generate_password <length:16> <count:1>"
+    return 0
+  fi
+
   _generate_random_string_system_aliases "a-zA-Z0-9" "$length" "$count"
 }'
 
-alias rand_nums='() {
-  if [ $# -eq 0 ]; then
-    _show_usage_system_aliases "Generate random numeric string.\nUsage:\n rand_nums <length:16> <count:1>"
-  fi
+alias generate_numbers='() {
   local length="${1:-16}"
   local count="${2:-1}"
+
+  if [ $# -eq 0 ]; then
+    _show_usage_system_aliases "Generate random numeric string.\nUsage:\n generate_numbers <length:16> <count:1>"
+    return 0
+  fi
+
   _generate_random_string_system_aliases "0-9" "$length" "$count"
 }'
 
-alias rand_strs='() {
-  if [ $# -eq 0 ]; then
-    _show_usage_system_aliases "Generate random alphabetic string.\nUsage:\n rand_strs <length:16> <count:1>"
-  fi
+alias generate_strings='() {
   local length="${1:-16}"
   local count="${2:-1}"
+
+  if [ $# -eq 0 ]; then
+    _show_usage_system_aliases "Generate random alphabetic string.\nUsage:\n generate_strings <length:16> <count:1>"
+    return 0
+  }
+
   _generate_random_string_system_aliases "a-z" "$length" "$count"
 }'
 
 # Server utilities
-alias httpserver='() {
+alias http_server='() {
   local port="${1:-3080}"
   echo "Starting HTTP server on port $port"
   if ! python -m http.server "$port"; then
@@ -94,7 +103,7 @@ alias httpserver='() {
   fi
 }'
 
-alias sserve='() {
+alias serve_http='() {
   local port="${1:-8080}"
   echo "Starting serve HTTP server on port $port"
   if ! command -v serve &> /dev/null; then
@@ -109,7 +118,7 @@ alias sserve='() {
 # General utilities
 alias cls='clear'  # Clear screen
 
-alias clch='() {
+alias clear_history='() {
   echo "Clearing command history"
   if history -c && history -w && history -r; then
     echo "Command history cleared"
@@ -120,11 +129,11 @@ alias clch='() {
 
 # File synchronization
 alias rsync="rsync -avzP"  # Use rsync with archive, verbose, compress and progress options
-alias rsync_d="rsync -avzP --delete"  # rsync with delete option for exact mirror
+alias rsync_delete="rsync -avzP --delete"  # rsync with delete option for exact mirror
 
-alias rsync_r2l='() {
+alias rsync_remote='() {
   if [ $# -lt 3 ]; then
-    _show_usage_system_aliases "Rsync from remote server to local or vice versa.\nUsage:\n rsync_r2l <port> <source> <destination>\nExample: rsync_r2l 2001 user@server1:/mnt/ /data\nExample: rsync_r2l 2001 /mnt/ user@server1:/data"
+    _show_usage_system_aliases "Rsync from remote server to local or vice versa.\nUsage:\n rsync_remote <port> <source> <destination>\nExample: rsync_remote 2001 user@server1:/mnt/ /data\nExample: rsync_remote 2001 /mnt/ user@server1:/data"
     return 1
   fi
   echo "Syncing from $2 to $3 via port $1"
@@ -134,7 +143,7 @@ alias rsync_r2l='() {
 }'
 
 # Virtual environment utilities
-alias venv_start='() {
+alias venv_create='() {
   local env_dir="${1:-venv}"
   if [ -d "$env_dir" ]; then
     echo "Activating virtual environment: $env_dir"
@@ -152,7 +161,7 @@ alias venv_start='() {
   fi
 }'
 
-alias venv_deactivate='() {
+alias venv_exit='() {
   if [ -z "$VIRTUAL_ENV" ]; then
     echo "No virtual environment is currently activated."
   else
@@ -161,7 +170,7 @@ alias venv_deactivate='() {
   fi
 }'
 
-alias venv_remove='() {
+alias venv_delete='() {
   local env_dir="${1:-venv}"
   if [ -d "$env_dir" ]; then
     echo "Removing virtual environment: $env_dir"
@@ -174,7 +183,7 @@ alias venv_remove='() {
   fi
 }'
 
-alias venv_list='() {
+alias venv_info='() {
   if [ -z "$VIRTUAL_ENV" ]; then
     echo "No virtual environment is currently activated."
   else

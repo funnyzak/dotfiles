@@ -1,95 +1,279 @@
 # Description: Network related aliases for connectivity testing, information gathering, port scanning, monitoring and downloads.
 
-# Network information
-alias myip='curl -s ipinfo.io/ip'  # Get public IP address
-alias ipinfo='() {
+#===================================
+# Network information aliases
+#===================================
+
+# Helper function for network aliases
+_network_check_command() {
+  if ! command -v "$1" &> /dev/null; then
+    echo "Error: Required command '$1' not found. Please install it first." >&2
+    return 1
+  fi
+  return 0
+}
+
+# Get public IP address
+alias net_myip='() {
+  echo "Getting public IP address..."
+  if ! _network_check_command curl; then
+    return 1
+  fi
+  curl -s ipinfo.io/ip
+}'
+
+# Get IP information for your IP or specified address
+alias net_ipinfo='() {
+  if ! _network_check_command curl; then
+    return 1
+  fi
+
   if [ $# -eq 0 ]; then
-    echo "Get IP information.\nUsage:\n ipinfo [ip_address]"
+    echo "Get IP information.\nUsage:\n net_ipinfo [ip_address]"
     curl -s ipinfo.io
   else
     curl -s ipinfo.io/${1}
   fi
-}'  # Get IP information for your IP or specified address
+}'
 
-alias domainip='dig +short'  # Get IP address for a domain name
+# Get IP address for a domain name
+alias net_domainip='() {
+  if ! _network_check_command dig; then
+    return 1
+  fi
 
+  if [ $# -eq 0 ]; then
+    echo "Get IP address for a domain.\nUsage:\n net_domainip <domain>"
+    return 1
+  fi
+
+  echo "IP address for $1:"
+  dig +short "$1"
+}'
+
+#===================================
 # Network connectivity testing
-alias ping='ping -c 5'  # Limit ping to 5 attempts
-alias nc_zv='() {
-  if [ $# -eq 0 ]; then
-    echo "Test port connectivity using netcat.\nUsage:\n nc_zv <host> <port>"
-    return 1
-  else
-    nc -zv $1 $2
-  fi
-}'  # Test if a port is open using netcat
+#===================================
 
+# Limit ping to 5 attempts
+alias net_ping='() {
+  if ! _network_check_command ping; then
+    return 1
+  fi
+
+  if [ $# -eq 0 ]; then
+    echo "Ping a host with 5 attempts.\nUsage:\n net_ping <host>"
+    return 1
+  fi
+
+  ping -c 5 "$@"
+}'
+
+# Test if a port is open using netcat
+alias net_port_test='() {
+  if ! _network_check_command nc; then
+    return 1
+  fi
+
+  if [ $# -lt 2 ]; then
+    echo "Test port connectivity using netcat.\nUsage:\n net_port_test <host> <port>"
+    return 1
+  fi
+
+  echo "Testing connection to $1:$2..."
+  nc -zv "$1" "$2"
+}'
+
+#===================================
 # Network port monitoring
-alias ports='lsof -i -P'  # List all network connections
-alias portusage='lsof -n -P -i'  # Show port usage information
-alias lsport='lsof -i -P -n | grep LISTEN'  # List all listening ports
+#===================================
 
+# List all network connections
+alias net_ports='() {
+  if ! _network_check_command lsof; then
+    return 1
+  fi
+
+  echo "Listing all network connections..."
+  lsof -i -P
+}'
+
+# Show port usage information
+alias net_port_usage='() {
+  if ! _network_check_command lsof; then
+    return 1
+  fi
+
+  echo "Showing port usage information..."
+  lsof -n -P -i
+}'
+
+# List all listening ports
+alias net_listening='() {
+  if ! _network_check_command lsof; then
+    return 1
+  fi
+
+  echo "Listing all listening ports..."
+  lsof -i -P -n | grep LISTEN
+}'
+
+#===================================
 # Network devices
-alias networkdevices='arp -a'  # Show devices on local network
+#===================================
 
+# Show devices on local network
+alias net_devices='() {
+  if ! _network_check_command arp; then
+    return 1
+  fi
+
+  echo "Showing devices on local network..."
+  arp -a
+}'
+
+#===================================
 # Network bandwidth monitoring
-alias bandwidth='iftop'  # Monitor network bandwidth
-alias watchnet='watch -d -n 1 iftop -t -s 1'  # Real-time network traffic monitoring
+#===================================
 
+# Monitor network bandwidth
+alias net_bandwidth='() {
+  if ! _network_check_command iftop; then
+    return 1
+  fi
+
+  echo "Monitoring network bandwidth. Press q to quit."
+  iftop
+}'
+
+# Real-time network traffic monitoring
+alias net_watch='() {
+  if ! _network_check_command iftop && ! _network_check_command watch; then
+    return 1
+  fi
+
+  echo "Real-time network traffic monitoring. Press Ctrl+C to quit."
+  watch -d -n 1 "iftop -t -s 1"
+}'
+
+#===================================
 # Network downloads
-alias dl='() {
-  if [ $# -eq 0 ]; then
-    echo "Download file from URL.\nUsage:\n dl <url> <output_path>"
-    return 1
-  else
-    wget --no-check-certificate --progress=bar:force $1 -O $2 && 
-    echo -e "\nDownload complete, saved to $2"
-  fi
-}'  # Download file from URL
+#===================================
 
-alias dl_all='() {
-  if [ $# -eq 0 ]; then
-    echo "Download all files from URL list file.\nUsage:\n dl_all <url_list_file>"
+# Download file from URL
+alias net_download='() {
+  if ! _network_check_command wget; then
     return 1
-  else
-    mkdir -p ./download && 
-    cat $1 | xargs -n1 wget -P ./download --no-check-certificate --progress=bar:force && 
-    echo "Download complete, files saved in ./download directory"
   fi
-}'  # Download all files from a list of URLs
 
+  if [ $# -lt 2 ]; then
+    echo "Download file from URL.\nUsage:\n net_download <url> <output_path>"
+    return 1
+  fi
+
+  echo "Downloading $1 to $2..."
+  wget --no-check-certificate --progress=bar:force "$1" -O "$2" &&
+  echo -e "\nDownload complete, saved to $2"
+}'
+
+# Download all files from a list of URLs
+alias net_download_all='() {
+  if ! _network_check_command wget; then
+    return 1
+  fi
+
+  if [ $# -eq 0 ]; then
+    echo "Download all files from URL list file.\nUsage:\n net_download_all <url_list_file>"
+    return 1
+  fi
+
+  if [ ! -f "$1" ]; then
+    echo "Error: File $1 not found." >&2
+    return 1
+  fi
+
+  echo "Downloading files from list in $1..."
+  mkdir -p ./download &&
+  cat "$1" | xargs -n1 wget -P ./download --no-check-certificate --progress=bar:force &&
+  echo "Download complete, files saved in ./download directory"
+}'
+
+#===================================
 # HTTP requests
-alias get='curl -sS'  # Send GET request
-alias post='curl -sSX POST'  # Send POST request
-alias headers='curl -I'  # Get HTTP headers only
+#===================================
 
+# Send GET request
+alias net_get='() {
+  if ! _network_check_command curl; then
+    return 1
+  fi
+
+  if [ $# -eq 0 ]; then
+    echo "Send HTTP GET request.\nUsage:\n net_get <url>"
+    return 1
+  fi
+
+  curl -sS "$@"
+}'
+
+# Send POST request
+alias net_post='() {
+  if ! _network_check_command curl; then
+    return 1
+  fi
+
+  if [ $# -eq 0 ]; then
+    echo "Send HTTP POST request.\nUsage:\n net_post <url> [data]"
+    return 1
+  fi
+
+  curl -sSX POST "$@"
+}'
+
+# Get HTTP headers only
+alias net_headers='() {
+  if ! _network_check_command curl; then
+    return 1
+  fi
+
+  if [ $# -eq 0 ]; then
+    echo "Get HTTP headers only.\nUsage:\n net_headers <url>"
+    return 1
+  fi
+
+  curl -I "$@"
+}'
+
+#===================================
 # DNS operations
-alias flushdns='sudo killall -HUP mDNSResponder'  # Flush DNS cache (macOS)
+#===================================
 
-alias dnslookup='() {
-  if [ $# -eq 0 ]; then
-    echo "DNS lookup for domain.\nUsage:\n dnslookup <domain>"
-    return 1
+# Flush DNS cache (macOS)
+alias net_flush_dns='() {
+  echo "Flushing DNS cache..."
+  if [ "$(uname)" = "Darwin" ]; then
+    sudo killall -HUP mDNSResponder && echo "DNS cache flushed (macOS)"
+  elif [ -f /etc/debian_version ]; then
+    sudo systemd-resolve --flush-caches && echo "DNS cache flushed (Debian/Ubuntu)"
+  elif [ -f /etc/redhat-release ]; then
+    sudo systemctl restart nscd && echo "DNS cache flushed (RHEL/CentOS)"
   else
-    dig +short $1
-  fi
-}'  # Look up DNS records for a domain
-
-# URL shortening services
-alias yourls_surl='() {
-  if [ $# -eq 0 ]; then
-    echo "Generate short URL using YOURLS.\nUsage:\n shorturl <url>"
+    echo "Error: Unsupported operating system." >&2
     return 1
-  else
-    curl -X POST "$YOURLS_BASE_URL/yourls-api.php" --data "format=json&signature=$YOURLS_TOKEN&action=shorturl&url=$1" | jq .
   fi
-}'  # Generate short URL using YOURLS
+}'
 
-alias sink_surl='() {
-  if [ $# -eq 0 ]; then
-    echo "Generate short URL using sink.\nUsage: sink <url> [custom_code]"
+# Look up DNS records for a domain
+alias net_dns_lookup='() {
+  if ! _network_check_command dig; then
     return 1
-  else 
-    shorten_url_by_sink $SINK_BASE_URL $SINK_TOKEN $@
   fi
-}'  # Generate short URL using sink service
+
+  if [ $# -eq 0 ]; then
+    echo "DNS lookup for domain.\nUsage:\n net_dns_lookup <domain>"
+    return 1
+  fi
+
+  echo "Looking up DNS records for $1..."
+  dig +short "$1"
+}'
