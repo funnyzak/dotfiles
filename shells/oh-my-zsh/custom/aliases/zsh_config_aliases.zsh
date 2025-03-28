@@ -140,3 +140,45 @@ alias zuninstall='() {
   echo "Don't forget to restart your terminal!"
   return 0
 }'
+
+alias aedit='() {
+  echo "Edit or create an alias script file in Oh-My-Zsh custom aliases directory."
+  echo "Usage:"
+  echo " aedit <alias_file_name>"
+
+  if [ -z "$1" ]; then
+    echo "Error: Missing alias file name parameter" >&2
+    return 1
+  fi
+
+  local alias_name="$1"
+  local alias_dir="${ZSH:-$HOME/.oh-my-zsh}/custom/aliases"
+  local alias_file="${alias_dir}/${alias_name}_aliases.zsh"
+
+  if [ ! -d "$alias_dir" ]; then
+    echo "Error: Custom aliases directory not found: $alias_dir" >&2
+  fi
+
+  # Determine editor to use
+  local editor="${EDITOR:-nano}"
+
+  # Check if file exists
+  if [ -f "$alias_file" ]; then
+    echo "Opening existing alias file: $alias_file"
+  else
+    echo "Creating new alias file: $alias_file"
+    # Create default template for new file
+    echo "# Description: ${alias_name^} related aliases." > "$alias_file"
+    echo "" >> "$alias_file"
+    echo "# Add your ${alias_name} aliases below" >> "$alias_file"
+    echo "" >> "$alias_file"
+  fi
+
+  # Open the file in editor
+  if ! "$editor" "$alias_file"; then
+    echo "Error: Failed to open $alias_file with $editor" >&2
+    return 1
+  fi
+
+  echo "Alias file edited successfully. Run 'zreload' to apply changes."
+}'
