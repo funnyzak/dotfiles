@@ -40,18 +40,26 @@ _generate_ssh_key_ssh_aliases() {
   return 0
 }
 
+# SSH Key Management
+
 # Generate a new SSH key with enhanced security
-alias ssh-keygen-secure='() {
+alias ssh-key-generate='() {
+  echo "Generate a new SSH key with enhanced security.
+Usage:
+  ssh-key-generate <key_name> <email> [key_type:ed25519] [bits]
+Example:
+  ssh-key-generate github \"user@example.com\"
+  ssh-key-generate gitlab \"user@example.com\" rsa 4096
+Key types: ed25519 (default), rsa, ecdsa, dsa
+Default bits: ed25519 (none), rsa (4096), ecdsa (521), dsa (none)"
+
   local key_name="$1"
   local email="$2"
   local key_type="$3"
   local bits="$4"
 
   if [[ -z "$key_name" || -z "$email" ]]; then
-    _show_usage_ssh_aliases "Usage: ssh-keygen-secure <key_name> <email> [key_type] [bits]
-Example: ssh-keygen-secure github \"user@example.com\"
-Key types: ed25519 (default), rsa, ecdsa, dsa
-Default bits: ed25519 (none), rsa (4096), ecdsa (521), dsa (none)"
+    _show_error_ssh_aliases "Missing required parameters: key_name and email."
     return 1
   fi
 
@@ -80,6 +88,10 @@ Default bits: ed25519 (none), rsa (4096), ecdsa (521), dsa (none)"
 
 # Start the SSH agent and load keys
 alias ssh-agent-start='() {
+  echo "Start SSH agent and load default keys.
+Usage:
+  ssh-agent-start"
+
   echo "Starting SSH agent..."
   eval "$(ssh-agent -s)"
 
@@ -99,7 +111,11 @@ alias ssh-agent-start='() {
 }' # Start SSH agent and load default keys
 
 # List all SSH keys in the ~/.ssh directory
-alias ssh-list-keys='() {
+alias ssh-key-list='() {
+  echo "List all SSH keys in the ~/.ssh directory.
+Usage:
+  ssh-key-list"
+
   echo "Listing SSH keys in $HOME/.ssh/:"
   for key in "$HOME/.ssh/"*.pub; do
     if [[ -f "$key" ]]; then
@@ -112,6 +128,10 @@ alias ssh-list-keys='() {
 
 # Edit SSH config file with default editor
 alias ssh-config-edit='() {
+  echo "Edit SSH config file with default editor.
+Usage:
+  ssh-config-edit"
+
   if [[ -z "$EDITOR" ]]; then
     EDITOR="nano"
   fi
@@ -128,7 +148,11 @@ alias ssh-config-edit='() {
 }' # Edit SSH config file
 
 # List all SSH hosts from config
-alias ssh-list-hosts='() {
+alias ssh-hosts-list='() {
+  echo "List all SSH hosts from config.
+Usage:
+  ssh-hosts-list"
+
   if [[ ! -f "$HOME/.ssh/config" ]]; then
     _show_error_ssh_aliases "SSH config file does not exist."
     return 1
@@ -141,12 +165,15 @@ alias ssh-list-hosts='() {
 # SSH Connection Testing and Maintenance
 
 # Test SSH connection to a host
-alias ssh-test='() {
+alias ssh-connection-test='() {
+  echo "Test SSH connection to a host.
+Usage:
+  ssh-connection-test <hostname>"
+
   local host="$1"
 
   if [[ -z "$host" ]]; then
-    _show_usage_ssh_aliases "Usage: ssh-test <hostname>
-Tests SSH connection to specified host"
+    _show_error_ssh_aliases "Missing required parameter: hostname."
     return 1
   fi
 
@@ -162,13 +189,17 @@ Tests SSH connection to specified host"
 }' # Test SSH connection
 
 # Copy SSH public key to remote host
-alias ssh-copy-key='() {
+alias ssh-key-copy='() {
+  echo "Copy SSH public key to remote host.
+Usage:
+  ssh-key-copy <hostname> [key_file]
+Default key_file is ~/.ssh/id_ed25519.pub or ~/.ssh/id_rsa.pub"
+
   local host="$1"
   local key_file="$2"
 
   if [[ -z "$host" ]]; then
-    _show_usage_ssh_aliases "Usage: ssh-copy-key <hostname> [key_file]
-Default key_file is ~/.ssh/id_ed25519.pub or ~/.ssh/id_rsa.pub"
+    _show_error_ssh_aliases "Missing required parameter: hostname."
     return 1
   fi
 
@@ -193,48 +224,69 @@ Default key_file is ~/.ssh/id_ed25519.pub or ~/.ssh/id_rsa.pub"
 }' # Copy SSH key to remote host
 
 # SSH key generation convenience aliases
-alias generate-ed25519-key='() {
+
+# Generate Ed25519 key (convenience alias)
+alias ssh-key-ed25519='() {
+  echo "Generate Ed25519 SSH key.
+Usage:
+  ssh-key-ed25519 <key_path> <email>"
+
   local key_path="$1"
   local email="$2"
 
-  if [[ $# -lt 2 ]]; then
-    _show_usage_ssh_aliases "Generate Ed25519 SSH key.\nUsage: generate-ed25519-key <key_path> <email>"
+  if [[ -z "$key_path" || -z "$email" ]]; then
+    _show_error_ssh_aliases "Missing required parameters: key_path and email."
     return 1
   fi
 
   _generate_ssh_key_ssh_aliases "ed25519" "$key_path" "$email" "" "Ed25519"
 }' # Generate Ed25519 key
 
-alias generate-rsa-key='() {
+# Generate RSA key (convenience alias)
+alias ssh-key-rsa='() {
+  echo "Generate RSA SSH key.
+Usage:
+  ssh-key-rsa <key_path> <email>"
+
   local key_path="$1"
   local email="$2"
 
-  if [[ $# -lt 2 ]]; then
-    _show_usage_ssh_aliases "Generate RSA SSH key.\nUsage: generate-rsa-key <key_path> <email>"
+  if [[ -z "$key_path" || -z "$email" ]]; then
+    _show_error_ssh_aliases "Missing required parameters: key_path and email."
     return 1
   fi
 
   _generate_ssh_key_ssh_aliases "rsa" "$key_path" "$email" "4096" "RSA"
 }' # Generate RSA key
 
-alias generate-ecdsa-key='() {
+# Generate ECDSA key (convenience alias)
+alias ssh-key-ecdsa='() {
+  echo "Generate ECDSA SSH key.
+Usage:
+  ssh-key-ecdsa <key_path> <email>"
+
   local key_path="$1"
   local email="$2"
 
-  if [[ $# -lt 2 ]]; then
-    _show_usage_ssh_aliases "Generate ECDSA SSH key.\nUsage: generate-ecdsa-key <key_path> <email>"
+  if [[ -z "$key_path" || -z "$email" ]]; then
+    _show_error_ssh_aliases "Missing required parameters: key_path and email."
     return 1
   fi
 
   _generate_ssh_key_ssh_aliases "ecdsa" "$key_path" "$email" "521" "ECDSA"
 }' # Generate ECDSA key
 
-alias generate-dsa-key='() {
+# Generate DSA key (convenience alias)
+alias ssh-key-dsa='() {
+  echo "Generate DSA SSH key.
+Usage:
+  ssh-key-dsa <key_path> <email>"
+
   local key_path="$1"
   local email="$2"
 
-  if [[ $# -lt 2 ]]; then
-    _show_usage_ssh_aliases "Generate DSA SSH key.\nUsage: generate-dsa-key <key_path> <email>"
+  if [[ -z "$key_path" || -z "$email" ]]; then
+    _show_error_ssh_aliases "Missing required parameters: key_path and email."
     return 1
   fi
 

@@ -2,6 +2,7 @@
 
 # Apprise Push Notifications (requires Apprise and apprise command-line tool)
 alias notif='() {
+  echo -e "Send push notifications using Apprise.\nUsage:\n notif <message> [tag]\n  - message: The notification message to send\n  - tag: Optional tag for the notification (default: \"me\")"
   # Function to send push notifications using Apprise
   if [ $# -eq 0 ]; then
     echo "Usage: notif <message> [tag]"

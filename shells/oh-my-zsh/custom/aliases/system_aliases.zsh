@@ -28,23 +28,6 @@ alias sha1='shasum -a 1'  # Calculate SHA1 hash of a file
 alias sha256='shasum -a 256'  # Calculate SHA256 hash of a file
 alias sha512='shasum -a 512'  # Calculate SHA512 hash of a file
 
-# SSL utilities
-alias ssl_scan='() {
-  if [ $# -eq 0 ]; then
-    _show_usage_system_aliases "Scan SSL/TLS configuration.\nUsage:\n ssl_scan <domain> <port:443>"
-    return 1
-  fi
-  nmap --script ssl-enum-ciphers -p "${2:-443}" "$1" || _show_error_system_aliases "Failed to scan SSL configuration for $1"
-}'
-
-alias ssl_scan_all='sslscan -tlsall'  # Scan with all TLS protocol versions
-
-# Internet speed testing
-alias speed_test='() {
-  echo "Running internet speed test..."
-  curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python - || _show_error_system_aliases "Failed to run speed test"
-}'
-
 # Random string generation helper function
 _generate_random_string_system_aliases() {
   local charset="$1"
@@ -92,27 +75,6 @@ alias generate_strings='() {
   }
 
   _generate_random_string_system_aliases "a-z" "$length" "$count"
-}'
-
-# Server utilities
-alias http_server='() {
-  local port="${1:-3080}"
-  echo "Starting HTTP server on port $port"
-  if ! python -m http.server "$port"; then
-    _show_error_system_aliases "Failed to start HTTP server on port $port"
-  fi
-}'
-
-alias serve_http='() {
-  local port="${1:-8080}"
-  echo "Starting serve HTTP server on port $port"
-  if ! command -v serve &> /dev/null; then
-    _show_error_system_aliases "serve command not found. Please install it first."
-    return 1
-  fi
-  if ! serve -port "$port"; then
-    _show_error_system_aliases "Failed to start serve on port $port"
-  fi
 }'
 
 # General utilities

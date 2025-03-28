@@ -32,41 +32,41 @@ _git_current_branch() {
 #===================================
 
 # Add specified files to staging area
-alias git_add='() {
+alias gadd='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Adding files to staging area"
   git add "$@"
 }'
 
 # Check repository status
-alias git_status='() {
+alias gst='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Checking Git status"
   git status
 }'
 
 # Commit changes
-alias git_commit='() {
+alias gcmt='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Committing changes"
   git commit "$@"
 }'
 
 # Push to remote repository
-alias git_push='() {
+alias gpush='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Pushing changes to remote"
   git push "$@"
 }'
@@ -76,66 +76,66 @@ alias git_push='() {
 #===================================
 
 # Create and switch to new branch
-alias git_branch_new='() {
+alias gbranch='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Create and switch to new branch.\nUsage:\n git_branch_new <branch_name>"
+    echo "Create and switch to new branch.\nUsage:\n gbranch <branch_name>"
     return 1
   fi
-  
+
   echo "Creating and switching to new branch"
   git checkout -b "$1"
 }'
 
 # Create a branch with no history
-alias git_branch_orphan='() {
+alias gorphan='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Create and switch to a new orphan branch.\nUsage:\n git_branch_orphan <branch_name>"
+    echo "Create and switch to a new orphan branch.\nUsage:\n gorphan <branch_name>"
     return 1
   fi
-  
+
   echo "Creating and switching to a new orphan branch"
   git checkout --orphan "$@"
 }'
 
 # Switch to specified branch
-alias git_checkout='() {
+alias gco='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Switch to specified branch.\nUsage:\n git_checkout <branch_name>"
+    echo "Switch to specified branch.\nUsage:\n gco <branch_name>"
     return 1
   fi
-  
+
   echo "Switching branch"
   git checkout "$@"
 }'
 
 # Switch to main branch
-alias git_checkout_main='() {
+alias gcomain='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Switching to main branch"
   git checkout main
 }'
 
 # Switch to dev branch
-alias git_checkout_dev='() {
+alias gcodev='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Switching to dev branch"
   git checkout dev
 }'
@@ -145,78 +145,78 @@ alias git_checkout_dev='() {
 #===================================
 
 # Push current or specified branch to remote
-alias git_push_branch='() {
+alias gpushbr='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   remote=${2:-origin}
   branch=${1:-$(_git_current_branch)}
-  
+
   if [ $# -eq 0 ]; then
-    echo "Push branch to remote.\nUsage:\n git_push_branch [branch:current] [remote:origin]"
+    echo "Push branch to remote.\nUsage:\n gpushbr [branch:current] [remote:origin]"
   fi
-  
+
   echo "Pushing branch ${branch} to ${remote}"
   git push "${remote}" "${branch}"
 }'
 
 # Set current branch to track remote
-alias git_track_remote='() {
+alias gtrack='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   current_branch=$(_git_current_branch)
-  
+
   echo "Setting upstream tracking branch"
   git branch --set-upstream-to=origin/$current_branch $current_branch
 }'
 
 # Push all branches to remote
-alias git_push_all='() {
+alias gpushall='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Pushing all branches to remote"
   git push --all
 }'
 
 # Push all tags to remote
-alias git_push_tags='() {
+alias gpushtags='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Pushing all tags to remote"
   git push --tags
 }'
 
 # Force push all tags to remote
-alias git_push_tags_force='() {
+alias gpushtagsf='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Force pushing all tags to remote"
   git push --tags --force
 }'
 
 # Push current branch to all remotes
-alias git_push_all_remotes='() {
+alias gpushallr='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Pushing current branch to all remotes"
   current_branch=$(_git_current_branch)
-  
+
   if ! git remote | grep -q .; then
     echo "No remote repositories found."
     return 1
   fi
-  
+
   git remote | while read -r remote; do
     echo "Pushing branch ${current_branch} to ${remote}"
     git push "${remote}" "${current_branch}"
@@ -228,38 +228,38 @@ alias git_push_all_remotes='() {
 #===================================
 
 # Pull updates from remote for current branch
-alias git_pull='() {
+alias gpull='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Pull changes from remote.\nUsage:\n git_pull [remote:origin]"
+    echo "Pull changes from remote.\nUsage:\n gpull [remote:origin]"
   fi
-  
+
   remote=${1:-origin}
   branch=$(_git_current_branch)
-  
+
   echo "Pulling changes from remote ${remote} for branch ${branch}"
   git pull ${remote} ${branch}
 }'
 
 # Pull main branch
-alias git_pull_main='() {
+alias gpullmain='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Pulling main branch from origin"
   git pull origin main
 }'
 
 # Pull dev branch
-alias git_pull_dev='() {
+alias gpulldev='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Pulling dev branch from origin"
   git pull origin dev
 }'
@@ -269,32 +269,32 @@ alias git_pull_dev='() {
 #===================================
 
 # Merge specified branch into current branch
-alias git_merge='() {
+alias gmerge='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Merge target branch into current branch.\nUsage:\n git_merge <target_branch>"
+    echo "Merge target branch into current branch.\nUsage:\n gmerge <target_branch>"
     return 1
   fi
-  
+
   current_branch=$(_git_current_branch)
   echo "Merging $1 into $current_branch"
   git merge "$1"
 }'
 
 # Merge specified branch into current branch and push
-alias git_merge_push='() {
+alias gmergepush='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Merge target branch into current branch and push.\nUsage:\n git_merge_push <target_branch>"
+    echo "Merge target branch into current branch and push.\nUsage:\n gmergepush <target_branch>"
     return 1
   fi
-  
+
   current_branch=$(_git_current_branch)
   echo "Merging $1 into $current_branch and pushing"
   git merge "$1" && git push
@@ -305,56 +305,56 @@ alias git_merge_push='() {
 #===================================
 
 # Reset to remote main branch
-alias git_reset_main='() {
+alias gresetmain='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Resetting to origin/main"
   git reset --hard origin/main
 }'
 
 # Reset to remote dev branch
-alias git_reset_dev='() {
+alias gresetdev='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Resetting to origin/dev"
   git reset --hard origin/dev
 }'
 
 # Reset current branch to specified commit
-alias git_reset_commit='() {
+alias gresetcom='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Reset current branch to specific commit.\nUsage:\n git_reset_commit <commit_id>"
+    echo "Reset current branch to specific commit.\nUsage:\n gresetcom <commit_id>"
     return 1
   fi
-  
+
   commit_id=$1
   echo "Resetting current branch to commit ${commit_id}"
   git reset --hard "${commit_id}"
 }'
 
 # Reset current branch to commit and force push
-alias git_reset_push_force='() {
+alias gresetpush='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Reset current branch to commit and force push.\nUsage:\n git_reset_push_force <commit_id> [remote:origin]"
+    echo "Reset current branch to commit and force push.\nUsage:\n gresetpush <commit_id> [remote:origin]"
     return 1
   fi
-  
+
   commit_id=$1
   remote_name=${2:-origin}
   current_branch=$(_git_current_branch)
-  
+
   echo "Resetting current branch to commit ${commit_id} and force pushing to ${remote_name}/${current_branch}"
   git reset --hard "${commit_id}" && git push "${remote_name}" --force
 }'
@@ -364,11 +364,11 @@ alias git_reset_push_force='() {
 #===================================
 
 # Add all and commit
-alias git_add_commit='() {
+alias gaddcmt='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   msg="${1:-chore:update}"
   echo "Adding and committing changes with message: ${msg}"
   git add .
@@ -376,11 +376,11 @@ alias git_add_commit='() {
 }'
 
 # Add all, commit and push
-alias git_add_commit_push='() {
+alias gaddcmtpu='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   msg="${1:-chore:update}"
   echo "Adding, committing and pushing changes with message: ${msg}"
   git add .
@@ -389,11 +389,11 @@ alias git_add_commit_push='() {
 }'
 
 # Commit and push
-alias git_commit_push='() {
+alias gcmtpush='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   msg="${1:-chore:update}"
   echo "Committing and pushing changes with message: ${msg}"
   git commit -m "${msg}" &&
@@ -405,16 +405,16 @@ alias git_commit_push='() {
 #===================================
 
 # Rebase operation
-alias git_rebase='() {
+alias grebase='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Rebase current branch onto target branch.\nUsage:\n git_rebase <target_branch> [start_commit] [end_commit]"
+    echo "Rebase current branch onto target branch.\nUsage:\n grebase <target_branch> [start_commit] [end_commit]"
     return 1
   fi
-  
+
   current_branch=$(_git_current_branch)
   echo "Rebasing $current_branch onto $1"
   git rebase $1 ${2:-HEAD}~${3:-1}
@@ -425,32 +425,32 @@ alias git_rebase='() {
 #===================================
 
 # Rename current branch
-alias git_rename_branch='() {
+alias grename='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Rename current branch.\nUsage:\n git_rename_branch <new_name>"
+    echo "Rename current branch.\nUsage:\n grename <new_name>"
     return 1
   fi
-  
+
   current=$(_git_current_branch)
   echo "Renaming branch from $current to $1"
   git branch -m "$1"
 }'
 
 # Rename and set remote tracking
-alias git_rename_track='() {
+alias grenametrack='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Rename current branch and set remote tracking.\nUsage:\n git_rename_track <new_name>"
+    echo "Rename current branch and set remote tracking.\nUsage:\n grenametrack <new_name>"
     return 1
   fi
-  
+
   current=$(_git_current_branch)
   echo "Renaming branch from $current to $1 and setting remote tracking"
   git branch -m "$1" &&
@@ -464,26 +464,26 @@ alias git_rename_track='() {
 #===================================
 
 # Set remote repository URL
-alias git_set_remote='() {
+alias gsetremote='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Set remote origin URL.\nUsage:\n git_set_remote <url>"
+    echo "Set remote origin URL.\nUsage:\n gsetremote <url>"
     return 1
   fi
-  
+
   echo "Setting remote origin URL"
   git remote set-url origin "$1"
 }'
 
 # Remove remote repository
-alias git_remove_remote='() {
+alias grmremote='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Removing remote origin"
   git remote rm origin
 }'
@@ -493,19 +493,19 @@ alias git_remove_remote='() {
 #===================================
 
 # Clone repository
-alias git_clone='() {
+alias gclone='() {
   if ! _git_check_command; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Clone repository.\nUsage:\n git_clone <repo_url> [folder:auto-name]"
+    echo "Clone repository.\nUsage:\n gclone <repo_url> [folder:auto-name]"
     return 1
   fi
-  
+
   repo_url=$1
   folder=${2:-$(basename $1 .git)}
-  
+
   echo "Cloning $repo_url into $folder"
   git clone "$repo_url" "$folder" &&
   cd "$folder" && echo "Clone completed, changed directory to $folder"
@@ -516,26 +516,26 @@ alias git_clone='() {
 #===================================
 
 # Unstage all files
-alias git_unstage='() {
+alias gunstage='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Unstaging all staged changes"
   git restore --staged .
 }'
 
 # Restore working directory changes
-alias git_restore='() {
+alias grestore='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Restore changes in working directory.\nUsage:\n git_restore <file_path>"
+    echo "Restore changes in working directory.\nUsage:\n grestore <file_path>"
     return 1
   fi
-  
+
   echo "Restoring changes in working directory"
   git restore "$@"
 }'
@@ -545,53 +545,53 @@ alias git_restore='() {
 #===================================
 
 # Create and push tag
-alias git_tag='() {
+alias gtag='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Create Git tag.\nUsage:\n git_tag <tag_name>"
+    echo "Create Git tag.\nUsage:\n gtag <tag_name>"
     return 1
   fi
-  
+
   echo "Creating tag $1"
   git tag "$1" -m "bump v${1}" &&
   git push --tags
 }'
 
 # List all tags
-alias git_list_tags='() {
+alias gltags='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Listing all Git tags"
   git tag -l | sort -V | xargs -n 1 -I {} echo {}
 }'
 
 # Delete local and remote tag
-alias git_remove_tag='() {
+alias grmtag='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Remove Git tag.\nUsage:\n git_remove_tag <tag_name>"
+    echo "Remove Git tag.\nUsage:\n grmtag <tag_name>"
     return 1
   fi
-  
+
   echo "Removing tag $1"
   git tag -d "$1" &&
   git push origin :refs/tags/"$1"
 }'
 
 # Remove all local tags
-alias git_remove_all_tags='() {
+alias grmalltags='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Removing all Git tags"
   git tag -l | xargs git tag -d
 }'
@@ -601,31 +601,31 @@ alias git_remove_all_tags='() {
 #===================================
 
 # Get latest commit hash
-alias git_hash='() {
+alias ghash='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Getting latest commit hash"
   git rev-parse HEAD
 }'
 
 # Get latest commit date
-alias git_date='() {
+alias gdate='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Getting latest commit date"
   git log -1 --format=%cd
 }'
 
 # View log with graph
-alias git_log='() {
+alias glog='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Viewing Git log with graph"
   git log --oneline --decorate --graph "$@"
 }'
@@ -635,15 +635,15 @@ alias git_log='() {
 #===================================
 
 # Create archive of current repository
-alias git_archive='() {
+alias garchive='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
-  
+
   echo "Creating Git archive"
   current_branch=$(_git_current_branch)
   output_file="../$(basename $(pwd))_${current_branch}_$(date +%Y%m%d%H%M%S).zip"
-  
+
   git archive -o "$output_file" "$current_branch" -0 &&
   echo "Archive created, exported to $output_file"
 }'
@@ -653,38 +653,38 @@ alias git_archive='() {
 #===================================
 
 # Create GitHub repository
-alias git_hub_create='() {
+alias ghcreate='() {
   if ! command -v gh &> /dev/null; then
     echo "Error: GitHub CLI not found. Please install it first." >&2
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Create GitHub repository.\nUsage:\n git_hub_create <repo_name> [repo_description]"
+    echo "Create GitHub repository.\nUsage:\n ghcreate <repo_name> [repo_description]"
     return 1
   fi
-  
+
   repo_name=${1}
   repo_desc=${2:-"A new repository"}
-  
+
   echo "Creating GitHub repository: $repo_name"
   gh repo create "$repo_name" -y -d "$repo_desc"
   echo "GitHub repository $repo_name created successfully"
 }'
 
 # Initialize a new Git repository
-alias git_init='() {
+alias ginit='() {
   if ! _git_check_command; then
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Initialize Git repository.\nUsage:\n git_init <repo_name>"
+    echo "Initialize Git repository.\nUsage:\n ginit <repo_name>"
     return 1
   fi
-  
+
   repo_name=${1}
-  
+
   echo "Initializing new Git repository: $repo_name"
   mkdir -p "$repo_name"
   cd "$repo_name"
@@ -700,59 +700,59 @@ alias git_init='() {
 #===================================
 
 # Download GitHub repository branch
-alias git_download_branch='() {
+alias gdlbranch='() {
   if ! command -v wget &> /dev/null; then
     echo "Error: wget command not found. Please install it first." >&2
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Download GitHub project branch.\nUsage:\n git_download_branch <repository> [branch:main]"
+    echo "Download GitHub project branch.\nUsage:\n gdlbranch <repository> [branch:main]"
     return 1
   fi
-  
+
   repo=$1
   branch=${2:-main}
   output="$(basename $repo)_${branch}.tar.gz"
-  
+
   echo "Downloading branch $branch from repository $repo..."
   wget -O "$output" --no-check-certificate --progress=bar:force "https://github.com/$repo/archive/refs/heads/${branch}.tar.gz" &&
   echo "Download complete, saved to $output"
 }'
 
 # Download GitHub repository tag
-alias git_download_tag='() {
+alias gdltag='() {
   if ! command -v wget &> /dev/null; then
     echo "Error: wget command not found. Please install it first." >&2
     return 1
   fi
-  
+
   if [ $# -eq 0 ]; then
-    echo "Download GitHub project tag.\nUsage:\n git_download_tag <repository> [tag:v1.0.0]"
+    echo "Download GitHub project tag.\nUsage:\n gdltag <repository> [tag:v1.0.0]"
     return 1
   fi
-  
+
   repo=$1
   tag=${2:-v1.0.0}
   output="$(basename $repo)_${tag}.zip"
-  
+
   echo "Downloading tag $tag from repository $repo..."
   wget -O "$output" --no-check-certificate --progress=bar:force "https://github.com/$repo/archive/refs/tags/${tag}.zip" &&
   echo "Download complete, saved to $output"
 }'
 
 # Download GitHub repository release assets
-alias git_download_release='() {
+alias gdlrelease='() {
   if ! command -v curl &> /dev/null || ! command -v jq &> /dev/null; then
     echo "Error: curl or jq command not found. Please install them first." >&2
     return 1
   fi
-  
+
   if [ $# -lt 1 ]; then
-    echo "Download GitHub project release assets.\nUsage:\n git_download_release <repository> [version:latest] [save_path]"
+    echo "Download GitHub project release assets.\nUsage:\n gdlrelease <repository> [version:latest] [save_path]"
     return 1
   fi
-  
+
   repo=$1
   version=${2:-latest}
   save_path="${3:-$1}"
