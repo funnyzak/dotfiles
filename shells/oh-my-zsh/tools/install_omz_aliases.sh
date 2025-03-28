@@ -166,7 +166,7 @@ if [ "$CN" = "true" ]; then
   remote_base_url="$remote_base_url_cn"
 fi
 
-default_alias_files="archive_aliases.zsh,audio_aliases.zsh,base_aliases.zsh,brew_aliases.zsh,bria_aliases.zsh,dependency_aliases.zsh,directory_aliases.zsh,docker_aliases.zsh,docker_app_aliases.zsh,filesystem_aliases.zsh,git_aliases.zsh,help_aliases.zsh,image_aliases.zsh,minio_aliases.zsh,network_aliases.zsh,notification_aliases.zsh,other_aliases.zsh,pdf_aliases.zsh,srv_aliases.zsh,ssh_aliases.zsh,ssh_server_aliases.zsh,ssl_aliases.zsh,system_aliases.zsh,tcpdump_aliases.zsh,url_aliases.zsh,video_aliases.zsh,vps_aliases.zsh,web_aliases.zsh,zsh_config_aliases.zsh"
+default_alias_files="archive_aliases.zsh,audio_aliases.zsh,base_aliases.zsh,brew_aliases.zsh,bria_aliases.zsh,dependency_aliases.zsh,directory_aliases.zsh,docker_aliases.zsh,docker_app_aliases.zsh,filesystem_aliases.zsh,git_aliases.zsh,help_aliases.zsh,image_aliases.zsh,minio_aliases.zsh,network_aliases.zsh,notification_aliases.zsh,other_aliases.zsh,pdf_aliases.zsh,srv_aliases.zsh,ssh_aliases.zsh,ssh_server_aliases.zsh,ssl_aliases.zsh,system_aliases.zsh,tcpdump_aliases.zsh,url_aliases.zsh,video_aliases.zsh,vps_aliases.zsh,web_aliases.zsh,zsh_config_aliases.zsh,environment_aliases.zsh"
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
