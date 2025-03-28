@@ -10,6 +10,107 @@ alias omz-update='() {
   echo "Oh-My-Zsh updated successfully"
 }'
 
+alias omz-deps='() {
+  echo "Install dependencies required by shell aliases."
+  echo "Usage:"
+  echo " omz-deps [--force]"
+
+  local force=false
+
+  # Process arguments
+  for arg in "$@"; do
+    case "$arg" in
+      --force)
+        force=true
+        ;;
+      *)
+        echo "Error: Unknown option: $arg" >&2
+        echo "Usage: omz-deps [--force]" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  # Define dependencies
+  local common_deps="wget nmap openssl imagemagick youtube-dl jq"
+  local macos_deps="$common_deps gh coreutils apprise"
+  local linux_deps="$common_deps github-cli coreutils apprise"
+
+  # Install based on OS
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo "Using Homebrew to install dependencies"
+    if ! command -v brew >/dev/null 2>&1; then
+      echo "Error: Homebrew not found. Please install Homebrew first: https://brew.sh" >&2
+      return 1
+    fi
+    
+    echo "Installing: $macos_deps"
+    if ! brew install $macos_deps; then
+      echo "Error: Failed to install dependencies via Homebrew" >&2
+      return 1
+    fi
+    echo "Dependencies successfully installed via Homebrew"
+  elif [[ "$(uname -s)" == "Linux" ]]; then
+    # Check for common package managers
+    if command -v apt-get >/dev/null 2>&1; then
+      local pkg_manager="apt-get"
+      local install_cmd="sudo apt-get install -y"
+    elif command -v yum >/dev/null 2>&1; then
+      local pkg_manager="yum"
+      local install_cmd="sudo yum install -y"
+    elif command -v dnf >/dev/null 2>&1; then
+      local pkg_manager="dnf"
+      local install_cmd="sudo dnf install -y"
+    elif command -v pacman >/dev/null 2>&1; then
+      local pkg_manager="pacman"
+      local install_cmd="sudo pacman -S --noconfirm"
+    else
+      echo "Error: No supported package manager found" >&2
+      echo "Please install these dependencies manually: $linux_deps" >&2
+      return 1
+    fi
+    
+    # Confirm installation or use force flag
+    if [ "$force" = false ]; then
+      echo "This will install the following packages using $pkg_manager:"
+      echo "$linux_deps"
+      read -r -p "Continue? [y/N] " response
+      if [[ ! "$response" =~ ^[yY]$ ]]; then
+        echo "Installation cancelled"
+        return 0
+      fi
+    fi
+    
+    echo "Installing dependencies using $pkg_manager..."
+    if ! $install_cmd $linux_deps; then
+      echo "Error: Failed to install some dependencies" >&2
+      echo "You may need to install missing packages manually" >&2
+      return 1
+    fi
+    echo "Dependencies successfully installed"
+  else
+    echo "Error: Unsupported operating system: $(uname -s)" >&2
+    echo "Please install these dependencies manually: $common_deps" >&2
+    return 1
+  fi
+  
+  # Verify installations
+  echo "Verifying installations..."
+  local missing_deps=""
+  for dep in $common_deps; do
+    if ! command -v $dep >/dev/null 2>&1; then
+      missing_deps="$missing_deps $dep"
+    fi
+  done
+  
+  if [ -n "$missing_deps" ]; then
+    echo "Warning: Some dependencies could not be verified: $missing_deps" >&2
+    echo "You may need to install them manually or check your PATH" >&2
+  else
+    echo "All dependencies successfully installed and verified"
+  fi
+}' # Install dependencies required by shell aliases
+
 # Zsh Configuration Management
 alias omz-reload='() {
   echo "Reloading Zsh configuration..."
