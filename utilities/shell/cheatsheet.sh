@@ -249,6 +249,19 @@ COMMAND_DESCRIPTIONS["npm"]="Node.js包管理器"
 COMMAND_CATEGORIES["pacman"]="package"
 COMMAND_DESCRIPTIONS["pacman"]="Arch Linux 包管理器"
 
+
+COMMAND_CATEGORIES["cargo"]="package"
+COMMAND_DESCRIPTIONS["cargo"]="Rust 包管理器"
+
+COMMAND_CATEGORIES["uv"]="package"
+COMMAND_DESCRIPTIONS["uv"]="Python 包安装器和解析器"
+
+COMMAND_CATEGORIES["pipx"]="package"
+COMMAND_DESCRIPTIONS["pipx"]="Python 包管理器 (隔离环境)"
+
+COMMAND_CATEGORIES["poetry"]="package"
+COMMAND_DESCRIPTIONS["poetry"]="Python 包管理器 (依赖管理)"
+
 COMMAND_CATEGORIES["pip"]="package"
 COMMAND_DESCRIPTIONS["pip"]="Python 包管理器"
 

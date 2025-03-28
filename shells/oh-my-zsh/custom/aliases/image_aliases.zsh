@@ -5,7 +5,15 @@
 # --------------------------------
 
 # Helper function for resizing images
-_image_aliases_resize() {
+alias _image_resize='() {
+  echo "Resize an image to specified dimensions."
+  echo "Usage: _image_resize <source_path> <size> <quality>"
+
+  if [ $# -lt 3 ]; then
+    echo "Error: Insufficient parameters for image resize." >&2
+    return 1
+  fi
+
   local source_path="$1"
   local size="$2"
   local quality="$3"
@@ -17,35 +25,47 @@ _image_aliases_resize() {
 
   local target_path="${source_path%.*}_${size}_q${quality}.${source_path##*.}"
 
-  if magick convert "$source_path" -resize "$size" -quality "$quality" "$target_path"; then
+  local magick_cmd=$(_image_aliases_magick_cmd)
+
+  if $magick_cmd convert "$source_path" -resize "$size" -quality "$quality" "$target_path"; then
     echo "Resized image saved to $target_path"
     return 0
   else
-    echo "Error: Failed to resize image." >&2
+    echo "Error: Failed to resize image. Check if ImageMagick is properly installed." >&2
     return 1
   fi
-}
+}' # Helper function for resizing images
 
 # Helper function to validate image file existence
-_image_aliases_validate_file() {
+alias _image_aliases_validate_file='() {
+  if [ $# -lt 1 ]; then
+    echo "Error: No file path provided for validation." >&2
+    return 1
+  fi
+
   if [ ! -f "$1" ]; then
     echo "Error: File \"$1\" not found." >&2
     return 1
   fi
   return 0
-}
+}' # Helper function to validate image file existence
 
 # Helper function to validate directory existence
-_image_aliases_validate_dir() {
+alias _image_aliases_validate_dir='() {
+  if [ $# -lt 1 ]; then
+    echo "Error: No directory path provided for validation." >&2
+    return 1
+  fi
+
   if [ ! -d "$1" ]; then
     echo "Error: Directory \"$1\" not found." >&2
     return 1
   fi
   return 0
-}
+}' # Helper function to validate directory existence
 
 # Helper function to check if ImageMagick is installed
-_image_aliases_check_imagemagick() {
+alias _image_aliases_check_imagemagick='() {
   if ! command -v magick &> /dev/null && ! command -v convert &> /dev/null; then
     echo "Error: ImageMagick is not installed. Please install it first." >&2
     echo "  macOS: brew install imagemagick" >&2
@@ -53,16 +73,16 @@ _image_aliases_check_imagemagick() {
     return 1
   fi
   return 0
-}
+}' # Helper function to check if ImageMagick is installed
 
 # Helper function to use correct ImageMagick command based on platform
-_image_aliases_magick_cmd() {
+alias _image_aliases_magick_cmd='() {
   if command -v magick &> /dev/null; then
     echo "magick"
   else
     echo "convert"
   fi
-}
+}' # Helper function to determine the correct ImageMagick command
 
 # --------------------------------
 # Basic Image Processing
@@ -77,7 +97,7 @@ alias img_resize='() {
   fi
 
   _image_aliases_validate_file "$1" || return 1
-  _image_aliases_resize "$1" "${2:-200x}" "${3:-80}"
+  _image_resize "$1" "${2:-200x}" "${3:-80}"
 }'  # Resize image to specified dimensions
 
 alias img_resize_dir='() {
@@ -114,12 +134,12 @@ alias img_resize_24='() {
     return 0
   fi
 
-  local status=0
+  local result_status=0
   for img in "$@"; do
-    _image_aliases_validate_file "$img" || { status=1; continue; }
-    _image_aliases_resize "$img" "24x" "90"
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
+    _image_resize "$img" "24x" "90"
   done
-  return $status
+  return $result_status
 }'  # Resize image(s) to 24px width
 
 alias img_resize_28='() {
@@ -129,12 +149,12 @@ alias img_resize_28='() {
     return 0
   fi
 
-  local status=0
+  local result_status=0
   for img in "$@"; do
-    _image_aliases_validate_file "$img" || { status=1; continue; }
-    _image_aliases_resize "$img" "28x" "90"
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
+    _image_resize "$img" "28x" "90"
   done
-  return $status
+  return $result_status
 }'  # Resize image(s) to 28px width
 
 alias img_resize_50='() {
@@ -144,12 +164,12 @@ alias img_resize_50='() {
     return 0
   fi
 
-  local status=0
+  local result_status=0
   for img in "$@"; do
-    _image_aliases_validate_file "$img" || { status=1; continue; }
-    _image_aliases_resize "$img" "50x" "90"
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
+    _image_resize "$img" "50x" "90"
   done
-  return $status
+  return $result_status
 }'  # Resize image(s) to 50px width
 
 alias img_resize_100='() {
@@ -159,12 +179,12 @@ alias img_resize_100='() {
     return 0
   fi
 
-  local status=0
+  local result_status=0
   for img in "$@"; do
-    _image_aliases_validate_file "$img" || { status=1; continue; }
-    _image_aliases_resize "$img" "100x" "90"
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
+    _image_resize "$img" "100x" "90"
   done
-  return $status
+  return $result_status
 }'  # Resize image(s) to 100px width
 
 alias img_resize_200='() {
@@ -174,12 +194,12 @@ alias img_resize_200='() {
     return 0
   fi
 
-  local status=0
+  local result_status=0
   for img in "$@"; do
-    _image_aliases_validate_file "$img" || { status=1; continue; }
-    _image_aliases_resize "$img" "200x" "90"
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
+    _image_resize "$img" "200x" "90"
   done
-  return $status
+  return $result_status
 }'  # Resize image(s) to 200px width
 
 alias img_resize_512='() {
@@ -189,12 +209,12 @@ alias img_resize_512='() {
     return 0
   fi
 
-  local status=0
+  local result_status=0
   for img in "$@"; do
-    _image_aliases_validate_file "$img" || { status=1; continue; }
-    _image_aliases_resize "$img" "512x" "90"
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
+    _image_resize "$img" "512x" "90"
   done
-  return $status
+  return $result_status
 }'  # Resize image(s) to 512px width
 
 alias img_resize_1024='() {
@@ -204,12 +224,12 @@ alias img_resize_1024='() {
     return 0
   fi
 
-  local status=0
+  local result_status=0
   for img in "$@"; do
-    _image_aliases_validate_file "$img" || { status=1; continue; }
-    _image_aliases_resize "$img" "1024x" "85"
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
+    _image_resize "$img" "1024x" "85"
   done
-  return $status
+  return $result_status
 }'  # Resize image(s) to 1024px width
 
 # --------------------------------
@@ -638,19 +658,19 @@ alias img_info='() {
   _image_aliases_check_imagemagick || return 1
   local magick_cmd=$(_image_aliases_magick_cmd)
 
-  local status=0
+  local result_status=0
   for img in "$@"; do
-    _image_aliases_validate_file "$img" || { status=1; continue; }
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
 
     echo "====== $img ======"
     if ! $magick_cmd identify -verbose "$img" | grep -E "(Image:|Geometry:|Resolution:|Filesize:|Format:|Depth:)"; then
       echo "Error: Failed to get image info for $img" >&2
-      status=1
+      result_status=1
     fi
     echo ""
   done
 
-  return $status
+  return $result_status
 }'  # Display basic information about image files
 
 alias img_metadata='() {
@@ -668,19 +688,19 @@ alias img_metadata='() {
     return 1
   fi
 
-  local status=0
+  local result_status=0
   for img in "$@"; do
-    _image_aliases_validate_file "$img" || { status=1; continue; }
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
 
     echo "====== $img ======"
     if ! exiftool "$img"; then
       echo "Error: Failed to extract metadata from $img" >&2
-      status=1
+      result_status=1
     fi
     echo ""
   done
 
-  return $status
+  return $result_status
 }'  # Extract EXIF metadata from image files
 
 # --------------------------------
@@ -824,10 +844,10 @@ alias img_join_horizontal='() {
   shift
 
   local images=()
-  local status=0
+  local result_status=0
 
   for img in "$@"; do
-    _image_aliases_validate_file "$img" || { status=1; continue; }
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
     images+=("$img")
   done
 
@@ -859,10 +879,10 @@ alias img_join_vertical='() {
   shift
 
   local images=()
-  local status=0
+  local result_status=0
 
   for img in "$@"; do
-    _image_aliases_validate_file "$img" || { status=1; continue; }
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
     images+=("$img")
   done
 
@@ -894,20 +914,20 @@ alias img_sepia='() {
   _image_aliases_check_imagemagick || return 1
   local magick_cmd=$(_image_aliases_magick_cmd)
 
-  local status=0
+  local result_status=0
   for img in "$@"; do
-    _image_aliases_validate_file "$img" || { status=1; continue; }
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
 
     local target_path="${img%.*}_sepia.${img##*.}"
     if $magick_cmd "$img" -sepia-tone 80% "$target_path"; then
       echo "Sepia effect applied, saved to $target_path"
     else
       echo "Error: Failed to apply sepia effect to $img" >&2
-      status=1
+      result_status=1
     fi
   done
 
-  return $status
+  return $result_status
 }'  # Apply sepia tone effect to an image
 
 alias img_blur='() {
@@ -930,24 +950,24 @@ alias img_blur='() {
     start_idx=2
   fi
 
-  local status=0
+  local result_status=0
   local i=$start_idx
   while [ $i -le $# ]; do
     local var="$i"
     local img="${!var}"
-    _image_aliases_validate_file "$img" || { status=1; i=$((i+1)); continue; }
+    _image_aliases_validate_file "$img" || { result_status=1; i=$((i+1)); continue; }
 
     local target_path="${img%.*}_blur_${radius}.${img##*.}"
     if $magick_cmd "$img" -blur 0x"$radius" "$target_path"; then
       echo "Blur effect applied with radius $radius, saved to $target_path"
     else
       echo "Error: Failed to apply blur effect to $img" >&2
-      status=1
+      result_status=1
     fi
     i=$((i+1))
   done
 
-  return $status
+  return $result_status
 }'  # Apply blur effect to an image
 
 # --------------------------------

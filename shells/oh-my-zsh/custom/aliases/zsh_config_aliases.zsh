@@ -43,7 +43,7 @@ alias omz-deps='() {
       echo "Error: Homebrew not found. Please install Homebrew first: https://brew.sh" >&2
       return 1
     fi
-    
+
     echo "Installing: $macos_deps"
     if ! brew install $macos_deps; then
       echo "Error: Failed to install dependencies via Homebrew" >&2
@@ -69,7 +69,7 @@ alias omz-deps='() {
       echo "Please install these dependencies manually: $linux_deps" >&2
       return 1
     fi
-    
+
     # Confirm installation or use force flag
     if [ "$force" = false ]; then
       echo "This will install the following packages using $pkg_manager:"
@@ -80,7 +80,7 @@ alias omz-deps='() {
         return 0
       fi
     fi
-    
+
     echo "Installing dependencies using $pkg_manager..."
     if ! $install_cmd $linux_deps; then
       echo "Error: Failed to install some dependencies" >&2
@@ -93,7 +93,7 @@ alias omz-deps='() {
     echo "Please install these dependencies manually: $common_deps" >&2
     return 1
   fi
-  
+
   # Verify installations
   echo "Verifying installations..."
   local missing_deps=""
@@ -102,7 +102,7 @@ alias omz-deps='() {
       missing_deps="$missing_deps $dep"
     fi
   done
-  
+
   if [ -n "$missing_deps" ]; then
     echo "Warning: Some dependencies could not be verified: $missing_deps" >&2
     echo "You may need to install them manually or check your PATH" >&2
