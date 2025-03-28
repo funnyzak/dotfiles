@@ -1,11 +1,11 @@
-# Description: Video processing aliases for conversion, compression, merging, and format transformation using ffmpeg.
+# Description: Video processing aliases for conversion, compression, merging, and format transformation using ffmpeg and youtube-dl.
 
 #------------------------------------------------------------------------------
 # Helper Functions
 #------------------------------------------------------------------------------
 
 # Helper function to validate file existence
-_video_validate_file='() {
+_vdo_validate_file='() {
   if [[ ! -f "$1" ]]; then
     echo "Error: File \"$1\" does not exist" >&2
     return 1
@@ -14,7 +14,7 @@ _video_validate_file='() {
 }'
 
 # Helper function to validate directory existence
-_video_validate_dir='() {
+_vdo_validate_dir='() {
   if [[ ! -d "$1" ]]; then
     echo "Error: Directory \"$1\" does not exist" >&2
     return 1
@@ -23,7 +23,7 @@ _video_validate_dir='() {
 }'
 
 # Helper function to check if ffmpeg is installed
-_video_check_ffmpeg='() {
+_vdo_check_ffmpeg='() {
   if ! command -v ffmpeg &> /dev/null; then
     echo "Error: ffmpeg is not installed or not in PATH" >&2
     return 1
@@ -35,19 +35,19 @@ _video_check_ffmpeg='() {
 # Video File Merging
 #------------------------------------------------------------------------------
 
-alias merge_videos='() {
+alias vdo-merge='() {
   if [ $# -eq 0 ]; then
     echo "Merge video files in a directory."
     echo "Usage:"
-    echo "  merge_videos <source_dir> <video_extension:mp4>"
+    echo "  vdo-merge <source_dir> <video_extension:mp4>"
     return 1
   fi
 
   vdo_folder="${1:-$(pwd)}"
   vdo_ext="${2:-mp4}"
 
-  _video_validate_dir "$vdo_folder" || return 1
-  _video_check_ffmpeg || return 1
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
 
   # Check if source files exist
   file_count=$(find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | wc -l)
@@ -76,23 +76,23 @@ alias merge_videos='() {
 
   # Clean up temporary file
   rm "$temp_list"
-}'
+}' # Merge multiple videos into one file
 
 #------------------------------------------------------------------------------
 # Video Format Conversion
 #------------------------------------------------------------------------------
 
-alias convert_to_mp4='() {
+alias vdo-to-mp4='() {
   if [ $# -eq 0 ]; then
     echo "Convert video to MP4 format."
     echo "Usage:"
-    echo "  convert_to_mp4 <video_file_path>"
+    echo "  vdo-to-mp4 <video_file_path>"
     return 1
   fi
 
   input_file="$1"
-  _video_validate_file "$input_file" || return 1
-  _video_check_ffmpeg || return 1
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
 
   output_file="${input_file%.*}.mp4"
   echo "Converting $input_file to MP4 format..."
@@ -103,21 +103,21 @@ alias convert_to_mp4='() {
     echo "Error: Video conversion failed" >&2
     return 1
   fi
-}'
+}' # Convert video to MP4 format
 
-alias convert_dir_to_mp4='() {
+alias vdo-batch-to-mp4='() {
   if [ $# -eq 0 ]; then
     echo "Convert videos in directory to MP4 format."
     echo "Usage:"
-    echo "  convert_dir_to_mp4 <video_directory> <source_extension:mp4>"
+    echo "  vdo-batch-to-mp4 <video_directory> <source_extension:mp4>"
     return 1
   fi
 
   vdo_folder="${1:-.}"
   vdo_ext="${2:-mp4}"
 
-  _video_validate_dir "$vdo_folder" || return 1
-  _video_check_ffmpeg || return 1
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
 
   # Check if source files exist
   file_count=$(find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | wc -l)
@@ -144,23 +144,23 @@ alias convert_dir_to_mp4='() {
     echo "Warning: Conversion completed with $errors errors" >&2
     return 1
   fi
-}'
+}' # Convert batch of videos to MP4 format
 
 #------------------------------------------------------------------------------
 # Video to Audio Extraction
 #------------------------------------------------------------------------------
 
-alias extract_mp3='() {
+alias vdo-extract-mp3='() {
   if [ $# -eq 0 ]; then
     echo "Extract audio from video to MP3 format."
     echo "Usage:"
-    echo "  extract_mp3 <video_file_path>"
+    echo "  vdo-extract-mp3 <video_file_path>"
     return 1
   fi
 
   input_file="$1"
-  _video_validate_file "$input_file" || return 1
-  _video_check_ffmpeg || return 1
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
 
   output_file="${input_file%.*}.mp3"
   echo "Extracting audio from $input_file to MP3 format..."
@@ -171,21 +171,21 @@ alias extract_mp3='() {
     echo "Error: Audio extraction failed" >&2
     return 1
   fi
-}'
+}' # Extract audio from video to MP3 format
 
-alias extract_dir_mp3='() {
+alias vdo-extract-dir-mp3='() {
   if [ $# -eq 0 ]; then
     echo "Extract audio from videos in directory to MP3 format."
     echo "Usage:"
-    echo "  extract_dir_mp3 <video_directory> <source_extension:mp4>"
+    echo "  vdo-extract-dir-mp3 <video_directory> <source_extension:mp4>"
     return 1
   fi
 
   vdo_folder="${1:-.}"
   vdo_ext="${2:-mp4}"
 
-  _video_validate_dir "$vdo_folder" || return 1
-  _video_check_ffmpeg || return 1
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
 
   # Check if source files exist
   file_count=$(find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | wc -l)
@@ -212,17 +212,17 @@ alias extract_dir_mp3='() {
     echo "Warning: Audio extraction completed with $errors errors" >&2
     return 1
   fi
-}'
+}' # Extract audio from videos in directory to MP3 format
 
 #------------------------------------------------------------------------------
 # Video Compression
 #------------------------------------------------------------------------------
 
-alias compress_video='() {
+alias vdo-compress='() {
   if [ $# -eq 0 ]; then
     echo "Compress video."
     echo "Usage:"
-    echo "  compress_video <video_file_path> [quality:30]"
+    echo "  vdo-compress <video_file_path> [quality:30]"
     echo "Note: Lower quality value means higher quality (18-28 is good range)"
     return 1
   fi
@@ -230,8 +230,8 @@ alias compress_video='() {
   input_file="$1"
   quality="${2:-30}"
 
-  _video_validate_file "$input_file" || return 1
-  _video_check_ffmpeg || return 1
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
 
   # Validate quality parameter
   if ! [[ "$quality" =~ ^[0-9]+$ ]] || [ "$quality" -lt 0 ] || [ "$quality" -gt 51 ]; then
@@ -248,13 +248,13 @@ alias compress_video='() {
     echo "Error: Video compression failed" >&2
     return 1
   fi
-}'
+}' # Compress video with specified quality
 
-alias compress_dir_videos='() {
+alias vdo-compress-dir='() {
   if [ $# -eq 0 ]; then
     echo "Compress videos in directory."
     echo "Usage:"
-    echo "  compress_dir_videos <video_directory> <source_extension:mp4> [quality:30]"
+    echo "  vdo-compress-dir <video_directory> <source_extension:mp4> [quality:30]"
     echo "Note: Lower quality value means higher quality (18-28 is good range)"
     return 1
   fi
@@ -263,8 +263,8 @@ alias compress_dir_videos='() {
   vdo_ext="${2:-mp4}"
   quality="${3:-30}"
 
-  _video_validate_dir "$vdo_folder" || return 1
-  _video_check_ffmpeg || return 1
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
 
   # Validate quality parameter
   if ! [[ "$quality" =~ ^[0-9]+$ ]] || [ "$quality" -lt 0 ] || [ "$quality" -gt 51 ]; then
@@ -297,13 +297,14 @@ alias compress_dir_videos='() {
     echo "Warning: Compression completed with $errors errors" >&2
     return 1
   fi
-}'
+}' # Compress videos in directory
 
 #------------------------------------------------------------------------------
 # Video Resolution Conversion
 #------------------------------------------------------------------------------
 
-_video_convert_resolution='() {
+# Helper functions for resolution conversion
+_vdo_convert_resolution='() {
   if [ $# -lt 2 ]; then
     echo "Error: Missing required parameters" >&2
     return 1
@@ -312,8 +313,8 @@ _video_convert_resolution='() {
   input_file="$1"
   resolution="$2"
 
-  _video_validate_file "$input_file" || return 1
-  _video_check_ffmpeg || return 1
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
 
   output_file="${input_file%.*}_${resolution}p.mp4"
   echo "Converting $input_file to ${resolution}p resolution..."
@@ -325,9 +326,9 @@ _video_convert_resolution='() {
     echo "Error: Video resolution conversion failed" >&2
     return 1
   fi
-}'
+}' # Convert video to specified resolution
 
-_video_convert_dir_resolution='() {
+_vdo_convert_dir_resolution='() {
   if [ $# -lt 2 ]; then
     echo "Error: Missing required parameters" >&2
     return 1
@@ -337,8 +338,8 @@ _video_convert_dir_resolution='() {
   resolution="$2"
   vdo_ext="${3:-mp4}"
 
-  _video_validate_dir "$vdo_folder" || return 1
-  _video_check_ffmpeg || return 1
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
 
   # Check if source files exist
   file_count=$(find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | wc -l)
@@ -366,105 +367,105 @@ _video_convert_dir_resolution='() {
     echo "Warning: Resolution conversion completed with $errors errors" >&2
     return 1
   fi
-}'
+}' # Convert videos in directory to specified resolution
 
 # Resolution specific aliases
-alias convert_to_320p='() {
+alias vdo-to-320p='() {
   if [ $# -eq 0 ]; then
     echo "Convert video to 320p resolution."
     echo "Usage:"
-    echo "  convert_to_320p <video_file_path>"
+    echo "  vdo-to-320p <video_file_path>"
     return 1
   fi
-  _video_convert_resolution "$1" "320"
-}'
+  _vdo_convert_resolution "$1" "320"
+}' # Convert video to 320p resolution
 
-alias convert_to_480p='() {
+alias vdo-to-480p='() {
   if [ $# -eq 0 ]; then
     echo "Convert video to 480p resolution."
     echo "Usage:"
-    echo "  convert_to_480p <video_file_path>"
+    echo "  vdo-to-480p <video_file_path>"
     return 1
   fi
-  _video_convert_resolution "$1" "480"
-}'
+  _vdo_convert_resolution "$1" "480"
+}' # Convert video to 480p resolution
 
-alias convert_to_720p='() {
+alias vdo-to-720p='() {
   if [ $# -eq 0 ]; then
     echo "Convert video to 720p resolution."
     echo "Usage:"
-    echo "  convert_to_720p <video_file_path>"
+    echo "  vdo-to-720p <video_file_path>"
     return 1
   fi
-  _video_convert_resolution "$1" "720"
-}'
+  _vdo_convert_resolution "$1" "720"
+}' # Convert video to 720p resolution
 
-alias convert_to_1080p='() {
+alias vdo-to-1080p='() {
   if [ $# -eq 0 ]; then
     echo "Convert video to 1080p resolution."
     echo "Usage:"
-    echo "  convert_to_1080p <video_file_path>"
+    echo "  vdo-to-1080p <video_file_path>"
     return 1
   fi
-  _video_convert_resolution "$1" "1080"
-}'
+  _vdo_convert_resolution "$1" "1080"
+}' # Convert video to 1080p resolution
 
 # Directory resolution conversion aliases
-alias convert_dir_to_320p='() {
+alias vdo-dir-to-320p='() {
   if [ $# -eq 0 ]; then
     echo "Convert videos in directory to 320p resolution."
     echo "Usage:"
-    echo "  convert_dir_to_320p <video_directory> <source_extension:mp4>"
+    echo "  vdo-dir-to-320p <video_directory> <source_extension:mp4>"
     return 1
   fi
-  _video_convert_dir_resolution "${1:-.}" "320" "${2:-mp4}"
-}'
+  _vdo_convert_dir_resolution "${1:-.}" "320" "${2:-mp4}"
+}' # Convert videos in directory to 320p resolution
 
-alias convert_dir_to_480p='() {
+alias vdo-dir-to-480p='() {
   if [ $# -eq 0 ]; then
     echo "Convert videos in directory to 480p resolution."
     echo "Usage:"
-    echo "  convert_dir_to_480p <video_directory> <source_extension:mp4>"
+    echo "  vdo-dir-to-480p <video_directory> <source_extension:mp4>"
     return 1
   fi
-  _video_convert_dir_resolution "${1:-.}" "480" "${2:-mp4}"
-}'
+  _vdo_convert_dir_resolution "${1:-.}" "480" "${2:-mp4}"
+}' # Convert videos in directory to 480p resolution
 
-alias convert_dir_to_720p='() {
+alias vdo-dir-to-720p='() {
   if [ $# -eq 0 ]; then
     echo "Convert videos in directory to 720p resolution."
     echo "Usage:"
-    echo "  convert_dir_to_720p <video_directory> <source_extension:mp4>"
+    echo "  vdo-dir-to-720p <video_directory> <source_extension:mp4>"
     return 1
   fi
-  _video_convert_dir_resolution "${1:-.}" "720" "${2:-mp4}"
-}'
+  _vdo_convert_dir_resolution "${1:-.}" "720" "${2:-mp4}"
+}' # Convert videos in directory to 720p resolution
 
-alias convert_dir_to_1080p='() {
+alias vdo-dir-to-1080p='() {
   if [ $# -eq 0 ]; then
     echo "Convert videos in directory to 1080p resolution."
     echo "Usage:"
-    echo "  convert_dir_to_1080p <video_directory> <source_extension:mp4>"
+    echo "  vdo-dir-to-1080p <video_directory> <source_extension:mp4>"
     return 1
   fi
-  _video_convert_dir_resolution "${1:-.}" "1080" "${2:-mp4}"
-}'
+  _vdo_convert_dir_resolution "${1:-.}" "1080" "${2:-mp4}"
+}' # Convert videos in directory to 1080p resolution
 
 #------------------------------------------------------------------------------
 # Mobile Device Optimization
 #------------------------------------------------------------------------------
 
-alias optimize_for_mobile='() {
+alias vdo-optimize-for-mobile='() {
   if [ $# -eq 0 ]; then
     echo "Optimize video for mobile devices."
     echo "Usage:"
-    echo "  optimize_for_mobile <video_file_path>"
+    echo "  vdo-optimize-for-mobile <video_file_path>"
     return 1
   fi
 
   input_file="$1"
-  _video_validate_file "$input_file" || return 1
-  _video_check_ffmpeg || return 1
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
 
   temp_file="${input_file%.*}_320p_temp.mp4"
   output_file="${input_file%.*}_mobile.mp4"
@@ -487,22 +488,21 @@ alias optimize_for_mobile='() {
     rm "$temp_file"
     return 1
   fi
-}'
-
+}' # Optimize video for mobile devices
 
 #------------------------------------------------------------------------------
 # M3U8 Stream Processing
 #------------------------------------------------------------------------------
 
-alias convert_m3u8_to_mp4='() {
+alias vdo-convert-m3u8-to-mp4='() {
   if [ $# -eq 0 ]; then
     echo "Convert M3U8 stream to MP4 video."
     echo "Usage:"
-    echo "  convert_m3u8_to_mp4 <m3u8_url> [output_filename]"
+    echo "  vdo-convert-m3u8-to-mp4 <m3u8_url> [output_filename]"
     return 1
   fi
 
-  _video_check_ffmpeg || return 1
+  _vdo_check_ffmpeg || return 1
 
   url="$1"
   output="${2:-output_$(date +%Y%m%d%H%M%S).mp4}"
@@ -515,13 +515,13 @@ alias convert_m3u8_to_mp4='() {
     echo "Error: M3U8 conversion failed" >&2
     return 1
   fi
-}'
+}' # Convert M3U8 stream to MP4 video
 
 #------------------------------------------------------------------------------
 # YouTube Downloads
 #------------------------------------------------------------------------------
 
-_video_check_youtube_dl='() {
+_vdo_check_youtube_dl='() {
   if ! command -v youtube-dl &> /dev/null; then
     echo "Error: youtube-dl is not installed or not in PATH" >&2
     return 1
@@ -529,37 +529,683 @@ _video_check_youtube_dl='() {
   return 0
 }'
 
-alias download_youtube_best='() {
-  _video_check_youtube_dl || return 1
+alias vdo-youtube-best='() {
+  echo "Download best quality YouTube video."
+  echo "Usage:"
+  echo "  vdo-youtube-best <youtube_url>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  _vdo_check_youtube_dl || return 1
   youtube-dl -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio" --merge-output-format mp4 "$@"
-}'
+}' # Download best quality YouTube video
 
-alias download_youtube_complete='() {
-  _video_check_youtube_dl || return 1
+alias vdo-youtube-complete='() {
+  echo "Download YouTube video with subtitles and thumbnail."
+  echo "Usage:"
+  echo "  vdo-youtube-complete <youtube_url>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  _vdo_check_youtube_dl || return 1
   youtube-dl -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio" --merge-output-format mp4 --all-subs --embed-subs --embed-thumbnail -o "%(title)s.%(ext)s" "$@"
-}'
+}' # Download YouTube video with subtitles and thumbnail
 
-alias download_youtube_720p='() {
-  _video_check_youtube_dl || return 1
+alias vdo-youtube-720p='() {
+  echo "Download 720p YouTube video."
+  echo "Usage:"
+  echo "  vdo-youtube-720p <youtube_url>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  _vdo_check_youtube_dl || return 1
   youtube-dl -f "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio" --merge-output-format mp4 "$@"
-}'
+}' # Download 720p YouTube video
 
-alias download_youtube_1080p='() {
-  _video_check_youtube_dl || return 1
+alias vdo-youtube-1080p='() {
+  echo "Download 1080p YouTube video."
+  echo "Usage:"
+  echo "  vdo-youtube-1080p <youtube_url>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  _vdo_check_youtube_dl || return 1
   youtube-dl -f "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio" --merge-output-format mp4 "$@"
-}'
+}' # Download 1080p YouTube video
 
-alias download_youtube_mp3='() {
-  _video_check_youtube_dl || return 1
+alias vdo-youtube-mp3='() {
+  echo "Download YouTube audio as MP3."
+  echo "Usage:"
+  echo "  vdo-youtube-mp3 <youtube_url>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  _vdo_check_youtube_dl || return 1
   youtube-dl -f bestaudio --extract-audio --audio-format mp3 "$@"
-}'
+}' # Download YouTube audio as MP3
 
-alias download_youtube_mp3_128='() {
-  _video_check_youtube_dl || return 1
+alias vdo-youtube-mp3-128='() {
+  echo "Download YouTube audio as MP3 with 128K quality."
+  echo "Usage:"
+  echo "  vdo-youtube-mp3-128 <youtube_url>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  _vdo_check_youtube_dl || return 1
   youtube-dl -f bestaudio --extract-audio --audio-format mp3 --audio-quality 128K "$@"
-}'
+}' # Download YouTube audio as MP3 with 128K quality
 
-alias download_youtube_mp3_320='() {
-  _video_check_youtube_dl || return 1
+alias vdo-youtube-mp3-320='() {
+  echo "Download YouTube audio as MP3 with 320K quality."
+  echo "Usage:"
+  echo "  vdo-youtube-mp3-320 <youtube_url>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  _vdo_check_youtube_dl || return 1
   youtube-dl -f bestaudio --extract-audio --audio-format mp3 --audio-quality 320K "$@"
-}'
+}' # Download YouTube audio as MP3 with 320K quality
+
+#------------------------------------------------------------------------------
+# Video Information & Metadata
+#------------------------------------------------------------------------------
+
+alias vdo-video-info='() {
+  echo "Show detailed information about a video file."
+  echo "Usage:"
+  echo "  vdo-video-info <video_file_path>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  echo "Getting detailed information for $input_file..."
+  ffmpeg -i "$input_file" -hide_banner 2>&1 | grep -v "^ffmpeg version"
+}' # Show detailed video information
+
+alias vdo-video-stream-info='() {
+  echo "Show stream information about a video file."
+  echo "Usage:"
+  echo "  vdo-video-stream-info <video_file_path>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  echo "Getting stream information for $input_file..."
+  ffprobe -v error -show_entries stream=index,codec_name,codec_type,width,height,bit_rate,duration -of compact=p=0:nk=1 "$input_file"
+}' # Display codec and stream details
+
+alias vdo-video-duration='() {
+  echo "Show the duration of a video file."
+  echo "Usage:"
+  echo "  vdo-video-duration <video_file_path>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$input_file")
+  hours=$(echo "$duration/3600" | bc)
+  minutes=$(echo "($duration%3600)/60" | bc)
+  seconds=$(echo "$duration%60" | bc)
+
+  printf "Duration of %s: %02d:%02d:%05.2f\n" "$input_file" "$hours" "$minutes" "$seconds"
+}' # Show video duration in hours:minutes:seconds
+
+#------------------------------------------------------------------------------
+# Video Trimming & Splitting
+#------------------------------------------------------------------------------
+
+alias vdo-trim-video='() {
+  echo "Trim a video file between start and end time."
+  echo "Usage:"
+  echo "  vdo-trim-video <video_file_path> <start_time> <duration>"
+  echo "Time format examples: 00:01:30 (1m30s), 00:00:45 (45s)"
+
+  if [ $# -lt 3 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  start_time="$2"
+  duration="$3"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${input_file%.*}_trimmed.mp4"
+  echo "Trimming $input_file from $start_time for $duration..."
+
+  if ffmpeg -ss "$start_time" -i "$input_file" -t "$duration" -c:v copy -c:a copy "$output_file"; then
+    echo "Trimming complete, exported to $output_file"
+  else
+    echo "Error: Video trimming failed" >&2
+    return 1
+  fi
+}' # Trim video to specified start time and duration
+
+alias vdo-split-video='() {
+  echo "Split a video file into segments of specified duration."
+  echo "Usage:"
+  echo "  vdo-split-video <video_file_path> <segment_duration>"
+  echo "Duration format examples: 00:10:00 (10min), 00:30:00 (30min)"
+
+  if [ $# -lt 2 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  segment_duration="$2"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_pattern="${input_file%.*}_part%03d.mp4"
+  echo "Splitting $input_file into segments of $segment_duration..."
+
+  if ffmpeg -i "$input_file" -c copy -f segment -segment_time "$segment_duration" -reset_timestamps 1 "$output_pattern"; then
+    echo "Splitting complete, segments saved with pattern: ${output_pattern}"
+  else
+    echo "Error: Video splitting failed" >&2
+    return 1
+  fi
+}' # Split video into equal segments
+
+#------------------------------------------------------------------------------
+# Video Frame Extraction
+#------------------------------------------------------------------------------
+
+alias vdo-extract-frame='() {
+  echo "Extract a single frame from a video at specified time."
+  echo "Usage:"
+  echo "  vdo-extract-frame <video_file_path> <time_position>"
+  echo "Time format examples: 00:01:30 (1m30s), 00:00:45 (45s)"
+
+  if [ $# -lt 2 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  time_pos="$2"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${input_file%.*}_frame_${time_pos//:/}.jpg"
+  echo "Extracting frame from $input_file at position $time_pos..."
+
+  if ffmpeg -ss "$time_pos" -i "$input_file" -vframes 1 -q:v 2 "$output_file"; then
+    echo "Frame extraction complete, saved to $output_file"
+  else
+    echo "Error: Frame extraction failed" >&2
+    return 1
+  fi
+}' # Extract single frame at specified time position
+
+alias vdo-extract-frames='() {
+  echo "Extract frames from a video at specified interval."
+  echo "Usage:"
+  echo "  vdo-extract-frames <video_file_path> <interval_in_seconds:1>"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  interval="${2:-1}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Create output directory
+  output_dir="${input_file%.*}_frames"
+  mkdir -p "$output_dir"
+
+  echo "Extracting frames from $input_file every $interval seconds..."
+
+  if ffmpeg -i "$input_file" -vf "fps=1/${interval}" "$output_dir/frame_%04d.jpg"; then
+    echo "Frame extraction complete, saved to $output_dir/"
+  else
+    echo "Error: Frame extraction failed" >&2
+    return 1
+  fi
+}' # Extract frames at regular intervals
+
+#------------------------------------------------------------------------------
+# Video Speed Modification
+#------------------------------------------------------------------------------
+
+alias vdo-speed-up-video='() {
+  echo "Speed up a video by specified factor."
+  echo "Usage:"
+  echo "  vdo-speed-up-video <video_file_path> <speed_factor:2>"
+  echo "Example: speed-up-video input.mp4 2  # Double the speed"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  speed_factor="${2:-2}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate speed factor
+  if ! [[ "$speed_factor" =~ ^[0-9]+(\.[0-9]+)?$ ]] || (( $(echo "$speed_factor <= 0" | bc -l) )); then
+    echo "Error: Speed factor must be a positive number" >&2
+    return 1
+  fi
+
+  output_file="${input_file%.*}_${speed_factor}x.mp4"
+  # Calculate tempo (inverse of speed for audio)
+  tempo=$(echo "scale=2; 1/$speed_factor" | bc)
+
+  echo "Speeding up $input_file by ${speed_factor}x..."
+
+  if ffmpeg -i "$input_file" -filter_complex "[0:v]setpts=PTS/${speed_factor}[v];[0:a]atempo=${tempo}[a]" -map "[v]" -map "[a]" "$output_file"; then
+    echo "Speed modification complete, saved to $output_file"
+  else
+    echo "Error: Video speed modification failed" >&2
+    return 1
+  fi
+}' # Speed up video playback
+
+alias vdo-slow-down-video='() {
+  echo "Slow down a video by specified factor."
+  echo "Usage:"
+  echo "  vdo-slow-down-video <video_file_path> <slow_factor:2>"
+  echo "Example: slow-down-video input.mp4 2  # Half the speed"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  slow_factor="${2:-2}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate slow factor
+  if ! [[ "$slow_factor" =~ ^[0-9]+(\.[0-9]+)?$ ]] || (( $(echo "$slow_factor <= 0" | bc -l) )); then
+    echo "Error: Slow factor must be a positive number" >&2
+    return 1
+  fi
+
+  output_file="${input_file%.*}_${slow_factor}x_slow.mp4"
+  # Calculate tempo (inverse of slow factor for audio)
+  tempo=$(echo "scale=2; 1/$slow_factor" | bc)
+
+  echo "Slowing down $input_file by ${slow_factor}x..."
+
+  if ffmpeg -i "$input_file" -filter_complex "[0:v]setpts=PTS*${slow_factor}[v];[0:a]atempo=${tempo}[a]" -map "[v]" -map "[a]" "$output_file"; then
+    echo "Speed modification complete, saved to $output_file"
+  else
+    echo "Error: Video speed modification failed" >&2
+    return 1
+  fi
+}' # Slow down video playback
+
+#------------------------------------------------------------------------------
+# Video Watermark & Overlay
+#------------------------------------------------------------------------------
+
+alias vdo-add-watermark='() {
+  echo "Add a watermark image to a video."
+  echo "Usage:"
+  echo "  vdo-add-watermark <video_file_path> <watermark_image> <position:bottomright>"
+  echo "Positions: topleft, topright, bottomleft, bottomright, center"
+
+  if [ $# -lt 2 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  watermark_image="$2"
+  position="${3:-bottomright}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_validate_file "$watermark_image" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${input_file%.*}_watermarked.mp4"
+
+  # Set position coordinates based on input position
+  case "$position" in
+    topleft)
+      overlay_position="10:10"
+      ;;
+    topright)
+      overlay_position="main_w-overlay_w-10:10"
+      ;;
+    bottomleft)
+      overlay_position="10:main_h-overlay_h-10"
+      ;;
+    bottomright)
+      overlay_position="main_w-overlay_w-10:main_h-overlay_h-10"
+      ;;
+    center)
+      overlay_position="(main_w-overlay_w)/2:(main_h-overlay_h)/2"
+      ;;
+    *)
+      echo "Error: Invalid position. Use topleft, topright, bottomleft, bottomright, or center" >&2
+      return 1
+      ;;
+  esac
+
+  echo "Adding watermark to $input_file at position $position..."
+
+  if ffmpeg -i "$input_file" -i "$watermark_image" -filter_complex "overlay=$overlay_position" -codec:a copy "$output_file"; then
+    echo "Watermark added, saved to $output_file"
+  else
+    echo "Error: Adding watermark failed" >&2
+    return 1
+  fi
+}' # Add image watermark to video
+
+alias vdo-add-text-watermark='() {
+  echo "Add a text watermark to a video."
+  echo "Usage:"
+  echo "  vdo-add-text-watermark <video_file_path> <text> <position:bottomright> <font_size:24> <color:white>"
+  echo "Positions: topleft, topright, bottomleft, bottomright, center"
+  echo "Colors: white, black, red, green, blue, yellow"
+
+  if [ $# -lt 2 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  text="$2"
+  position="${3:-bottomright}"
+  font_size="${4:-24}"
+  color="${5:-white}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${input_file%.*}_text_watermarked.mp4"
+
+  # Set position coordinates based on input position
+  case "$position" in
+    topleft)
+      text_position="x=10:y=10"
+      ;;
+    topright)
+      text_position="x=w-tw-10:y=10"
+      ;;
+    bottomleft)
+      text_position="x=10:y=h-th-10"
+      ;;
+    bottomright)
+      text_position="x=w-tw-10:y=h-th-10"
+      ;;
+    center)
+      text_position="x=(w-tw)/2:y=(h-th)/2"
+      ;;
+    *)
+      echo "Error: Invalid position. Use topleft, topright, bottomleft, bottomright, or center" >&2
+      return 1
+      ;;
+  esac
+
+  echo "Adding text watermark \"$text\" to $input_file at position $position..."
+
+  if ffmpeg -i "$input_file" -vf "drawtext=fontfile=/System/Library/Fonts/Helvetica.ttc:text='$text':fontcolor=$color:fontsize=$font_size:$text_position" -codec:a copy "$output_file"; then
+    echo "Text watermark added, saved to $output_file"
+  else
+    echo "Error: Adding text watermark failed" >&2
+    return 1
+  fi
+}' # Add text watermark to video
+
+#------------------------------------------------------------------------------
+# Video Audio Processing
+#------------------------------------------------------------------------------
+
+alias vdo-remove-audio='() {
+  echo "Remove audio from video."
+  echo "Usage:"
+  echo "  vdo-remove-audio <video_file_path>"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${input_file%.*}_no_audio.mp4"
+  echo "Removing audio from $input_file..."
+
+  if ffmpeg -i "$input_file" -c:v copy -an "$output_file"; then
+    echo "Audio removal complete, saved to $output_file"
+  else
+    echo "Error: Audio removal failed" >&2
+    return 1
+  fi
+}' # Remove audio track from video
+
+alias vdo-replace-audio='() {
+  echo "Replace video audio with another audio file."
+  echo "Usage:"
+  echo "  vdo-replace-audio <video_file_path> <audio_file_path>"
+
+  if [ $# -lt 2 ]; then
+    return 1
+  fi
+
+  video_file="$1"
+  audio_file="$2"
+
+  _vdo_validate_file "$video_file" || return 1
+  _vdo_validate_file "$audio_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${video_file%.*}_new_audio.mp4"
+  echo "Replacing audio in $video_file with $audio_file..."
+
+  if ffmpeg -i "$video_file" -i "$audio_file" -c:v copy -map 0:v:0 -map 1:a:0 -shortest "$output_file"; then
+    echo "Audio replacement complete, saved to $output_file"
+  else
+    echo "Error: Audio replacement failed" >&2
+    return 1
+  fi
+}' # Replace video audio track with another audio file
+
+alias vdo-adjust-volume='() {
+  echo "Adjust video audio volume."
+  echo "Usage:"
+  echo "  vdo-adjust-volume <video_file_path> <volume_factor:1.5>"
+  echo "Examples: 0.5 (half volume), 1.5 (50% louder), 2.0 (double volume)"
+
+  if [ $# -lt 2 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  volume="${2:-1.5}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate volume factor
+  if ! [[ "$volume" =~ ^[0-9]+(\.[0-9]+)?$ ]] || (( $(echo "$volume < 0" | bc -l) )); then
+    echo "Error: Volume factor must be a positive number" >&2
+    return 1
+  fi
+
+  output_file="${input_file%.*}_vol_${volume}.mp4"
+  echo "Adjusting volume of $input_file by factor $volume..."
+
+  if ffmpeg -i "$input_file" -filter:a "volume=$volume" -c:v copy "$output_file"; then
+    echo "Volume adjustment complete, saved to $output_file"
+  else
+    echo "Error: Volume adjustment failed" >&2
+    return 1
+  fi
+}' # Adjust audio volume in video
+
+#------------------------------------------------------------------------------
+# Video Screenshot Series
+#------------------------------------------------------------------------------
+
+alias vdo-create-thumbnails='() {
+  echo "Create thumbnail images from video at regular intervals."
+  echo "Usage:"
+  echo "  vdo-create-thumbnails <video_file_path> <interval_in_seconds:60> <thumbnail_width:320>"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  interval="${2:-60}"
+  width="${3:-320}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Create output directory
+  output_dir="${input_file%.*}_thumbnails"
+  mkdir -p "$output_dir"
+
+  echo "Creating thumbnails from $input_file every $interval seconds..."
+
+  if ffmpeg -i "$input_file" -vf "fps=1/$interval,scale=$width:-1" -q:v 2 "$output_dir/thumb_%04d.jpg"; then
+    echo "Thumbnail creation complete, saved to $output_dir/"
+  else
+    echo "Error: Thumbnail creation failed" >&2
+    return 1
+  fi
+}' # Create thumbnails at regular intervals
+
+alias vdo-create-preview-grid='() {
+  echo "Create a preview grid of video screenshots."
+  echo "Usage:"
+  echo "  vdo-create-preview-grid <video_file_path> <columns:4> <rows:4>"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  columns="${2:-4}"
+  rows="${3:-4}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${input_file%.*}_preview.jpg"
+  total_frames=$((columns * rows))
+
+  # Get video duration
+  duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$input_file")
+
+  # Calculate interval between frames
+  interval=$(echo "scale=2; $duration / ($total_frames + 1)" | bc)
+
+  echo "Creating $columns×$rows preview grid from $input_file..."
+
+  if ffmpeg -i "$input_file" -vf "fps=1/$interval,scale=320:-1,tile=${columns}x${rows}" -frames:v 1 -q:v 2 "$output_file"; then
+    echo "Preview grid created, saved to $output_file"
+  else
+    echo "Error: Preview grid creation failed" >&2
+    return 1
+  fi
+}' # Create a grid of screenshots from the video
+
+#------------------------------------------------------------------------------
+# Video Help Function
+#------------------------------------------------------------------------------
+
+alias vdo-help='() {
+  echo "Video Processing Aliases Help"
+  echo "============================"
+  echo "Information & Metadata:"
+  echo "  vdo-info <file>                      - Show detailed information about a video file"
+  echo "  vdo-stream-info <file>               - Show stream information about a video file"
+  echo "  vdo-duration <file>                  - Show the duration of a video file"
+  echo ""
+  echo "Trimming & Splitting:"
+  echo "  vdo-trim <file> <start> <duration>   - Trim video between start and duration"
+  echo "  vdo-split <file> <segment_duration>  - Split video into segments of specified duration"
+  echo ""
+  echo "Frame Extraction:"
+  echo "  vdo-extract-frame <file> <time>      - Extract a single frame at specified time"
+  echo "  vdo-extract-frames <file> <interval> - Extract frames at regular intervals"
+  echo ""
+  echo "Speed Modification:"
+  echo "  vdo-speed-up <file> <factor>         - Speed up video playback"
+  echo "  vdo-slow-down <file> <factor>        - Slow down video playback"
+  echo ""
+  echo "Watermark & Overlay:"
+  echo "  vdo-add-watermark <file> <image> <pos> - Add image watermark to video"
+  echo "  vdo-add-text <file> <text> <pos>     - Add text watermark to video"
+  echo ""
+  echo "Audio Processing:"
+  echo "  vdo-remove-audio <file>              - Remove audio from video"
+  echo "  vdo-replace-audio <video> <audio>    - Replace video audio with another audio file"
+  echo "  vdo-adjust-volume <file> <factor>    - Adjust audio volume in video"
+  echo "  vdo-extract-mp3 <file>               - Extract audio to MP3 format"
+  echo "  vdo-extract-dir-mp3 <dir>            - Extract audio from videos in directory to MP3"
+  echo ""
+  echo "Compression & Conversion:"
+  echo "  vdo-compress <file> <quality>        - Compress video with specified quality"
+  echo "  vdo-compress-dir <dir> <ext> <quality> - Compress videos in directory"
+  echo "  vdo-to-mp4 <file>                    - Convert video to MP4 format"
+  echo "  vdo-batch-to-mp4 <dir> <ext>         - Convert videos in directory to MP4 format"
+  echo "  vdo-optimize-for-mobile <file>       - Optimize video for mobile devices"
+  echo "  vdo-convert-m3u8-to-mp4 <url>        - Convert M3U8 stream to MP4 video"
+  echo ""
+  echo "Resolution Conversion:"
+  echo "  vdo-to-320p <file>                   - Convert video to 320p resolution"
+  echo "  vdo-to-480p <file>                   - Convert video to 480p resolution"
+  echo "  vdo-to-720p <file>                   - Convert video to 720p resolution"
+  echo "  vdo-to-1080p <file>                  - Convert video to 1080p resolution"
+  echo "  vdo-dir-to-720p <dir> <ext>          - Convert videos in directory to 720p resolution"
+  echo "  vdo-dir-to-1080p <dir> <ext>         - Convert videos in directory to 1080p resolution"
+  echo ""
+  echo "Screenshot Series:"
+  echo "  vdo-create-thumbnails <file> <interval> - Create thumbnails at regular intervals"
+  echo "  vdo-create-preview-grid <file> <cols>   - Create a grid of screenshots"
+  echo ""
+  echo "YouTube Downloads:"
+  echo "  vdo-youtube-best <url>               - Download best quality YouTube video"
+  echo "  vdo-youtube-complete <url>           - Download YouTube video with subtitles and thumbnail"
+  echo "  vdo-youtube-720p <url>               - Download 720p YouTube video"
+  echo "  vdo-youtube-1080p <url>              - Download 1080p YouTube video"
+  echo "  vdo-youtube-mp3 <url>                - Download YouTube audio as MP3"
+  echo "  vdo-youtube-mp3-128 <url>            - Download YouTube audio as MP3 with 128K quality"
+  echo "  vdo-youtube-mp3-320 <url>            - Download YouTube audio as MP3 with 320K quality"
+  echo ""
+  echo "For more detailed help on any command, run the command without arguments"
+}' # Display help information about all video commands
