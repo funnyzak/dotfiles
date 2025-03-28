@@ -131,8 +131,6 @@ alias get-best-remote='() {
 
 # Function to load and install ZSH plugins
 alias load-zsh-plugins='() {
-  echo "Load and auto-install zsh plugins if not present.\nUsage:\n load-zsh-plugins"
-
   local zsh_custom=${ZSH_CUSTOM:-$ZSH/custom}
 
   # Define plugin variables using space-separated strings
