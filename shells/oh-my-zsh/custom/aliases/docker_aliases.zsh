@@ -831,42 +831,53 @@ alias dkr-help='() {
   echo "=================="
   echo "Shows list of all available Docker aliases with descriptions.\nUsage:\n dkr-help [category]"
 
-  # Define categories
-  local categories=(
-    "Container Management"
-    "Image Management"
-    "Container Operations"
-    "Container Logs and Terminal"
-    "File Transfer"
-    "Forceful Operations"
-    "Docker Compose Operations"
-    "Performance Monitoring"
-    "Network Management"
-    "System Management"
-    "Build Operations"
-    "Cleanup Operations"
-  )
+  # Define categories as a string instead of array
+  local show_container=0
+  local show_image=0
+  local show_compose=0
+  local show_network=0
+  local show_system=0
+  local show_logs=0
+  local show_file=0
+  local show_forceful=0
+  local show_performance=0
+  local show_build=0
+  local show_cleanup=0
 
   # Check if category was specified
   if [ $# -gt 0 ]; then
     case "$1" in
       "container")
-        categories=("Container Management" "Container Operations" "Container Logs and Terminal")
+        show_container=1
+        show_logs=1
         ;;
       "image")
-        categories=("Image Management" "Build Operations")
+        show_image=1
+        show_build=1
         ;;
       "compose")
-        categories=("Docker Compose Operations")
+        show_compose=1
         ;;
       "network")
-        categories=("Network Management")
+        show_network=1
         ;;
       "system")
-        categories=("System Management" "Performance Monitoring" "Cleanup Operations")
+        show_system=1
+        show_performance=1
+        show_cleanup=1
         ;;
       "all")
-        # Keep all categories
+        show_container=1
+        show_image=1
+        show_compose=1
+        show_network=1
+        show_system=1
+        show_logs=1
+        show_file=1
+        show_forceful=1
+        show_performance=1
+        show_build=1
+        show_cleanup=1
         ;;
       *)
         echo "Error: Unknown category: $1"
@@ -874,10 +885,23 @@ alias dkr-help='() {
         return 1
         ;;
     esac
+  else
+    # Default: show all categories
+    show_container=1
+    show_image=1
+    show_compose=1
+    show_network=1
+    show_system=1
+    show_logs=1
+    show_file=1
+    show_forceful=1
+    show_performance=1
+    show_build=1
+    show_cleanup=1
   fi
 
   # Container Management aliases
-  if [[ " ${categories[@]} " =~ " Container Management " ]]; then
+  if [ $show_container -eq 1 ]; then
     echo "\nContainer Management:"
     echo "  dps              - Lists all containers, with optional filter"
     echo "  watchdps         - Monitors container status in real-time, with adjustable refresh interval"
@@ -890,7 +914,7 @@ alias dkr-help='() {
   fi
 
   # Image Management aliases
-  if [[ " ${categories[@]} " =~ " Image Management " ]]; then
+  if [ $show_image -eq 1 ]; then
     echo "\nImage Management:"
     echo "  dimages          - Lists all images, with optional filter"
     echo "  drmi             - Removes specified image(s)"
@@ -900,7 +924,7 @@ alias dkr-help='() {
   fi
 
   # Container Operations aliases
-  if [[ " ${categories[@]} " =~ " Container Operations " ]]; then
+  if [ $show_forceful -eq 1 ]; then
     echo "\nContainer Operations:"
     echo "  drm              - Removes specified container(s)"
     echo "  dsrm             - Stops and removes specified container(s)"
@@ -908,7 +932,7 @@ alias dkr-help='() {
   fi
 
   # Container Logs and Terminal aliases
-  if [[ " ${categories[@]} " =~ " Container Logs and Terminal " ]]; then
+  if [ $show_logs -eq 1 ]; then
     echo "\nContainer Logs and Terminal:"
     echo "  dlogs            - Shows container logs, defaults to last 300 lines"
     echo "  dtail            - Shows live logs from multiple containers"
@@ -917,14 +941,14 @@ alias dkr-help='() {
   fi
 
   # File Transfer aliases
-  if [[ " ${categories[@]} " =~ " File Transfer " ]]; then
+  if [ $show_file -eq 1 ]; then
     echo "\nFile Transfer:"
     echo "  dcp              - Copies file to container"
     echo "  dcpl             - Copies file from container"
   fi
 
   # Network Management aliases
-  if [[ " ${categories[@]} " =~ " Network Management " ]]; then
+  if [ $show_network -eq 1 ]; then
     echo "\nNetwork Management:"
     echo "  dnet             - Lists all networks, with optional filter"
     echo "  dnetconnect      - Connects a container to a network"
@@ -934,7 +958,7 @@ alias dkr-help='() {
   fi
 
   # Docker Compose Operations aliases
-  if [[ " ${categories[@]} " =~ " Docker Compose Operations " ]]; then
+  if [ $show_compose -eq 1 ]; then
     echo "\nDocker Compose Operations:"
     echo "  dcupd            - Starts containers using Docker Compose"
     echo "  dcdown           - Stops containers using Docker Compose"
@@ -953,13 +977,13 @@ alias dkr-help='() {
   fi
 
   # Performance Monitoring aliases
-  if [[ " ${categories[@]} " =~ " Performance Monitoring " ]]; then
+  if [ $show_performance -eq 1 ]; then
     echo "\nPerformance Monitoring:"
     echo "  dstat            - Displays container resource usage, with optional container name filter"
   fi
 
   # System Management aliases
-  if [[ " ${categories[@]} " =~ " System Management " ]]; then
+  if [ $show_system -eq 1 ]; then
     echo "\nSystem Management:"
     echo "  dsystem          - Displays Docker system information"
     echo "  dinspect         - Inspects Docker resource details"
@@ -967,7 +991,7 @@ alias dkr-help='() {
   fi
 
   # Build Operations aliases
-  if [[ " ${categories[@]} " =~ " Build Operations " ]]; then
+  if [ $show_build -eq 1 ]; then
     echo "\nBuild Operations:"
     echo "  dbuild           - Builds a Docker image"
     echo "  dbuildx          - Docker BuildX helper"
@@ -975,7 +999,7 @@ alias dkr-help='() {
   fi
 
   # Cleanup Operations aliases
-  if [[ " ${categories[@]} " =~ " Cleanup Operations " ]]; then
+  if [ $show_cleanup -eq 1 ]; then
     echo "\nCleanup Operations:"
     echo "  dprune           - Cleans up unused Docker resources"
     echo "  dclean-img       - Removes unused Docker images"
