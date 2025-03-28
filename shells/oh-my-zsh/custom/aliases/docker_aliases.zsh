@@ -876,118 +876,109 @@ alias dkr-help='() {
     esac
   fi
 
-  # Helper function to extract alias descriptions
-  _extract_description() {
-    local alias_name="$1"
-    grep -e "^alias $alias_name=" "$ZSH_CUSTOM/aliases/docker_aliases.zsh" |
-      grep -o "#.*" |
-      sed "s/# //" |
-      head -n 1
-  }
-
   # Container Management aliases
   if [[ " ${categories[@]} " =~ " Container Management " ]]; then
     echo "\nContainer Management:"
-    echo "  dps              - $(_extract_description "dps")"
-    echo "  watchdps         - $(_extract_description "watchdps")"
-    echo "  dstart           - $(_extract_description "dstart")"
-    echo "  dstop            - $(_extract_description "dstop")"
-    echo "  dstopall         - $(_extract_description "dstopall")"
-    echo "  drst             - $(_extract_description "drst")"
-    echo "  dren             - $(_extract_description "dren")"
-    echo "  dhealth          - $(_extract_description "dhealth")"
+    echo "  dps              - Lists all containers, with optional filter"
+    echo "  watchdps         - Monitors container status in real-time, with adjustable refresh interval"
+    echo "  dstart           - Starts stopped container(s)"
+    echo "  dstop            - Stops specified container(s)"
+    echo "  dstopall         - Stops all containers"
+    echo "  drst             - Restarts specified container(s)"
+    echo "  dren             - Renames a container"
+    echo "  dhealth          - Shows health status of running containers"
   fi
 
   # Image Management aliases
   if [[ " ${categories[@]} " =~ " Image Management " ]]; then
     echo "\nImage Management:"
-    echo "  dimages          - $(_extract_description "dimages")"
-    echo "  drmi             - $(_extract_description "drmi")"
-    echo "  dpl              - $(_extract_description "dpl")"
-    echo "  dtag             - $(_extract_description "dtag")"
-    echo "  dpush            - $(_extract_description "dpush")"
+    echo "  dimages          - Lists all images, with optional filter"
+    echo "  drmi             - Removes specified image(s)"
+    echo "  dpl              - Pulls an image"
+    echo "  dtag             - Tags a Docker image"
+    echo "  dpush            - Pushes a Docker image to registry"
   fi
 
   # Container Operations aliases
   if [[ " ${categories[@]} " =~ " Container Operations " ]]; then
     echo "\nContainer Operations:"
-    echo "  drm              - $(_extract_description "drm")"
-    echo "  dsrm             - $(_extract_description "dsrm")"
-    echo "  drmq             - $(_extract_description "drmq")"
+    echo "  drm              - Removes specified container(s)"
+    echo "  dsrm             - Stops and removes specified container(s)"
+    echo "  drmq             - Forcefully removes all containers, with optional confirmation prompt"
   fi
 
   # Container Logs and Terminal aliases
   if [[ " ${categories[@]} " =~ " Container Logs and Terminal " ]]; then
     echo "\nContainer Logs and Terminal:"
-    echo "  dlogs            - $(_extract_description "dlogs")"
-    echo "  dtail            - $(_extract_description "dtail")"
-    echo "  dbash            - $(_extract_description "dbash")"
-    echo "  dexec            - $(_extract_description "dexec")"
+    echo "  dlogs            - Shows container logs, defaults to last 300 lines"
+    echo "  dtail            - Shows live logs from multiple containers"
+    echo "  dbash            - Enters container terminal, tries bash, then sh"
+    echo "  dexec            - Executes a command in a container"
   fi
 
   # File Transfer aliases
   if [[ " ${categories[@]} " =~ " File Transfer " ]]; then
     echo "\nFile Transfer:"
-    echo "  dcp              - $(_extract_description "dcp")"
-    echo "  dcpl             - $(_extract_description "dcpl")"
+    echo "  dcp              - Copies file to container"
+    echo "  dcpl             - Copies file from container"
   fi
 
   # Network Management aliases
   if [[ " ${categories[@]} " =~ " Network Management " ]]; then
     echo "\nNetwork Management:"
-    echo "  dnet             - $(_extract_description "dnet")"
-    echo "  dnetconnect      - $(_extract_description "dnetconnect")"
-    echo "  dnetdisconnect   - $(_extract_description "dnetdisconnect")"
-    echo "  dnetcreate       - $(_extract_description "dnetcreate")"
-    echo "  dip              - $(_extract_description "dip")"
+    echo "  dnet             - Lists all networks, with optional filter"
+    echo "  dnetconnect      - Connects a container to a network"
+    echo "  dnetdisconnect   - Disconnects a container from a network"
+    echo "  dnetcreate       - Creates a Docker network"
+    echo "  dip              - Shows container IP address(es)"
   fi
 
   # Docker Compose Operations aliases
   if [[ " ${categories[@]} " =~ " Docker Compose Operations " ]]; then
     echo "\nDocker Compose Operations:"
-    echo "  dcupd            - $(_extract_description "dcupd")"
-    echo "  dcdown           - $(_extract_description "dcdown")"
-    echo "  dcrestart        - $(_extract_description "dcrestart")"
-    echo "  dcsrm            - $(_extract_description "dcsrm")"
-    echo "  dcps             - $(_extract_description "dcps")"
-    echo "  dclogs           - $(_extract_description "dclogs")"
-    echo "  dcbash           - $(_extract_description "dcbash")"
-    echo "  dce              - $(_extract_description "dce")"
-    echo "  dcr              - $(_extract_description "dcr")"
-    echo "  dcpse            - $(_extract_description "dcpse")"
-    echo "  dcupse           - $(_extract_description "dcupse")"
-    echo "  dcstop           - $(_extract_description "dcstop")"
-    echo "  dctop            - $(_extract_description "dctop")"
-    echo "  dcval            - $(_extract_description "dcval")"
+    echo "  dcupd            - Starts containers using Docker Compose"
+    echo "  dcdown           - Stops containers using Docker Compose"
+    echo "  dcrestart        - Restarts containers using Docker Compose"
+    echo "  dcsrm            - Stops and removes containers using Docker Compose"
+    echo "  dcps             - Displays Docker Compose container status"
+    echo "  dclogs           - Displays Docker Compose container logs"
+    echo "  dcbash           - Enters Docker Compose container terminal"
+    echo "  dce              - Executes a command in a Docker Compose container"
+    echo "  dcr              - Runs a command using Docker Compose"
+    echo "  dcpse            - Pauses Docker Compose service(s)"
+    echo "  dcupse           - Unpauses Docker Compose service(s)"
+    echo "  dcstop           - Stops Docker Compose service(s)"
+    echo "  dctop            - Displays Docker Compose container resource usage"
+    echo "  dcval            - Validates Docker Compose file"
   fi
 
   # Performance Monitoring aliases
   if [[ " ${categories[@]} " =~ " Performance Monitoring " ]]; then
     echo "\nPerformance Monitoring:"
-    echo "  dstat            - $(_extract_description "dstat")"
+    echo "  dstat            - Displays container resource usage, with optional container name filter"
   fi
 
   # System Management aliases
   if [[ " ${categories[@]} " =~ " System Management " ]]; then
     echo "\nSystem Management:"
-    echo "  dsystem          - $(_extract_description "dsystem")"
-    echo "  dinspect         - $(_extract_description "dinspect")"
-    echo "  dvol             - $(_extract_description "dvol")"
+    echo "  dsystem          - Displays Docker system information"
+    echo "  dinspect         - Inspects Docker resource details"
+    echo "  dvol             - Lists Docker volumes with optional filter"
   fi
 
   # Build Operations aliases
   if [[ " ${categories[@]} " =~ " Build Operations " ]]; then
     echo "\nBuild Operations:"
-    echo "  dbuild           - $(_extract_description "dbuild")"
-    echo "  dbuildx          - $(_extract_description "dbuildx")"
-    echo "  dlint            - $(_extract_description "dlint")"
+    echo "  dbuild           - Builds a Docker image"
+    echo "  dbuildx          - Docker BuildX helper"
+    echo "  dlint            - Lints Dockerfile using hadolint"
   fi
 
   # Cleanup Operations aliases
   if [[ " ${categories[@]} " =~ " Cleanup Operations " ]]; then
     echo "\nCleanup Operations:"
-    echo "  dprune           - $(_extract_description "dprune")"
-    echo "  dclean-img       - $(_extract_description "dclean-img")"
-    echo "  dclean-vol       - $(_extract_description "dclean-vol")"
+    echo "  dprune           - Cleans up unused Docker resources"
+    echo "  dclean-img       - Removes unused Docker images"
+    echo "  dclean-vol       - Removes unused Docker volumes"
   fi
 }' # Shows all available Docker aliases with their descriptions
