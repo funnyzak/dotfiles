@@ -529,3 +529,40 @@ alias net-wifi-status='() {
     fi
   fi
 }'  # Show current WiFi connection status
+
+# Help function for Network aliases
+alias net-help='() {
+  echo "Network Aliases Help"
+  echo "===================="
+  echo "Available commands:"
+  echo "  net-myip          - Get your public IP address"
+  echo "  net-ipinfo        - Get IP information for your IP or specified address"
+  echo "  net-domainip      - Get IP address for a domain name"
+  echo "  net-ping          - Ping a host with 5 attempts"
+  echo "  net-port-test     - Test if a port is open using netcat"
+  echo "  net-ports         - List all network connections"
+  echo "  net-port-usage    - Show port usage information"
+  echo "  net-listening     - List all listening ports"
+  echo "  net-devices       - Show devices on local network"
+  echo "  net-bandwidth     - Monitor network bandwidth"
+  echo "  net-watch         - Real-time network traffic monitoring"
+  echo "  net-download      - Download file from URL"
+  echo "  net-download-all  - Download all files from a list of URLs"
+  echo "  net-get           - Send GET request"
+  echo "  net-post          - Send POST request"
+  echo "  net-headers       - Get HTTP headers only"
+  echo "  net-flush-dns     - Flush DNS cache"
+  echo "  net-dns-lookup    - Look up DNS records for a domain"
+  echo "  net-interfaces    - Show all network interfaces"
+  echo "  net-ips           - Show all IP addresses for this device"
+  echo "  net-routes        - Show routing table"
+  echo "  net-stats         - Show network statistics"
+  echo "  net-scan          - Scan network for devices"
+  echo "  net-mtr           - Run MTR (My Traceroute)"
+  echo "  net-speed         - Test internet connection speed"
+  echo "  net-open-ports    - Scan for open ports on a host"
+  echo "  net-wifi-networks - Show available WiFi networks"
+  echo "  net-wifi-status   - Show current WiFi connection status"
+  echo "  net-help          - Display this help message"
+  echo
+  echo "For detailed usage information, run any command without arguments or with -h/--help flag"
