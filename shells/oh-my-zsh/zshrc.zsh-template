@@ -114,8 +114,7 @@ if [[ -d ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases ]]; then
   unsetopt nullglob
 fi
 
-# Helper function to determine best remote URL prefix based on network connectivity
-_get_best_remote='() {
+get_best_remote() {
   local remote_url_prefix="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
   local remote_url_prefix_cn="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
 
@@ -125,7 +124,7 @@ _get_best_remote='() {
   fi
 
   echo "$remote_url_prefix"
-}'
+}
 
 # Function to load and install ZSH plugins
 alias load-zsh-plugins='() {
@@ -179,7 +178,7 @@ alias load-zsh-plugins='() {
       echo -e "${yellow}Plugin $plugin doesnt exist or is invalid, attempting to download...${nc}"
 
       # Get best remote URL prefix
-      local remote_url="$(_get_best_remote)templates/packages/zsh/plugins/${plugin}.tar.gz"
+      local remote_url="$(get_best_remote)templates/packages/zsh/plugins/${plugin}.tar.gz"
       local tarball="$temp_dir/${plugin}.tar.gz"
 
       # Create plugin directory
@@ -244,7 +243,7 @@ alias install-omz-aliases='() {
   echo "Install oh-my-zsh alias files from remote repository.\nUsage:\n install-omz-aliases [options]"
 
   echo "Installing oh-my-zsh alias files from remote repository..."
-  curl -fsSL "$(_get_best_remote)shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
+  curl -fsSL "$(get_best_remote)shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
 
   if [[ $? -ne 0 ]]; then
     echo "Error: Failed to install oh-my-zsh alias files." >&2
@@ -260,7 +259,7 @@ alias install-omz-aliases='() {
 alias upgrade-zsh-config='() {
   echo "Upgrade oh-my-zsh configuration from remote repository.\nUsage:\n upgrade-zsh-config [--bak]"
 
-  local zsh_config_download_url="$(_get_best_remote)shells/oh-my-zsh/zshrc.zsh-template"
+  local zsh_config_download_url="$(get_best_remote)shells/oh-my-zsh/zshrc.zsh-template"
 
   if [[ "$1" == "--bak" ]]; then
     local backup_file="$HOME/.zshrc.$(date +%Y%m%d%H%M%S).bak"
