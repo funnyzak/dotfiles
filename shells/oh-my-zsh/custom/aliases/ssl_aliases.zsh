@@ -21,7 +21,7 @@ _check_root_ssl_aliases() {
 
 # Install acme.sh SSL certificate tool
 alias install-acmesh='() {
-  echo -e "Install acme.sh SSL certificate tool.\nUsage:\n install-acmesh [email:acmesh@gmail.com]"
+  echo -e "Install acme.sh SSL certificate tool.\nUsage:\n install-acmesh [email:acmesh@gmail.com] [source:github|gitee]"
 
   # Check for help flag
   if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
@@ -30,6 +30,22 @@ alias install-acmesh='() {
 
   local default_email="acmesh@gmail.com"
   local email="${1:-$default_email}"
+  local source="${2:-github}"
+  local repo_url
+
+  # Set repository URL based on source
+  case "$source" in
+    github)
+      repo_url="https://github.com/acmesh-official/acme.sh.git"
+      ;;
+    gitee)
+      repo_url="https://gitee.com/neilpang/acme.sh.git"
+      ;;
+    *)
+      echo "Error: Invalid source. Use 'github' or 'gitee'" >&2
+      return 1
+      ;;
+  esac
 
   # Check for git
   if ! _check_command_ssl_aliases "git"; then
@@ -48,7 +64,7 @@ alias install-acmesh='() {
     return 0
   fi
 
-  echo "Installing acme.sh with email: $email"
+  echo "Installing acme.sh with email: $email from $source"
 
   # Create temporary directory
   local temp_dir
@@ -60,8 +76,8 @@ alias install-acmesh='() {
 
   cd "$temp_dir" || { echo "Error: Failed to change directory to $temp_dir" >&2; return 1; }
 
-  if ! git clone https://gitee.com/neilpang/acme.sh.git; then
-    echo "Error: Failed to clone acme.sh repository" >&2
+  if ! git clone "$repo_url"; then
+    echo "Error: Failed to clone acme.sh repository from $source" >&2
     cd - > /dev/null || true
     rm -rf "$temp_dir"
     return 1
@@ -78,7 +94,7 @@ alias install-acmesh='() {
 
   cd - > /dev/null || true
   rm -rf "$temp_dir"
-  echo "Success: acme.sh installed successfully"
+  echo "Success: acme.sh installed successfully from $source"
   return 0
 }' # Install acme.sh SSL certificate tool
 
