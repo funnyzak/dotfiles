@@ -540,6 +540,7 @@ alias net-help='() {
   echo "  net-domainip      - Get IP address for a domain name"
   echo "  net-ping          - Ping a host with 5 attempts"
   echo "  net-port-test     - Test if a port is open using netcat"
+  echo "  net-port-monitor  - Monitor port stability with continuous testing"
   echo "  net-ports         - List all network connections"
   echo "  net-port-usage    - Show port usage information"
   echo "  net-listening     - List all listening ports"
