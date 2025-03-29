@@ -105,6 +105,18 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
+# Find and source all *.env files in home directory
+for env_file in ~/.*.env; do
+  if [[ -f "$env_file" ]]; then
+    source "$env_file"
+  fi
+done
+
+# Load environment variables from ~/.env last to give it highest priority
+if [[ -f ~/.env ]]; then
+  source ~/.env
+fi
+
 if [[ -d ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases ]]; then
   setopt nullglob
   for alias_file in ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases/*_aliases.zsh; do
