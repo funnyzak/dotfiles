@@ -1,3 +1,5 @@
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$HOME/bin:$HOME/.local/bin"
+
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
 
@@ -125,8 +127,17 @@ best_remote_url_prefix() {
   echo $REMOTE_URL_PREFIX
 }
 
-# Auto-install and load zsh-autosuggestions and zsh-syntax-highlighting plugins
-load_zsh_plugins() {
+# Load zsh-autosuggestions and zsh-syntax-highlighting plugins
+_zsh_plugins_load() {
+  # Parse arguments for force option
+  local force=0
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -f|--force) force=1; shift ;;
+      *) shift ;;
+    esac
+  done
+
   local ZSH_CUSTOM=${ZSH_CUSTOM:-$ZSH/custom}
 
   # Define plugin variables using space-separated strings instead of arrays
@@ -152,7 +163,7 @@ load_zsh_plugins() {
   local i=1
   for plugin in ${=plugins}; do
     # Extract the corresponding plugin file using cut
-    plugin_file=$(echo $plugin_files | cut -d ' ' -f $i)
+    plugin_file=$(echo $plugin_files | cut -d " " -f $i)
     i=$((i+1))
 
     local plugin_dir="$ZSH_CUSTOM/plugins/$plugin"
@@ -161,8 +172,8 @@ load_zsh_plugins() {
     # Check if plugin already exists and is valid
     if [[ -d "$plugin_dir" && -f "$plugin_path" && -s "$plugin_path" ]]; then
       source "$plugin_path"
-    else
-      echo -e "${YELLOW}Plugin $plugin doesnt exist or is invalid, attempting to download...${NC}"
+    elif [[ $force -eq 1 ]]; then
+      echo -e "${YELLOW}Plugin $plugin doesnt exist or is invalid, downloading...${NC}"
 
       # Get best remote URL prefix
       local remote_url="$(best_remote_url_prefix)templates/packages/zsh/plugins/${plugin}.tar.gz"
@@ -184,7 +195,7 @@ load_zsh_plugins() {
           if [[ -f "$plugin_path" && -s "$plugin_path" ]]; then
             source "$plugin_path"
           else
-            echo -e "${RED}Cannot load $plugin: Extracted file $plugin_path doesn't exist or is empty${NC}"
+            echo -e "${RED}Cannot load $plugin: Extracted file $plugin_path doesn\"t exist or is empty${NC}"
           fi
         else
           echo -e "${RED}Failed to extract $plugin${NC}"
@@ -192,6 +203,8 @@ load_zsh_plugins() {
       else
         echo -e "${RED}Failed to download $plugin, please check your network or install manually${NC}"
       fi
+    else
+      echo -e "${YELLOW}Plugin $plugin not found. Use \"zsh-plugins-load -f\" to download.${NC}"
     fi
   done
 
@@ -199,23 +212,22 @@ load_zsh_plugins() {
   rm -rf "$TEMP_DIR"
 }
 
-# Automatically load plugins
-load_zsh_plugins
+_zsh_plugins_load
 
-# Create alias for manually reloading plugins
-alias omz_reload_plugins='() {
-  load_zsh_plugins
-  echo "Zsh plugins reloaded."
+alias zsh-load-plugins='(){
+  echo "Force loading plugins..."
+  _aliases_load_plugins -f
+  echo "Plugins loaded successfully."
 }'
 
 # Install oh-my-zsh alias files from remote repository (Linux/macOS)
-alias omz_install_aliases='() {
+alias omz-install-aliases='() {
   echo "Installing oh-my-zsh alias files from remote repository..."
   curl -fsSL "$(best_remote_url_prefix)shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
 }'
 
 # Upgrade oh-my-zsh configuration from remote repository
-alias omz_config='() {
+alias zsh-upgrade-config='() {
   local zsh_config_download_url="$(best_remote_url_prefix)shells/oh-my-zsh/zshrc.zsh-template"
 
   if [[ "$1" == "--bak" ]]; then
@@ -228,6 +240,20 @@ alias omz_config='() {
   echo "Upgrading oh-my-zsh configuration from remote repository..."
   echo "Using template URL: $zsh_config_download_url"
 
-  curl -fsSL "$zsh_config_download_url" > ~/.zshrc
-  source ~/.zshrc  # Reload the configuration after upgrade
+  local tmp_file=$(mktemp)
+  curl -fsSL "$zsh_config_download_url" > "$tmp_file"
+  if [[ $? -ne 0 ]]; then
+    echo "Failed to download the new .zshrc file. Please check your network connection."
+    rm -f "$tmp_file"
+    return 1
+  fi
+  echo "Downloaded new .zshrc file to $tmp_file"
+  echo "Backing up current .zshrc to ~/.zshrc.bak..."
+  cp ~/.zshrc ~/.zshrc.bak
+  echo "Backing up completed. You can restore it by running: cp ~/.zshrc.bak ~/.zshrc"
+  echo "Replacing current .zshrc with the new one..."
+  mv "$tmp_file" ~/.zshrc
+  echo "New .zshrc file installed. Please check the file for any customizations."
+  source ~/.zshrc
+  echo "Changes applied. Please restart your terminal for the changes to take effect."
 }'
