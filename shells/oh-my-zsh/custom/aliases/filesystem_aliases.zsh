@@ -17,11 +17,28 @@ _check_command_status_filesystem_aliases() {
   return 0
 }
 
-# Basic file operations
-alias rmi='rm -i'  # Interactive removal - prompts before deleting files
+# Enhanced helper functions for better error handling
+_check_directory_exists_filesystem_aliases() {
+  if [ ! -d "$1" ]; then
+    echo "Error: Directory \"$1\" does not exist." >&2
+    return 1
+  fi
+  return 0
+}
 
-alias rm-dir='() {
-  if ! _validate_params_filesystem_aliases "Remove directory recursively.\nUsage:\n rm-dir <directory_path>"; then
+_check_file_exists_filesystem_aliases() {
+  if [ ! -e "$1" ]; then
+    echo "Error: File \"$1\" does not exist." >&2
+    return 1
+  fi
+  return 0
+}
+
+# Basic file operations
+alias fs-rm-interactive='rm -i'  # Interactive removal - prompts before deleting files
+
+alias fs-rm-dir='() {
+  if ! _validate_params_filesystem_aliases "Remove directory recursively.\nUsage:\n fs-rm-dir <directory_path>"; then
     return 1
   fi
 
@@ -39,8 +56,8 @@ alias rm-dir='() {
 }'  # Remove directory recursively
 
 # File backup
-alias backup='() {
-  if ! _validate_params_filesystem_aliases "Backup file or directory with timestamp.\nUsage:\n backup <file_or_directory> [backup_name]"; then
+alias fs-backup='() {
+  if ! _validate_params_filesystem_aliases "Backup file or directory with timestamp.\nUsage:\n fs-backup <file_or_directory> [backup_name]"; then
     return 1
   fi
 
@@ -61,8 +78,8 @@ alias backup='() {
 }'  # Create a timestamped backup of file or directory
 
 # File search by size
-alias find-big='() {
-  if ! _validate_params_filesystem_aliases "Find large files.\nUsage:\n find-big <size_in_MB:10> [directory_path:.]"; then
+alias fs-find-big='() {
+  if ! _validate_params_filesystem_aliases "Find large files.\nUsage:\n fs-find-big <size_in_MB:10> [directory_path:.]"; then
     return 1
   fi
 
@@ -81,8 +98,8 @@ alias find-big='() {
   echo -e "\nFound $count files larger than ${size}MB in \"$dir_path\"."
 }'  # Find files larger than specified size in MB
 
-alias find-small='() {
-  if ! _validate_params_filesystem_aliases "Find small files.\nUsage:\n find-small <size_in_MB:1> [directory_path:.]"; then
+alias fs-find-small='() {
+  if ! _validate_params_filesystem_aliases "Find small files.\nUsage:\n fs-find-small <size_in_MB:1> [directory_path:.]"; then
     return 1
   fi
 
@@ -102,7 +119,7 @@ alias find-small='() {
 }'  # Find files smaller than specified size in MB
 
 # File and directory counting
-alias count-files='() {
+alias fs-count-files='() {
   dir_path="${1:-.}"
 
   if [ ! -d "$dir_path" ]; then
@@ -114,7 +131,7 @@ alias count-files='() {
   echo "Number of files in \"$dir_path\": $count"
 }'  # Count files in directory
 
-alias count-dirs='() {
+alias fs-count-dirs='() {
   dir_path="${1:-.}"
 
   if [ ! -d "$dir_path" ]; then
@@ -126,7 +143,7 @@ alias count-dirs='() {
   echo "Number of directories in \"$dir_path\": $count"
 }'  # Count directories in directory
 
-alias count-all='() {
+alias fs-count-all='() {
   dir_path="${1:-.}"
 
   if [ ! -d "$dir_path" ]; then
@@ -138,9 +155,9 @@ alias count-all='() {
   echo "Total number of files and directories in \"$dir_path\": $count"
 }'  # Count all files and directories
 
-alias count-all-files='() {
+alias fs-count-all-files='() {
   if [ $# -gt 2 ]; then
-    echo "Count all files in directory and subdirectories.\nUsage:\n count-all-files [directory_path:.] [extension:*]" >&2
+    echo "Count all files in directory and subdirectories.\nUsage:\n fs-count-all-files [directory_path:.] [extension:*]" >&2
     return 1
   fi
 
@@ -156,7 +173,7 @@ alias count-all-files='() {
   echo "Total number of files with extension \".$extension\" in \"$dir_path\" and subdirectories: $count"
 }'  # Count all files including subdirectories
 
-alias count-all-dirs='() {
+alias fs-count-all-dirs='() {
   dir_path="${1:-.}"
 
   if [ ! -d "$dir_path" ]; then
@@ -169,9 +186,9 @@ alias count-all-dirs='() {
 }'  # Count all directories including subdirectories
 
 # Text and file searching
-alias find-text='() {
+alias fs-find-text='() {
   if [ $# -lt 2 ]; then
-    echo "Search for text in files.\nUsage:\n find-text <keyword> [path:.] [extension:*]" >&2
+    echo "Search for text in files.\nUsage:\n fs-find-text <keyword> [path:.] [extension:*]" >&2
     return 1
   fi
 
@@ -191,10 +208,10 @@ alias find-text='() {
   echo -e "\nSearch results: Found $result_count matches"
 }'  # Search for text in files
 
-alias find-by-size='() {
+alias fs-find-by-size='() {
   if [ $# -lt 2 ]; then
-    echo "Search for files by size.\nUsage:\n find-by-size <size_with_unit> [path:.] [extension:*] [action:echo]" >&2
-    echo "Example: find-by-size +10M /path/to/dir pdf ls -lh" >&2
+    echo "Search for files by size.\nUsage:\n fs-find-by-size <size_with_unit> [path:.] [extension:*] [action:echo]" >&2
+    echo "Example: fs-find-by-size +10M /path/to/dir pdf ls -lh" >&2
     return 1
   fi
 
@@ -215,9 +232,9 @@ alias find-by-size='() {
   echo -e "\nFound $count matching files."
 }'  # Search for files by size
 
-alias find-files='() {
+alias fs-find-files='() {
   if [ $# -lt 1 ]; then
-    echo "Search for files by name pattern.\nUsage:\n find-files <keyword> [path:.] [extension:*] [action:echo]" >&2
+    echo "Search for files by name pattern.\nUsage:\n fs-find-files <keyword> [path:.] [extension:*] [action:echo]" >&2
     return 1
   fi
 
@@ -238,9 +255,9 @@ alias find-files='() {
   echo -e "\nFound $count matching files."
 }'  # Search for files by name pattern
 
-alias find-dirs='() {
+alias fs-find-dirs='() {
   if [ $# -lt 1 ]; then
-    echo "Search for directories by name pattern.\nUsage:\n find-dirs <keyword> [path:.] [action:echo]" >&2
+    echo "Search for directories by name pattern.\nUsage:\n fs-find-dirs <keyword> [path:.] [action:echo]" >&2
     return 1
   fi
 
@@ -260,9 +277,9 @@ alias find-dirs='() {
   echo -e "\nFound $count matching directories."
 }'  # Search for directories by name pattern
 
-alias dir-size-match='() {
+alias fs-dir-size-match='() {
   if [ $# -lt 1 ]; then
-    echo "Calculate total size of directories matching name pattern.\nUsage:\n dir-size-match <keyword> [path:.]" >&2
+    echo "Calculate total size of directories matching name pattern.\nUsage:\n fs-dir-size-match <keyword> [path:.]" >&2
     return 1
   fi
 
@@ -284,9 +301,9 @@ alias dir-size-match='() {
 }'  # Calculate total size of directories matching name pattern
 
 # File deletion and management
-alias del-empty-dirs='() {
+alias fs-del-empty-dirs='() {
   if [ $# -lt 1 ]; then
-    echo "Delete empty directories.\nUsage:\n del-empty-dirs <directory_path>" >&2
+    echo "Delete empty directories.\nUsage:\n fs-del-empty-dirs <directory_path>" >&2
     return 1
   fi
 
@@ -306,9 +323,9 @@ alias del-empty-dirs='() {
   echo "Deleted $deleted empty directories in \"$dir_path\""
 }'  # Delete empty directories
 
-alias del-files-named='() {
+alias fs-del-files-named='() {
   if [ $# -lt 2 ]; then
-    echo "Delete files containing specific string in filename.\nUsage: del-files-named <string> [directory:.]" >&2
+    echo "Delete files containing specific string in filename.\nUsage: fs-del-files-named <string> [directory:.]" >&2
     return 1
   fi
 
@@ -338,9 +355,9 @@ alias del-files-named='() {
   fi
 }'  # Delete files containing specific string in filename
 
-alias del-files-with-ext='() {
+alias fs-del-files-with-ext='() {
   if [ $# -lt 2 ]; then
-    echo "Delete files with specific extension.\nUsage: del-files-with-ext <extension> [directory:.]" >&2
+    echo "Delete files with specific extension.\nUsage: fs-del-files-with-ext <extension> [directory:.]" >&2
     return 1
   fi
 
@@ -374,9 +391,9 @@ alias del-files-with-ext='() {
 }'  # Delete files with specific extension
 
 # Filename modification
-alias trim-filename-end='() {
+alias fs-trim-filename-end='() {
   if [ $# -lt 1 ]; then
-    echo "Delete last n characters from filenames.\nUsage:\n trim-filename-end <num_chars:1> [extension:*] [directory:.]" >&2
+    echo "Delete last n characters from filenames.\nUsage:\n fs-trim-filename-end <num_chars:1> [extension:*] [directory:.]" >&2
     return 1
   fi
 
@@ -415,9 +432,9 @@ alias trim-filename-end='() {
   echo "Successfully renamed $count files"
 }'  # Delete last n characters from filenames
 
-alias trim-filename-start='() {
+alias fs-trim-filename-start='() {
   if [ $# -lt 1 ]; then
-    echo "Delete first n characters from filenames.\nUsage:\n trim-filename-start <num_chars:1> [extension:*] [directory:.]" >&2
+    echo "Delete first n characters from filenames.\nUsage:\n fs-trim-filename-start <num_chars:1> [extension:*] [directory:.]" >&2
     return 1
   fi
 
@@ -457,9 +474,9 @@ alias trim-filename-start='() {
   echo "Successfully renamed $count files"
 }'  # Delete first n characters from filenames
 
-alias add-prefix='() {
+alias fs-add-prefix='() {
   if [ $# -lt 1 ]; then
-    echo "Add prefix to filenames.\nUsage:\n add-prefix <prefix> [extension:*] [directory:.]" >&2
+    echo "Add prefix to filenames.\nUsage:\n fs-add-prefix <prefix> [extension:*] [directory:.]" >&2
     return 1
   fi
 
@@ -498,9 +515,9 @@ alias add-prefix='() {
   echo "Successfully renamed $count files"
 }'  # Add prefix to filenames
 
-alias add-suffix='() {
+alias fs-add-suffix='() {
   if [ $# -lt 1 ]; then
-    echo "Add suffix to filenames (before extension).\nUsage:\n add-suffix <suffix> [extension:*] [directory:.]" >&2
+    echo "Add suffix to filenames (before extension).\nUsage:\n fs-add-suffix <suffix> [extension:*] [directory:.]" >&2
     return 1
   fi
 
@@ -541,9 +558,9 @@ alias add-suffix='() {
   echo "Successfully renamed $count files"
 }'  # Add suffix to filenames (before extension)
 
-alias replace-in-filename='() {
+alias fs-replace-in-filename='() {
   if [ $# -lt 2 ]; then
-    echo "Replace string in filenames.\nUsage:\n replace-in-filename <old_string> <new_string> [extension:*] [directory:.]" >&2
+    echo "Replace string in filenames.\nUsage:\n fs-replace-in-filename <old_string> <new_string> [extension:*] [directory:.]" >&2
     return 1
   fi
 
@@ -589,9 +606,9 @@ alias replace-in-filename='() {
 }'  # Replace string in filenames
 
 # Content replacement
-alias replace-in-files='() {
+alias fs-replace-in-files='() {
   if [ $# -lt 2 ]; then
-    echo "Replace string in file contents.\nUsage:\n replace-in-files <old_string> <new_string> [extension:*] [directory:.]" >&2
+    echo "Replace string in file contents.\nUsage:\n fs-replace-in-files <old_string> <new_string> [extension:*] [directory:.]" >&2
     return 1
   fi
 
@@ -629,8 +646,8 @@ alias replace-in-files='() {
 }'  # Replace string in file contents
 
 # File creation
-alias create-dummy-file='() {
-  echo "Create a file of specified size using dd.\nUsage:\n create-dummy-file [size_in_MB:10] [output_path:./file_timestamp]"
+alias fs-create-dummy-file='() {
+  echo "Create a file of specified size using dd.\nUsage:\n fs-create-dummy-file [size_in_MB:10] [output_path:./file_timestamp]"
 
   size=${1:-10}
   output=${2:-$(pwd)/file_$(date +%Y%m%d%H%M%S)}
@@ -647,9 +664,9 @@ alias create-dummy-file='() {
 }'  # Create a dummy file of specified size using dd
 
 # File copying
-alias copy-by-ext='() {
+alias fs-copy-by-ext='() {
   if [ $# -lt 2 ]; then
-    echo "Copy files with specific extension to target directory.\nUsage:\n copy-by-ext <extension> <target_directory>" >&2
+    echo "Copy files with specific extension to target directory.\nUsage:\n fs-copy-by-ext <extension> <target_directory>" >&2
     return 1
   fi
 
@@ -679,8 +696,8 @@ alias copy-by-ext='() {
 }'  # Copy all files with specific extension to target directory
 
 # Code line counting
-alias count-lines='() {
-  echo "Count total lines of code in files.\nUsage:\n count-lines [path:.] [extension:*]"
+alias fs-count-lines='() {
+  echo "Count total lines of code in files.\nUsage:\n fs-count-lines [path:.] [extension:*]"
 
   path=${1:-$(pwd)}
   ext=${2:-*}
@@ -702,8 +719,8 @@ alias count-lines='() {
 }'  # Count total lines of code in files
 
 # Quick file creation
-alias create-md='() {
-  echo "Create README markdown file.\nUsage: create-md [directory:.]"
+alias fs-create-md='() {
+  echo "Create README markdown file.\nUsage: fs-create-md [directory:.]"
 
   dir_path="${1:-.}"
   file_path="${dir_path}/README.md"
@@ -723,8 +740,8 @@ alias create-md='() {
   fi
 }'  # Create README.md file
 
-alias create-txt='() {
-  echo "Create text file.\nUsage: create-txt [directory:.] [filename:README.txt]"
+alias fs-create-txt='() {
+  echo "Create text file.\nUsage: fs-create-txt [directory:.] [filename:README.txt]"
 
   dir_path="${1:-.}"
   filename="${2:-README.txt}"
@@ -745,8 +762,8 @@ alias create-txt='() {
   fi
 }'  # Create text file
 
-alias create-py='() {
-  echo "Create Python file.\nUsage: create-py [directory:.] [filename:main.py]"
+alias fs-create-py='() {
+  echo "Create Python file.\nUsage: fs-create-py [directory:.] [filename:main.py]"
 
   dir_path="${1:-.}"
   filename="${2:-main.py}"
@@ -759,7 +776,7 @@ alias create-py='() {
 
   touch "$file_path"
 
-  if [ $? -eq 0 ]; then
+  if [ $? -eq 0]; then
     echo "Created file \"$file_path\""
   else
     echo "Error: Failed to create file \"$file_path\"" >&2
@@ -767,8 +784,8 @@ alias create-py='() {
   fi
 }'  # Create Python file
 
-alias create-sh='() {
-  echo "Create Shell script file.\nUsage: create-sh [directory:.] [filename:main.sh]"
+alias fs-create-sh='() {
+  echo "Create Shell script file.\nUsage: fs-create-sh [directory:.] [filename:main.sh]"
 
   dir_path="${1:-.}"
   filename="${2:-main.sh}"
@@ -792,8 +809,8 @@ alias create-sh='() {
   fi
 }'  # Create Shell file with execute permission
 
-alias create-js='() {
-  echo "Create JavaScript file.\nUsage: create-js [directory:.] [filename:main.js]"
+alias fs-create-js='() {
+  echo "Create JavaScript file.\nUsage: fs-create-js [directory:.] [filename:main.js]"
 
   dir_path="${1:-.}"
   filename="${2:-main.js}"
@@ -814,8 +831,8 @@ alias create-js='() {
   fi
 }'  # Create JavaScript file
 
-alias create-json='() {
-  echo "Create JSON file.\nUsage: create-json [directory:.] [filename:main.json]"
+alias fs-create-json='() {
+  echo "Create JSON file.\nUsage: fs-create-json [directory:.] [filename:main.json]"
 
   dir_path="${1:-.}"
   filename="${2:-main.json}"
@@ -837,8 +854,8 @@ alias create-json='() {
   fi
 }'  # Create JSON file
 
-alias create-html='() {
-  echo "Create HTML file.\nUsage: create-html [directory:.] [filename:index.html]"
+alias fs-create-html='() {
+  echo "Create HTML file.\nUsage: fs-create-html [directory:.] [filename:index.html]"
 
   dir_path="${1:-.}"
   filename="${2:-index.html}"
@@ -870,9 +887,9 @@ alias create-html='() {
 }'  # Create HTML file with basic structure
 
 # Batch file creation
-alias create-batch='() {
+alias fs-create-batch='() {
   if [ $# -lt 2 ]; then
-    echo "Create batch files with numbered sequence.\nUsage: create-batch <prefix> <suffix> [count:1] [target_dir:.] [zero_padding:1]" >&2
+    echo "Create batch files with numbered sequence.\nUsage: fs-create-batch <prefix> <suffix> [count:1] [target_dir:.] [zero_padding:1]" >&2
     return 1
   fi
 
@@ -905,9 +922,9 @@ alias create-batch='() {
 }'  # Create batch files with numbered sequence
 
 # Create files based on existing files
-alias mirror-files='() {
-  if [ $# -lt 1 ]; then
-    echo "Create files with new extension based on existing files.\nUsage: mirror-files <new_extension> [search_extension:*] [source_dir:.] [target_dir:source_dir]" >&2
+alias fs-mirror-files='() {
+  if [ $# -lt 1]; then
+    echo "Create files with new extension based on existing files.\nUsage: fs-mirror-files <new_extension> [search_extension:*] [source_dir:.] [target_dir:source_dir]" >&2
     return 1
   fi
 
@@ -946,8 +963,8 @@ alias mirror-files='() {
 }'  # Create files with new extension based on existing files
 
 # Clean node_modules
-alias clean-node-modules='() {
-  echo "Delete all node_modules directories recursively.\nUsage: clean-node-modules [search_path:.]"
+alias fs-clean-node-modules='() {
+  echo "Delete all node_modules directories recursively.\nUsage: fs-clean-node-modules [search_path:.]"
 
   search_path="${1:-.}"
 
@@ -981,3 +998,65 @@ alias clean-node-modules='() {
     echo "Operation cancelled"
   fi
 }'  # Clean up node_modules directories recursively
+
+# File system help function
+alias fs-help='() {
+  echo "File System Aliases Help"
+  echo "========================"
+  echo "This module provides various file system related aliases for file operations, searching, manipulation, and management."
+  echo ""
+  echo "Basic File Operations:"
+  echo "  fs-rm-interactive         - Interactive removal - prompts before deleting files"
+  echo "  fs-rm-dir                 - Remove directory recursively"
+  echo "  fs-backup                 - Create a timestamped backup of file or directory"
+  echo ""
+  echo "File Search:"
+  echo "  fs-find-big               - Find files larger than specified size in MB"
+  echo "  fs-find-small             - Find files smaller than specified size in MB"
+  echo "  fs-find-text              - Search for text in files"
+  echo "  fs-find-by-size           - Search for files by size"
+  echo "  fs-find-files             - Search for files by name pattern"
+  echo "  fs-find-dirs              - Search for directories by name pattern"
+  echo ""
+  echo "File and Directory Counting:"
+  echo "  fs-count-files            - Count files in directory"
+  echo "  fs-count-dirs             - Count directories in directory"
+  echo "  fs-count-all              - Count all files and directories"
+  echo "  fs-count-all-files        - Count all files including subdirectories"
+  echo "  fs-count-all-dirs         - Count all directories including subdirectories"
+  echo "  fs-count-lines            - Count total lines of code in files"
+  echo ""
+  echo "File Deletion and Management:"
+  echo "  fs-del-empty-dirs         - Delete empty directories"
+  echo "  fs-del-files-named        - Delete files containing specific string in filename"
+  echo "  fs-del-files-with-ext     - Delete files with specific extension"
+  echo "  fs-clean-node-modules     - Delete all node_modules directories recursively"
+  echo ""
+  echo "Filename Modification:"
+  echo "  fs-trim-filename-end      - Delete last n characters from filenames"
+  echo "  fs-trim-filename-start    - Delete first n characters from filenames"
+  echo "  fs-add-prefix             - Add prefix to filenames"
+  echo "  fs-add-suffix             - Add suffix to filenames (before extension)"
+  echo "  fs-replace-in-filename    - Replace string in filenames"
+  echo ""
+  echo "Content Replacement:"
+  echo "  fs-replace-in-files       - Replace string in file contents"
+  echo "  fs-dir-size-match         - Calculate total size of directories matching name pattern"
+  echo ""
+  echo "File Creation:"
+  echo "  fs-create-dummy-file      - Create a dummy file of specified size using dd"
+  echo "  fs-create-md              - Create README.md file"
+  echo "  fs-create-txt             - Create text file"
+  echo "  fs-create-py              - Create Python file"
+  echo "  fs-create-sh              - Create Shell file with execute permission"
+  echo "  fs-create-js              - Create JavaScript file"
+  echo "  fs-create-json            - Create JSON file with empty object"
+  echo "  fs-create-html            - Create HTML file with basic structure"
+  echo "  fs-create-batch           - Create batch files with numbered sequence"
+  echo "  fs-mirror-files           - Create files with new extension based on existing files"
+  echo ""
+  echo "File Copying:"
+  echo "  fs-copy-by-ext            - Copy all files with specific extension to target directory"
+  echo ""
+  echo "For detailed usage of each command, run the command without parameters."
+}'  # Display help for filesystem aliases
