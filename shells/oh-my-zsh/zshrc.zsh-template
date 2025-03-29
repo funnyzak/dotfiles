@@ -128,7 +128,7 @@ best_remote_url_prefix() {
 }
 
 # Load zsh-autosuggestions and zsh-syntax-highlighting plugins
-_zsh_plugins_load=() {
+_zsh_plugins_load() {
   # Parse arguments for force option
   local force=0
   while [[ $# -gt 0 ]]; do
