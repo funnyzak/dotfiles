@@ -734,29 +734,76 @@ alias ssh-key-fix-permissions='() {
   echo "SSH permissions fixed successfully."
 }' # Fix SSH key permissions
 
-alias ssh-connect()='() {
+# Connect to a remote host using expect script
+alias ssh-connect='() {
+  echo -e "Connect to a remote host using expect script.\nUsage:\n  ssh-connect [server_id]\nOptions:\n  server_id: Optional server ID to connect directly\n\nEnvironment Variables:\n  TARGET_SERVER_ID: Pre-select a server ID\n  SERVERS_CONFIG: Path to custom servers config file\n  SSH_TIMEOUT: Connection timeout in seconds\n  SSH_MAX_ATTEMPTS: Maximum connection attempts\n"
 
+  local connection_exp_exec_path="${CONNECTION_EXP_EXEC_PATH:-$HOME/.ssh/ssh_connect.exp}"
 
-  local connection_exp_path=${CONNECTION_EXP_PATH:-$HOME/.ssh/ssh_connect.exp}
-  if [ ! -f "$connection_exp_path" ]; then
-    echo "ssh_connect.exp not found. Downloading..."
+  # Check if expect script exists, download if not
+  if [[ ! -f "$connection_exp_exec_path" ]]; then
+    echo "SSH connection script not found. Downloading..."
 
-    REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
-    REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
-    if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
-      REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
-    fi`
-    CHEATSHEET_REMOTE_URL="${REMOTE_URL_PREFIX}/utilities/shell/sshc/setup.sh"
-    curl -sSL "$CHEATSHEET_REMOTE_URL" | bash -s
-    chmod +x ~/.ssh/ssh_connect.exp
+    local remote_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
+    local remote_url_cn="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
+    local download_success=false
+
+    # Try China mirror first if accessible
+    if curl -s --connect-timeout 2 "$remote_url_cn" >/dev/null 2>&1; then
+      echo "Using China mirror for download"
+      remote_url="$remote_url_cn"
+    fi
+
+    # Download and setup the script
+    if wget -qO- "${remote_url}/utilities/shell/sshc/setup.sh" | bash; then
+      if [[ -f "$connection_exp_exec_path" ]]; then
+        chmod +x "$connection_exp_exec_path"
+        download_success=true
+        echo "SSH connection script downloaded and configured successfully"
+      fi
+    fi
+
+    # Check if download was successful
+    if [[ "$download_success" != "true" ]]; then
+      _show_error_ssh_aliases "Failed to download or configure SSH connection script"
+      return 1
+    fi
   fi
-  if [ $# -eq 0 ]; then
-    tmpfile=$(mktemp)
-    curl -sSL "$CHEATSHEET_REMOTE_URL" -o "$tmpfile" && chmod +x "$tmpfile" && "$tmpfile"
+
+  # Check if script is executable
+  if [[ ! -x "$connection_exp_exec_path" ]]; then
+    echo "Making SSH connection script executable"
+    chmod +x "$connection_exp_exec_path"
+
+    if [[ $? -ne 0 ]]; then
+      _show_error_ssh_aliases "Failed to make SSH connection script executable"
+      return 1
+    fi
+  fi
+
+  # Handle direct server_id or pass all arguments to the script
+  # Displays the currently used expect script
+  if [[ $# -gt 0 ]]; then
+    # Direct connection mode with server ID
+    echo "Using SSH connection script: $connection_exp_exec_path"
+    echo "Connecting to server ID: $1\n"
+    "$connection_exp_exec_path" "$@"
   else
-    curl -sSL "$CHEATSHEET_REMOTE_URL" | bash -s -- "$@" || echo "Error executing command."
+    # Interactive mode (will use TARGET_SERVER_ID if set in environment)
+     echo "Using SSH connection script: $connection_exp_exec_path\n"
+    "$connection_exp_exec_path"
   fi
-}'
+
+  local connection_status=$?
+
+  # Check connection status
+  if [[ $connection_status -ne 0 ]]; then
+    _show_error_ssh_aliases "SSH connection failed with status $connection_status"
+    return $connection_status
+  fi
+
+  return 0
+}' # Connect to a remote host using expect script
 
 
 # SSH help function

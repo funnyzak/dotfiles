@@ -8,7 +8,11 @@
 # Usage:
 #   Interactive mode: ./ssh_connect.exp
 #   Non-interactive mode (by ID): ./ssh_connect.exp <server_id>
-#   Non-interactive mode (env): TARGET_SERVER_ID=<server_id> ./ssh_connect.exp
+#   interactive mode (env): TARGET_SERVER_ID=<server_id> ./ssh_connect.exp
+#   interactive mode (env): SERVERS_CONFIG=<path> ./ssh_connect.exp
+#   Non-interactive mode (env): SERVERS_CONFIG=<path> ./ssh_connect.exp <server_id>
+#   interactive mode (env): SSH_TIMEOUT=<seconds> ./ssh_connect.exp
+#   Non-interactive mode (env): SSH_MAX_ATTEMPTS=<attempts> ./ssh_connect.exp
 #
 # Environment Variables:
 #   SERVERS_CONFIG: Path to the servers configuration file (default: servers.conf)
