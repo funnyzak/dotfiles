@@ -195,7 +195,7 @@ alias zsh-plugins-load='() {
           if [[ -f "$plugin_path" && -s "$plugin_path" ]]; then
             source "$plugin_path"
           else
-            echo -e "${RED}Cannot load $plugin: Extracted file $plugin_path doesn"t exist or is empty${NC}"
+            echo -e "${RED}Cannot load $plugin: Extracted file $plugin_path doesn\"t exist or is empty${NC}"
           fi
         else
           echo -e "${RED}Failed to extract $plugin${NC}"
