@@ -128,7 +128,7 @@ best_remote_url_prefix() {
 }
 
 # Load zsh-autosuggestions and zsh-syntax-highlighting plugins
-alias zsh-plugins-load='() {
+_zsh_plugins_load=() {
   # Parse arguments for force option
   local force=0
   while [[ $# -gt 0 ]]; do
@@ -210,6 +210,12 @@ alias zsh-plugins-load='() {
 
   # Clean up temporary directory
   rm -rf "$TEMP_DIR"
+}
+
+_zsh_plugins_load
+
+alias zsh-load-plugins='(){
+  _aliases_load_plugins -f
 }'
 
 # Install oh-my-zsh alias files from remote repository (Linux/macOS)
