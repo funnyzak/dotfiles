@@ -106,11 +106,14 @@ source $ZSH/oh-my-zsh.sh
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
 # Find and source all *.env files in home directory
+
+setopt nullglob
 for env_file in ~/.*.env; do
   if [[ -f "$env_file" ]]; then
     source "$env_file"
   fi
 done
+unsetopt nullglob
 
 # Load environment variables from ~/.env last to give it highest priority
 if [[ -f ~/.env ]]; then

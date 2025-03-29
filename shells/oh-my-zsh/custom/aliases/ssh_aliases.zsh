@@ -805,6 +805,7 @@ alias ssh-connect='() {
   return 0
 }' # Connect to a remote host using expect script
 
+alias sshc='ssh-connect' # Alias for ssh-connect
 
 # SSH help function
 alias ssh-help='() {
