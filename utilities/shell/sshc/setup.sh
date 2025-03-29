@@ -10,14 +10,14 @@
 #    /path/to/setup.sh
 #
 # 2. Remote installation:
-#    curl -s https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/sshc/utilities/shell/sshc/setup.sh | bash
+#    curl -s https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | bash
 #    # or
-#    wget -qO- https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/sshc/utilities/shell/sshc/setup.sh | bash
+#    wget -qO- https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | bash
 #
 # 3. Remote installation with specific branch:
-#    curl -s https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/sshc/utilities/shell/sshc/setup.sh | REPO_BRANCH=sshc bash
+#    curl -s https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | REPO_BRANCH=sshc bash
 #    # or
-#    wget -qO- https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/sshc/utilities/shell/sshc/setup.sh | REPO_BRANCH=sshc bash
+#    wget -qO- https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | REPO_BRANCH=sshc bash
 #
 # Security Note:
 # - Always use key-based authentication when possible

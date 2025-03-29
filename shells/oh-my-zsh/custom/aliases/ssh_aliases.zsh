@@ -731,6 +731,8 @@ alias ssh-key-fix-permissions='() {
   echo "SSH permissions fixed successfully."
 }' # Fix SSH key permissions
 
+
+
 # SSH help function
 alias ssh-help='() {
   echo -e "SSH aliases and functions help\n"

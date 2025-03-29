@@ -17,6 +17,8 @@ The shell configurations are organized into the following categories:
     - [Utility Scripts](#utility-scripts)
   - [Zsh Configuration](#zsh-configuration)
     - [Available Components](#available-components-1)
+  - [SSH Configuration Helper (SSHC)](#ssh-configuration-helper-sshc)
+    - [Remote Execution Examples](#remote-execution-examples)
   - [Usage](#usage)
 
 Each section provides a brief overview of the available configurations. For detailed documentation, please refer to the specific subdirectories.
@@ -116,6 +118,32 @@ The Zsh configuration provides a basic setup for the Zsh shell without Oh My Zsh
   - Includes essential settings for history management, completions, and aliases
   - Designed to be modular and easily customizable
   - Supports loading of environment variables, aliases, and functions from separate files
+
+## SSH Configuration Helper (SSHC)
+
+The SSH Configuration Helper (SSHC) provides a convenient way to manage and connect to multiple SSH servers. It includes a setup script and an interactive connection tool supporting both key-based and password authentication.
+
+### Remote Execution Examples
+
+- **Standard Installation**:
+  ```bash
+  curl -s https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | bash
+  # or
+  wget -qO- https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | bash
+  ```
+
+- **Installation with Specific Branch**:
+  ```bash
+  curl -s https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | REPO_BRANCH=sshc bash
+  # or
+  wget -qO- https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | REPO_BRANCH=sshc bash
+  ```
+
+The installation script will:
+1. Create or verify the `~/.ssh` directory with secure permissions
+2. Download the SSH connection script and server configuration template
+3. Set appropriate permissions for security
+4. Provide usage instructions
 
 ## Usage
 
