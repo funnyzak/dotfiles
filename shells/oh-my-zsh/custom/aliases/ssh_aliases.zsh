@@ -727,10 +727,36 @@ alias ssh-key-fix-permissions='() {
       chmod 600 "$file"
     fi
   done
+  # If there is an *.exp file that gives execute permission
+  find "$ssh_dir" -type f -name "*.exp" -exec chmod +x {} \;
+  echo "Setting permissions for $ssh_dir/*.exp files"
 
   echo "SSH permissions fixed successfully."
 }' # Fix SSH key permissions
 
+alias ssh-connect()='() {
+
+
+  local connection_exp_path=${CONNECTION_EXP_PATH:-$HOME/.ssh/ssh_connect.exp}
+  if [ ! -f "$connection_exp_path" ]; then
+    echo "ssh_connect.exp not found. Downloading..."
+
+    REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
+    REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
+    if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
+      REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
+    fi`
+    CHEATSHEET_REMOTE_URL="${REMOTE_URL_PREFIX}/utilities/shell/sshc/setup.sh"
+    curl -sSL "$CHEATSHEET_REMOTE_URL" | bash -s
+    chmod +x ~/.ssh/ssh_connect.exp
+  fi
+  if [ $# -eq 0 ]; then
+    tmpfile=$(mktemp)
+    curl -sSL "$CHEATSHEET_REMOTE_URL" -o "$tmpfile" && chmod +x "$tmpfile" && "$tmpfile"
+  else
+    curl -sSL "$CHEATSHEET_REMOTE_URL" | bash -s -- "$@" || echo "Error executing command."
+  fi
+}'
 
 
 # SSH help function
