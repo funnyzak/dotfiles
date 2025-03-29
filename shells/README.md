@@ -23,7 +23,7 @@ Each section provides a brief overview of the available configurations. For deta
 
 ## Oh My Zsh Configuration
 
-The Oh My Zsh configuration provides a comprehensive setup for the Zsh shell with custom aliases, plugins, and themes. The configuration is designed to enhance productivity and provide a more user-friendly shell experience.
+The Oh My Zsh configuration provides a comprehensive setup for the Zsh shell with custom aliases, plugins, and themes. The configuration is designed to enhance productivity and provide a more user-friendly shell experience.  For detailed documentation, see [Oh My Zsh Docu
 
 ### Available Components
 
