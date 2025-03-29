@@ -35,10 +35,12 @@ _check_file_exists_filesystem_aliases() {
 }
 
 # Basic file operations
+alias rmi='rm -i'  # Interactive removal - prompts before deleting files
+
 alias fs-rm-interactive='rm -i'  # Interactive removal - prompts before deleting files
 
-alias fs-rm-dir='() {
-  if ! _validate_params_filesystem_aliases "Remove directory recursively.\nUsage:\n fs-rm-dir <directory_path>"; then
+alias rmdir='() {
+  if ! _validate_params_filesystem_aliases "Remove directory recursively.\nUsage:\n rmdir <directory_path>"; then
     return 1
   fi
 
@@ -54,6 +56,8 @@ alias fs-rm-dir='() {
     echo "Directory \"$1\" has been removed successfully."
   fi
 }'  # Remove directory recursively
+
+alias fs-rm-dir='rmdir'  # Alias for removing directory recursively
 
 # File backup
 alias fs-backup='() {
@@ -1060,3 +1064,4 @@ alias fs-help='() {
   echo ""
   echo "For detailed usage of each command, run the command without parameters."
 }'  # Display help for filesystem aliases
+
