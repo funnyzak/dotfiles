@@ -158,22 +158,6 @@ alias w_fcount_ext='() {
 }'  # Monitor count of files with specific extension
 
 # 文件查看
-alias less='() {
-  echo "View file with less pager.\nUsage:\n less <file_path>"
-  command less "$@"
-}'  # View file with less pager
-alias more='() {
-  echo "View file with more pager.\nUsage:\n more <file_path>"
-  command more "$@"
-}'  # View file with more pager
-alias cat='() {
-  echo "Display file content.\nUsage:\n cat <file_path>"
-  command cat "$@"
-}'  # Display file content
-alias log='() {
-  echo "Display last 300 lines of file and follow updates.\nUsage:\n log <file_path>"
-  tail -f -n 300 "$@"
-}'  # Display last 300 lines of file and follow updates
 alias log100='() {
   echo "Display last 100 lines of file and follow updates.\nUsage:\n log100 <file_path>"
   tail -f -n 100 "$@"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # cheatsheet.sh - 命令行速查表工具
-# 作者: GitHub: funnyzak
+# GitHub: funnyzak
 #
 # 本地执行:
 #   chmod +x cheatsheet.sh
