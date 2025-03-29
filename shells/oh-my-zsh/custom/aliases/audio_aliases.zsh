@@ -244,10 +244,7 @@ alias ado-trim='() {
 }' # Trim audio file to specified start time and duration
 
 alias ado-volume='() {
-  echo "Adjust audio volume."
-  echo "Usage:"
-  echo "  ado-volume <audio_file_path> <volume_factor>"
-  echo "  Volume factor: 0.5 = half volume, 2.0 = double volume"
+  echo -e "Adjust audio volume.\nUsage:\n  ado-volume <audio_file_path> <volume_factor>\n  Volume factor: 0.5 = half volume, 2.0 = double volume\n\nExamples:\n  ado-volume music.mp3 0.8\n  -> Reduces volume to 80% and saves as music_vol.mp3"
 
   if [ $# -lt 2 ]; then
     return 1
@@ -270,6 +267,48 @@ alias ado-volume='() {
     return 1
   fi
 }' # Adjust audio volume by a factor (e.g., 0.5 for half volume)
+
+alias ado-batch-volume='() {
+  echo -e "Adjust volume of multiple audio files in a directory.\nUsage:\n  ado-batch-volume <audio_directory> <volume_factor> <source_extension:mp3>\n\nExamples:\n  ado-batch-volume ./music 0.8 mp3\n  -> Reduces volume to 80% for all mp3 files in ./music directory"
+
+  if [ $# -lt 2 ]; then
+    return 1
+  fi
+
+  local aud_folder="${1:-.}"
+  local volume="$2"
+  local aud_ext="${3:-mp3}"
+
+  _audio_validate_dir "$aud_folder" || return 1
+  _audio_check_ffmpeg || return 1
+
+  # Check if source files exist
+  local file_count=$(find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${aud_ext} files found in $aud_folder" >&2
+    return 1
+  fi
+
+  mkdir -p "${aud_folder}/volume_adjusted"
+  local errors=0
+
+  find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" | while read -r file; do
+    local base_name=$(basename "$file" .${aud_ext})
+    local output_file="$aud_folder/volume_adjusted/${base_name}_vol.${aud_ext}"
+    echo "Adjusting volume of $file by factor $volume..."
+    if ! ffmpeg -i "$file" -filter:a "volume=$volume" "$output_file"; then
+      echo "Error: Failed to adjust volume for $file" >&2
+      ((errors++))
+    fi
+  done
+
+  if [ "$errors" -eq 0 ]; then
+    echo "Batch volume adjustment complete, exported to $aud_folder/volume_adjusted"
+  else
+    echo "Warning: Volume adjustment completed with $errors errors" >&2
+    return 1
+  fi
+}' # Adjust volume of multiple audio files in a directory
 
 alias ado-merge='() {
   echo "Merge multiple audio files into one."
@@ -319,9 +358,7 @@ alias ado-merge='() {
 #------------------------------------------------------------------------------
 
 alias ado-fade='() {
-  echo "Add fade-in and fade-out to audio file."
-  echo "Usage:"
-  echo "  ado-fade <audio_file_path> <fade_in_seconds:2> <fade_out_seconds:2>"
+  echo -e "Add fade-in and fade-out to audio file.\nUsage:\n  ado-fade <audio_file_path> <fade_in_seconds:2> <fade_out_seconds:2>\n\nExamples:\n  ado-fade music.mp3 3 4\n  -> Adds 3 second fade-in and 4 second fade-out to music.mp3"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -353,6 +390,60 @@ alias ado-fade='() {
     return 1
   fi
 }' # Add fade-in and fade-out effects to an audio file
+
+alias ado-batch-fade='() {
+  echo -e "Add fade-in and fade-out effects to multiple audio files in a directory.\nUsage:\n  ado-batch-fade <audio_directory> <fade_in_seconds:2> <fade_out_seconds:2> <source_extension:mp3>\n\nExamples:\n  ado-batch-fade ./music 3 4 mp3\n  -> Adds 3 second fade-in and 4 second fade-out to all mp3 files in ./music directory"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  local aud_folder="${1:-.}"
+  local fade_in="${2:-2}"
+  local fade_out="${3:-2}"
+  local aud_ext="${4:-mp3}"
+
+  _audio_validate_dir "$aud_folder" || return 1
+  _audio_check_ffmpeg || return 1
+
+  # Check if source files exist
+  local file_count=$(find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${aud_ext} files found in $aud_folder" >&2
+    return 1
+  fi
+
+  mkdir -p "${aud_folder}/fade_added"
+  local errors=0
+
+  find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" | while read -r file; do
+    local base_name=$(basename "$file" .${aud_ext})
+    local output_file="$aud_folder/fade_added/${base_name}_fade.${aud_ext}"
+
+    # Get duration of audio file
+    local duration=$(ffprobe -i "$file" -show_entries format=duration -v quiet -of csv="p=0")
+
+    if [ -z "$duration" ]; then
+      echo "Error: Could not determine audio duration for $file" >&2
+      ((errors++))
+      continue
+    fi
+
+    echo "Adding fade-in ($fade_in sec) and fade-out ($fade_out sec) to $file..."
+
+    if ! ffmpeg -i "$file" -af "afade=t=in:st=0:d=$fade_in,afade=t=out:st=$( echo "$duration - $fade_out" | bc ):d=$fade_out" "$output_file"; then
+      echo "Error: Failed to add fade effect to $file" >&2
+      ((errors++))
+    fi
+  done
+
+  if [ "$errors" -eq 0 ]; then
+    echo "Batch fade effect addition complete, exported to $aud_folder/fade_added"
+  else
+    echo "Warning: Fade effect addition completed with $errors errors" >&2
+    return 1
+  fi
+}' # Add fade-in and fade-out effects to multiple audio files in a directory
 
 alias ado-speed='() {
   echo "Change playback speed of audio file without changing pitch."
@@ -407,5 +498,13 @@ alias ado-help='() {
   echo "  ado-fade         - Add fade-in and fade-out to audio file"
   echo "  ado-speed        - Change playback speed without changing pitch"
   echo
+  echo "Batch Processing Commands:"
+  echo "  ado-batch-volume - Adjust volume of multiple audio files in a directory"
+  echo "  ado-batch-fade   - Add fade-in and fade-out effects to multiple audio files"
+  echo
   echo "For detailed usage of any command, run the command without arguments"
 }' # Display help information for audio aliases
+
+alias audio-help='() {
+  ado-help
+}' # Alias to call the audio help function

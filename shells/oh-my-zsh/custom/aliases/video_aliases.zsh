@@ -624,10 +624,10 @@ alias vdo-youtube-mp3-320='() {
 # Video Information & Metadata
 #------------------------------------------------------------------------------
 
-alias vdo-video-info='() {
+alias vdo-info='() {
   echo "Show detailed information about a video file."
   echo "Usage:"
-  echo "  vdo-video-info <video_file_path>"
+  echo "  vdo-info <video_file_path>"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -641,10 +641,10 @@ alias vdo-video-info='() {
   ffmpeg -i "$input_file" -hide_banner 2>&1 | grep -v "^ffmpeg version"
 }' # Show detailed video information
 
-alias vdo-video-stream-info='() {
+alias vdo-stream-info='() {
   echo "Show stream information about a video file."
   echo "Usage:"
-  echo "  vdo-video-stream-info <video_file_path>"
+  echo "  vdo-stream-info <video_file_path>"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -658,10 +658,10 @@ alias vdo-video-stream-info='() {
   ffprobe -v error -show_entries stream=index,codec_name,codec_type,width,height,bit_rate,duration -of compact=p=0:nk=1 "$input_file"
 }' # Display codec and stream details
 
-alias vdo-video-duration='() {
+alias vdo-duration='() {
   echo "Show the duration of a video file."
   echo "Usage:"
-  echo "  vdo-video-duration <video_file_path>"
+  echo "  vdo-duration <video_file_path>"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -743,22 +743,19 @@ alias vdo-split-video='() {
 #------------------------------------------------------------------------------
 
 alias vdo-extract-frame='() {
-  echo "Extract a single frame from a video at specified time."
-  echo "Usage:"
-  echo "  vdo-extract-frame <video_file_path> <time_position>"
-  echo "Time format examples: 00:01:30 (1m30s), 00:00:45 (45s)"
+  echo -e "Extract a single frame from a video at specified time.\nUsage:\n  vdo-extract-frame <video_file_path> <time_position>\nTime format examples: 00:01:30 (1m30s), 00:00:45 (45s)\n\nExamples:\n  vdo-extract-frame video.mp4 00:01:30\n  vdo-extract-frame movie.mkv 00:45:22"
 
   if [ $# -lt 2 ]; then
     return 1
   fi
 
-  input_file="$1"
-  time_pos="$2"
+  local input_file="$1"
+  local time_pos="$2"
 
   _vdo_validate_file "$input_file" || return 1
   _vdo_check_ffmpeg || return 1
 
-  output_file="${input_file%.*}_frame_${time_pos//:/}.jpg"
+  local output_file="${input_file%.*}_frame_${time_pos//:/}.jpg"
   echo "Extracting frame from $input_file at position $time_pos..."
 
   if ffmpeg -ss "$time_pos" -i "$input_file" -vframes 1 -q:v 2 "$output_file"; then
@@ -770,22 +767,20 @@ alias vdo-extract-frame='() {
 }' # Extract single frame at specified time position
 
 alias vdo-extract-frames='() {
-  echo "Extract frames from a video at specified interval."
-  echo "Usage:"
-  echo "  vdo-extract-frames <video_file_path> <interval_in_seconds:1>"
+  echo -e "Extract frames from a video at specified interval.\nUsage:\n  vdo-extract-frames <video_file_path> <interval_in_seconds:1>\n\nExamples:\n  vdo-extract-frames video.mp4 2\n  -> Extracts a frame every 2 seconds from video.mp4"
 
   if [ $# -lt 1 ]; then
     return 1
   fi
 
-  input_file="$1"
-  interval="${2:-1}"
+  local input_file="$1"
+  local interval="${2:-1}"
 
   _vdo_validate_file "$input_file" || return 1
   _vdo_check_ffmpeg || return 1
 
   # Create output directory
-  output_dir="${input_file%.*}_frames"
+  local output_dir="${input_file%.*}_frames"
   mkdir -p "$output_dir"
 
   echo "Extracting frames from $input_file every $interval seconds..."
@@ -798,14 +793,58 @@ alias vdo-extract-frames='() {
   fi
 }' # Extract frames at regular intervals
 
+alias vdo-batch-extract-frame='() {
+  echo -e "Extract a frame at the same time position from multiple videos.\nUsage:\n  vdo-batch-extract-frame <time_position> <video_directory> <file_extension:mp4>\n\nExamples:\n  vdo-batch-extract-frame 00:01:30 ./videos mp4\n  -> Extracts a frame at 1m30s from all mp4 files in ./videos directory"
+
+  if [ $# -lt 2 ]; then
+    return 1
+  fi
+
+  local time_pos="$1"
+  local vdo_folder="${2:-.}"
+  local vdo_ext="${3:-mp4}"
+
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Check if source files exist
+  local file_count=$(find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
+    return 1
+  fi
+
+  # Create output directory
+  local output_dir="${vdo_folder}/frames_${time_pos//:/}"
+  mkdir -p "$output_dir"
+  local errors=0
+
+  find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | while read -r file; do
+    local base_name=$(basename "$file" .${vdo_ext})
+    local output_file="$output_dir/${base_name}_frame_${time_pos//:/}.jpg"
+    echo "Extracting frame from $file at position $time_pos..."
+    if ! ffmpeg -ss "$time_pos" -i "$file" -vframes 1 -q:v 2 "$output_file"; then
+      echo "Error: Failed to extract frame from $file" >&2
+      ((errors++))
+    fi
+  done
+
+  if [ "$errors" -eq 0 ]; then
+    echo "Batch frame extraction complete, exported to $output_dir"
+  else
+    echo "Warning: Frame extraction completed with $errors errors" >&2
+    return 1
+  fi
+}' # Extract frames at specified time from multiple videos
+
 #------------------------------------------------------------------------------
 # Video Speed Modification
 #------------------------------------------------------------------------------
 
-alias vdo-speed-up-video='() {
+alias vdo-speed-up='() {
   echo "Speed up a video by specified factor."
   echo "Usage:"
-  echo "  vdo-speed-up-video <video_file_path> <speed_factor:2>"
+  echo "  vdo-speed-up <video_file_path> <speed_factor:2>"
   echo "Example: speed-up-video input.mp4 2  # Double the speed"
 
   if [ $# -lt 1 ]; then
@@ -838,10 +877,10 @@ alias vdo-speed-up-video='() {
   fi
 }' # Speed up video playback
 
-alias vdo-slow-down-video='() {
+alias vdo-slow-down='() {
   echo "Slow down a video by specified factor."
   echo "Usage:"
-  echo "  vdo-slow-down-video <video_file_path> <slow_factor:2>"
+  echo "  vdo-slow-down <video_file_path> <slow_factor:2>"
   echo "Example: slow-down-video input.mp4 2  # Half the speed"
 
   if [ $# -lt 1 ]; then
@@ -931,10 +970,10 @@ alias vdo-add-watermark='() {
   fi
 }' # Add image watermark to video
 
-alias vdo-add-text-watermark='() {
+alias vdo-add-text='() {
   echo "Add a text watermark to a video."
   echo "Usage:"
-  echo "  vdo-add-text-watermark <video_file_path> <text> <position:bottomright> <font_size:24> <color:white>"
+  echo "  vdo-add-text <video_file_path> <text> <position:bottomright> <font_size:24> <color:white>"
   echo "Positions: topleft, topright, bottomleft, bottomright, center"
   echo "Colors: white, black, red, green, blue, yellow"
 
@@ -1151,25 +1190,26 @@ alias vdo-help='() {
   echo "Video Processing Aliases Help"
   echo "============================"
   echo "Information & Metadata:"
-  echo "  vdo-info <file>                      - Show detailed information about a video file"
-  echo "  vdo-stream-info <file>               - Show stream information about a video file"
-  echo "  vdo-duration <file>                  - Show the duration of a video file"
+  echo "  vdo-info <file>                - Show detailed information about a video file"
+  echo "  vdo-stream-info <file>         - Show stream information about a video file"
+  echo "  vdo-duration <file>            - Show the duration of a video file"
   echo ""
   echo "Trimming & Splitting:"
-  echo "  vdo-trim <file> <start> <duration>   - Trim video between start and duration"
-  echo "  vdo-split <file> <segment_duration>  - Split video into segments of specified duration"
+  echo "  vdo-trim-video <file> <start> <duration> - Trim video between start and duration"
+  echo "  vdo-split-video <file> <segment_duration> - Split video into segments of specified duration"
   echo ""
   echo "Frame Extraction:"
   echo "  vdo-extract-frame <file> <time>      - Extract a single frame at specified time"
   echo "  vdo-extract-frames <file> <interval> - Extract frames at regular intervals"
+  echo "  vdo-batch-extract-frame <time> <dir> <ext> - Extract a frame at same time from multiple videos"
   echo ""
   echo "Speed Modification:"
-  echo "  vdo-speed-up <file> <factor>         - Speed up video playback"
-  echo "  vdo-slow-down <file> <factor>        - Slow down video playback"
+  echo "  vdo-speed-up <file> <factor>   - Speed up video playback"
+  echo "  vdo-slow-down <file> <factor>  - Slow down video playback"
   echo ""
   echo "Watermark & Overlay:"
   echo "  vdo-add-watermark <file> <image> <pos> - Add image watermark to video"
-  echo "  vdo-add-text <file> <text> <pos>     - Add text watermark to video"
+  echo "  vdo-add-text <file> <text> <pos> - Add text watermark to video"
   echo ""
   echo "Audio Processing:"
   echo "  vdo-remove-audio <file>              - Remove audio from video"
@@ -1209,3 +1249,7 @@ alias vdo-help='() {
   echo ""
   echo "For more detailed help on any command, run the command without arguments"
 }' # Display help information about all video commands
+
+alias video-help='() {
+  vdo-help
+}' # Alias to call the video help function

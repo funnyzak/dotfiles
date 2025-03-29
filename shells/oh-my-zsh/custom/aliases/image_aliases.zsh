@@ -558,9 +558,9 @@ alias img-to-pdf='() {
 # --------------------------------
 
 alias img-watermark='() {
+  echo -e "Add watermark to image.\nUsage: img-watermark <source_image> <watermark_image> [position:southeast]\n\nExamples:\n  img-watermark photo.jpg logo.png\n  -> Adds logo.png as watermark to photo.jpg in southeast position\n  img-watermark image.png watermark.png center\n  -> Adds watermark.png to center of image.png"
+
   if [ $# -lt 2 ]; then
-    echo "Add watermark to image."
-    echo "Usage: img-watermark <source_image> <watermark_image> [position:southeast]"
     return 0
   fi
 

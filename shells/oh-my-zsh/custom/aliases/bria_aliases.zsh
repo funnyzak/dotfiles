@@ -128,6 +128,65 @@ alias bria-bg-remove='() {
   _bria_process_and_download "background/remove" "$1" "$2"
 }' # Remove background from image
 
+alias bria-batch-bg-remove='() {
+  echo -e "Remove background from multiple images in a directory.\nUsage:\n bria-batch-bg-remove <directory_path> [file_extension:jpg]\n\nExamples:\n bria-batch-bg-remove ./photos jpg\n -> Removes background from all jpg files in ./photos directory\n -> Saves results in ./photos/bg_removed/ directory\n\n bria-batch-bg-remove ./product_images png\n -> Processes all png files in ./product_images directory"
+
+  if [ -z "$1" ]; then
+    echo "Error: Missing required parameter - directory path" >&2
+    return 1
+  fi
+
+  local dir_path="$1"
+  local file_ext="${2:-jpg}"
+
+  if [ ! -d "$dir_path" ]; then
+    echo "Error: Directory not found: $dir_path" >&2
+    return 1
+  fi
+
+  _bria_check_token || return 1
+  _bria_check_dependencies || return 1
+
+  # Check if files exist
+  local file_count=$(find "$dir_path" -maxdepth 1 -type f -name "*.${file_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${file_ext} files found in $dir_path" >&2
+    return 1
+  fi
+
+  # Create output directory
+  local output_dir="$dir_path/bg_removed"
+  mkdir -p "$output_dir"
+
+  local processed=0
+  local errors=0
+
+  echo "Processing $file_count files from $dir_path..."
+
+  for img in "$dir_path"/*.$file_ext; do
+    if [ ! -f "$img" ]; then
+      continue
+    fi
+
+    local filename=$(basename "$img")
+    local output_path="$output_dir/${filename%.*}_nobg.png"
+
+    echo "Processing $filename..."
+
+    if _bria_process_and_download "background/remove" "$img" "$output_path"; then
+      processed=$((processed+1))
+    else
+      errors=$((errors+1))
+    fi
+  done
+
+  echo "Batch processing complete: $processed files processed successfully, $errors errors"
+  if [ "$errors" -gt 0 ]; then
+    return 1
+  fi
+  return 0
+}' # Remove background from multiple images in a directory
+
 alias bria-bg-replace='() {
   echo -e "Replace image background with a generated one.\nUsage:\n bria-bg-replace <image_path_or_url> [output_path] [\"prompt:nature scene\"]\n\nExamples:\n bria-bg-replace portrait.jpg\n -> Replaces background with default nature scene, saves as portrait_bg_replaced.jpg\n\n bria-bg-replace photo.png new_photo.png \"city skyline at night\"\n -> Replaces background with city skyline, saves as new_photo.png\n"
 
@@ -860,6 +919,7 @@ alias bria-help='() {
   echo -e "  bria-bg-replace     - Replace background with generated content"
   echo -e "  bria-bg-blur        - Blur background in an image"
   echo -e "  bria-erase-fg       - Erase foreground from an image"
+  echo -e "  bria-batch-bg-remove - Remove background from multiple images in a directory"
 
   echo -e "\nImage Editing Operations:"
   echo -e "  bria-eraser         - Erase parts of an image (requires mask)"
