@@ -1,300 +1,255 @@
-#!/usr/bin/env bash
+#!/usr/bin/expect -f
 
-# SSH Configuration Helper Script
-# Author: GitHub: funnyzak
-# Version: 1.1.0
-# Last Updated: 2025-03-29
+# SSH Connection Script
+# Description: A versatile SSH connection tool supporting multiple servers with key or password authentication.
+# Github: funnyzak
+# Last Updated: March 29, 2025
+
 # Usage:
-# 1. Local installation:
-#    chmod +x /path/to/setup.sh
-#    /path/to/setup.sh
+#   Interactive mode: ./ssh_connect.exp
+#   Non-interactive mode (by ID): ./ssh_connect.exp <server_id>
+#   Non-interactive mode (env): TARGET_SERVER_ID=<server_id> ./ssh_connect.exp
 #
-# 2. Remote installation:
-#    curl -s https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | bash
-#    # or
-#    wget -qO- https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | bash
+# Environment Variables:
+#   SERVERS_CONFIG: Path to the servers configuration file (default: servers.conf)
+#   TARGET_SERVER_ID: Server ID for non-interactive connection
+#   SSH_TIMEOUT: Connection timeout in seconds (default: 30)
+#   SSH_MAX_ATTEMPTS: Maximum connection attempts (default: 3)
+#   SSH_NO_COLOR: Disable colored output if set to any value
 #
-# 3. Remote installation with specific branch:
-#    curl -s https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | REPO_BRANCH=sshc bash
-#    # or
-#    wget -qO- https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | REPO_BRANCH=sshc bash
+# Configuration File Format:
+#   ID,Name,Host,Port,User,AuthType,AuthValue
+#   - ID: Unique identifier for the server
+#   - Name: Descriptive name of the server
+#   - Host: IP address or hostname
+#   - Port: SSH port number
+#   - User: SSH username
+#   - AuthType: 'key' or 'password'
+#   - AuthValue: Path to key file or password
 #
-# Security Note:
-# - Always use key-based authentication when possible
-# - Never store passwords in plain text
-# - Regularly rotate your SSH keys
-# - Limit access to your SSH configuration files
-#
-# This script helps users quickly configure SSH connections
-# It downloads necessary template files and saves them to the ~/.ssh directory
+# Example Configuration (servers.conf):
+#   # ID,Name,Host,Port,User,AuthType,AuthValue
+#   web1,Web Server 1,192.168.1.10,22,root,key,/home/user/.ssh/web1.key
+#   db1,Database Server 1,192.168.1.20,22,root,password,securepass123
+#   app1,App Server 1,192.168.1.30,2222,admin,key,~/app1.key
 
-# Set error handling
-set -e
+# Default parameters
+set timeout [expr {[info exists ::env(SSH_TIMEOUT)] ? $::env(SSH_TIMEOUT) : 30}]
+set max_attempts [expr {[info exists ::env(SSH_MAX_ATTEMPTS)] ? $::env(SSH_MAX_ATTEMPTS) : 3}]
+set default_config_path [file join $::env(HOME) ".ssh" "servers.conf"]
+set config_file [expr {[info exists ::env(SERVERS_CONFIG)] ? $::env(SERVERS_CONFIG) : $default_config_path}]
+set use_colors [expr {![info exists ::env(SSH_NO_COLOR)]}]
 
-# Color definitions
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[0;33m'
-readonly BLUE='\033[0;34m'
-readonly PLAIN='\033[0m'
-
-# Maximum download retry attempts
-readonly MAX_RETRIES=3
-
-# Print colored messages
-print_message() {
-  local color="$1"
-  local message="$2"
-  echo -e "${color}${message}${PLAIN}"
+# Color codes
+if {$use_colors} {
+    # ANSI color codes
+    set COLOR_RESET "\033\[0m"
+    set COLOR_HEADER "\033\[1;36m"
+    set COLOR_ID "\033\[1;33m"
+    set COLOR_HOST "\033\[1;32m"
+    set COLOR_NAME "\033\[1;34m"
+    set COLOR_SUCCESS "\033\[1;32m"
+    set COLOR_ERROR "\033\[1;31m"
+    set COLOR_INFO "\033\[1;35m"
+} else {
+    # No colors
+    set COLOR_RESET ""
+    set COLOR_HEADER ""
+    set COLOR_ID ""
+    set COLOR_HOST ""
+    set COLOR_NAME ""
+    set COLOR_SUCCESS ""
+    set COLOR_ERROR ""
+    set COLOR_INFO ""
 }
 
-# Print info message
-info() {
-  print_message "${BLUE}" "Info: $1"
+# Expand home directory in path (~)
+proc expand_path {path} {
+    global ::env
+
+    if {[string match "~/*" $path]} {
+        return [file join $::env(HOME) [string range $path 2 end]]
+    } elseif {$path eq "~"} {
+        return $::env(HOME)
+    } elseif {[string match "~*/*" $path]} {
+        set username [string range $path 1 [expr {[string first "/" $path] - 1}]]
+        set rest [string range $path [expr {[string first "/" $path] + 1}] end]
+        # Note: This is a simplified approach. For full implementation,
+        # you would need to use platform-specific methods to get user home directories.
+        return "/home/$username/$rest"
+    }
+    return $path
 }
 
-# Print success message
-success() {
-  print_message "${GREEN}" "Success: $1"
-}
+# Load server configurations
+proc load_servers {filename} {
+    global COLOR_ERROR COLOR_RESET
 
-# Print warning message
-warning() {
-  print_message "${YELLOW}" "Warning: $1"
-}
-
-# Print error message
-error() {
-  print_message "${RED}" "Error: $1" >&2
-}
-
-# Function to check and set file permissions
-set_secure_permissions() {
-  local file_path="$1"
-  local permissions="$2"
-
-  if ! chmod "$permissions" "$file_path"; then
-    error "Failed to set permissions on $file_path"
-    return 1
-  fi
-
-  success "Set secure permissions ($permissions) on $file_path"
-  return 0
-}
-
-# Function to download files with retry
-download_file() {
-  local url="$1"
-  local output_file="$2"
-  local retry_count=0
-
-  info "Downloading: $url"
-
-  while [ $retry_count -lt $MAX_RETRIES ]; do
-    if curl -s -f -o "$output_file" "$url"; then
-      success "File downloaded successfully: $output_file"
-      return 0
-    else
-      retry_count=$((retry_count + 1))
-      warning "Download attempt $retry_count failed. Retrying in 2 seconds..."
-      sleep 2
-    fi
-  done
-
-  warning "File download failed after $MAX_RETRIES attempts: $url"
-  return 1
-}
-
-# Ensure ~/.ssh directory exists with proper permissions
-setup_ssh_dir() {
-  info "Checking ~/.ssh directory..."
-
-  if [ ! -d "$HOME/.ssh" ]; then
-    info "~/.ssh directory does not exist, creating..."
-
-    if ! mkdir -p "$HOME/.ssh"; then
-      error "Failed to create ~/.ssh directory. Please check permissions."
-      exit 1
-    fi
-
-    if ! set_secure_permissions "$HOME/.ssh" "700"; then
-      error "Failed to set secure permissions on ~/.ssh directory."
-      exit 1
-    fi
-
-    success "Created ~/.ssh directory with secure permissions"
-  else
-    info "~/.ssh directory already exists"
-
-    # Check if permissions are secure
-    local current_perm
-    current_perm=$(stat -c "%a" "$HOME/.ssh" 2>/dev/null || stat -f "%Lp" "$HOME/.ssh" 2>/dev/null)
-
-    if [ "$current_perm" != "700" ]; then
-      warning "Current ~/.ssh directory permissions ($current_perm) are not secure"
-      if ! set_secure_permissions "$HOME/.ssh" "700"; then
-        error "Failed to set secure permissions on ~/.ssh directory."
+    set servers {}
+    if {![file exists $filename]} {
+        send_user "${COLOR_ERROR}Error: Configuration file '$filename' does not exist${COLOR_RESET}\n"
         exit 1
-      fi
-    else
-      info "~/.ssh directory has correct permissions"
-    fi
-  fi
+    }
+
+    set fp [open $filename r]
+    while {[gets $fp line] >= 0} {
+        set line [string trim $line]
+        if {$line eq "" || [string match "#*" $line]} {
+            continue
+        }
+        set fields [split $line ","]
+        if {[llength $fields] < 7} {
+            send_user "${COLOR_ERROR}Warning: Invalid config line skipped: $line${COLOR_RESET}\n"
+            continue
+        }
+        lappend servers $fields
+    }
+    close $fp
+    return $servers
 }
 
-# Check if file exists and prompt before overwriting
-check_file_exists() {
-  local file_path="$1"
-  local file_desc="$2"
-
-  if [ -f "$file_path" ]; then
-    warning "$file_desc already exists at $file_path"
-
-    read -rp "Do you want to overwrite it? (y/N): " response
-    case "$response" in
-      [yY][eE][sS]|[yY])
-        info "Will overwrite existing file"
-        return 0
-        ;;
-      *)
-        info "Skipping download for $file_desc"
-        return 1
-        ;;
-    esac
-  fi
-
-  return 0
+# Find server by ID
+proc find_server_by_id {servers id} {
+    foreach server $servers {
+        if {[lindex $server 0] eq $id} {
+            return $server
+        }
+    }
+    return ""
 }
 
-# Download configuration files
-download_templates() {
-  local github_base_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/utilities/shell/sshc"
-  local gitcode_base_url="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/utilities/shell/sshc"
-  local ssh_connect_file="$HOME/.ssh/ssh_connect.exp"
-  local servers_conf_file="$HOME/.ssh/servers.conf"
-  local download_source="GitHub"
-  local download_success=true
+# Display server selection menu
+proc select_server {servers} {
+    global COLOR_HEADER COLOR_ID COLOR_HOST COLOR_NAME COLOR_RESET COLOR_INFO
 
-  # Check if files already exist and prompt before overwriting
-  check_file_exists "$ssh_connect_file" "SSH connect script" || return 0
-  check_file_exists "$servers_conf_file" "Servers configuration file" || return 0
+    send_user "\n${COLOR_HEADER}Available Servers:${COLOR_RESET}\n"
+    send_user "${COLOR_HEADER}#   ID\tName\t\tHost\t\tPort\tUser${COLOR_RESET}\n"
+    send_user -- [string repeat "-" 60]
+    send_user "\n"
 
-  info "First trying to download template files from GitHub..."
+    set idx 1
+    foreach server $servers {
+        set id [lindex $server 0]
+        set name [lindex $server 1]
+        set host [lindex $server 2]
+        set port [lindex $server 3]
+        set user [lindex $server 4]
+        send_user "[format "%2d" $idx]  ${COLOR_ID}$id${COLOR_RESET}\t${COLOR_NAME}[string range "$name                " 0 15]${COLOR_RESET}${COLOR_HOST}$host${COLOR_RESET}\t$port\t$user\n"
+        incr idx
+    }
 
-  # Try downloading ssh_connect.exp from GitHub
-  if ! download_file "$github_base_url/ssh_connect.exp" "$ssh_connect_file"; then
-    download_success=false
-  fi
+    send_user "\n${COLOR_INFO}Enter server ID or number (1-[llength $servers]):${COLOR_RESET} "
+    expect_user -re "(.*)\n"
+    set choice $expect_out(1,string)
 
-  # Try downloading servers.conf.example from GitHub
-  if ! download_file "$github_base_url/servers.conf.example" "$servers_conf_file"; then
-    download_success=false
-  fi
-
-  # If downloads from GitHub fail, try GitCode
-  if [ "$download_success" = false ]; then
-    warning "Failed to download files from GitHub, trying GitCode..."
-    download_source="GitCode"
-
-    # Try downloading ssh_connect.exp from GitCode
-    if ! download_file "$gitcode_base_url/ssh_connect.exp" "$ssh_connect_file"; then
-      error "Failed to download ssh_connect.exp from GitCode. Please check your network connection or try again later."
-      exit 1
-    fi
-
-    # Try downloading servers.conf.example from GitCode
-    if ! download_file "$gitcode_base_url/servers.conf.example" "$servers_conf_file"; then
-      error "Failed to download servers.conf.example from GitCode. Please check your network connection or try again later."
-      exit 1
-    fi
-  fi
-
-  # Set file permissions
-  if ! set_secure_permissions "$ssh_connect_file" "755"; then
-    error "Failed to set executable permissions on ssh_connect.exp"
+    if {[string is integer $choice]} {
+        set index [expr {$choice - 1}]
+        if {$index >= 0 && $index < [llength $servers]} {
+            return [lindex $servers $index]
+        }
+    } else {
+        set server [find_server_by_id $servers $choice]
+        if {$server ne ""} {
+            return $server
+        }
+    }
+    send_user "${COLOR_ERROR}Invalid selection${COLOR_RESET}\n"
     exit 1
-  fi
+}
 
-  if ! set_secure_permissions "$servers_conf_file" "600"; then
-    error "Failed to set secure permissions on servers.conf"
+# SSH connection function
+proc connect_ssh {server_info} {
+    global timeout max_attempts COLOR_SUCCESS COLOR_ERROR COLOR_INFO COLOR_RESET
+
+    set id    [lindex $server_info 0]
+    set name  [lindex $server_info 1]
+    set host  [lindex $server_info 2]
+    set port  [lindex $server_info 3]
+    set user  [lindex $server_info 4]
+    set auth  [lindex $server_info 5]
+    set value [lindex $server_info 6]
+
+    # Expand ~ in key path if necessary
+    if {$auth eq "key"} {
+        set value [expand_path $value]
+    }
+
+    set attempt 1
+    while {$attempt <= $max_attempts} {
+        send_user "${COLOR_INFO}Connecting to $name ($host) - Attempt $attempt/$max_attempts${COLOR_RESET}\n"
+
+        if {$auth eq "key"} {
+            spawn ssh -p $port -o StrictHostKeyChecking=no -o PubkeyAuthentication=yes -i $value $user@$host
+        } else {
+            spawn ssh -p $port -o StrictHostKeyChecking=no $user@$host
+        }
+
+        expect {
+            "yes/no" {
+                send "yes\r"
+                exp_continue
+            }
+            "password:" {
+                if {$auth ne "password"} {
+                    send_user "${COLOR_ERROR}Server requires password but configured for key auth${COLOR_RESET}\n"
+                    return 0
+                }
+                send "$value\r"
+                exp_continue
+            }
+            "Permission denied" {
+                send_user "${COLOR_ERROR}Authentication failed${COLOR_RESET}\n"
+                return 0
+            }
+            -re {(.*[$#%>]|.*[@].+[:])} {
+                send_user "${COLOR_SUCCESS}Successfully connected to $name (ID: $id)!${COLOR_RESET}\n"
+                interact
+                return 1
+            }
+            "Connection refused" {
+                send_user "${COLOR_ERROR}Connection refused${COLOR_RESET}\n"
+                sleep 5
+                incr attempt
+                exp_continue
+            }
+            timeout {
+                send_user "${COLOR_ERROR}Connection timeout${COLOR_RESET}\n"
+                sleep 5
+                incr attempt
+                exp_continue
+            }
+            eof {
+                send_user "${COLOR_ERROR}Connection terminated unexpectedly${COLOR_RESET}\n"
+                return 0
+            }
+        }
+    }
+    return 0
+}
+
+
+# Main program
+send_user "${COLOR_INFO}Loading server configurations...${COLOR_RESET}\n"
+set servers [load_servers $config_file]
+
+# Check for command-line argument or environment variable
+if {[llength $argv] > 0} {
+    set target_id [lindex $argv 0]
+} elseif {[info exists ::env(TARGET_SERVER_ID)]} {
+    set target_id $::env(TARGET_SERVER_ID)
+}
+
+if {[info exists target_id]} {
+    set selected_server [find_server_by_id $servers $target_id]
+    if {$selected_server eq ""} {
+        send_user "${COLOR_ERROR}Error: No server found with ID '$target_id'${COLOR_RESET}\n"
+        exit 1
+    }
+} else {
+    set selected_server [select_server $servers]
+}
+
+if {![connect_ssh $selected_server]} {
+    send_user "${COLOR_ERROR}Failed to connect to the selected server${COLOR_RESET}\n"
     exit 1
-  fi
-
-  success "Downloaded files from $download_source with secure permissions"
-  return 0
 }
-
-# Display usage instructions
-show_instructions() {
-  echo ""
-  success "SSH connection configuration setup complete!"
-  echo ""
-  info "Created/configured the following files:"
-  echo "  - ~/.ssh/ssh_connect.exp (SSH connection script)"
-  echo "  - ~/.ssh/servers.conf (Server configuration file)"
-  echo ""
-  info "⚠️  SECURITY RECOMMENDATIONS:"
-  echo "  1. Always use key-based authentication when possible"
-  echo "  2. Never store passwords in plain text in configuration files"
-  echo "  3. Ensure your SSH keys are protected with strong passphrases"
-  echo "  4. Keep your private keys secure - don't share or expose them"
-  echo ""
-  info "Instructions:"
-  echo "  1. Edit the ~/.ssh/servers.conf file to add your SSH server configurations"
-  echo "     Format: ID,Name,Host,Port,Username,AuthType,AuthValue"
-  echo ""
-  echo "     Examples:"
-  echo "     web1,Web Server 1,192.168.1.10,22,root,key,~/.ssh/id_rsa"
-  echo "     db1,Database Server,192.168.1.20,22,admin,key,~/.ssh/db_key"
-  echo ""
-  info "Usage:"
-  echo "  - Interactive selection: ~/.ssh/ssh_connect.exp"
-  echo "  - Direct connection to specific server: ~/.ssh/ssh_connect.exp <server_id>"
-  echo "  - Using environment variable: TARGET_SERVER_ID=web1 ~/.ssh/ssh_connect.exp"
-  echo ""
-  info "You may need to install the expect package to run the ssh_connect.exp script:"
-  echo "  - Debian/Ubuntu: sudo apt-get install expect"
-  echo "  - CentOS/RHEL: sudo yum install expect"
-  echo "  - macOS (using Homebrew): brew install expect"
-  echo ""
-}
-
-# Check for dependencies
-check_dependencies() {
-  info "Checking for required dependencies..."
-
-  # Check for curl
-  if ! command -v curl &> /dev/null; then
-    error "curl is required but not installed. Please install curl and try again."
-    exit 1
-  fi
-
-  # Check for expect (optional, just a warning)
-  if ! command -v expect &> /dev/null; then
-    warning "expect is not installed. You will need to install it to use the ssh_connect.exp script."
-  else
-    info "expect is installed."
-  fi
-
-  success "Required dependencies check passed"
-}
-
-# Main function
-main() {
-  info "Starting SSH connection configuration setup..."
-
-  # Check dependencies
-  check_dependencies
-
-  # Ensure ~/.ssh directory exists with proper permissions
-  setup_ssh_dir
-
-  # Download template files
-  download_templates
-
-  # Show usage instructions
-  show_instructions
-}
-
-# Run main function
-main
