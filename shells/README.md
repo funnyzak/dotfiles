@@ -1,170 +1,133 @@
-# Shell 配置管理
+# Shells
+
+This directory contains shell configuration files, aliases, plugins, and themes for centralized management of shell environments across different systems.
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](../LICENSE)
 [![Last Commit](https://img.shields.io/github/last-commit/funnyzak/dotfiles)](https://github.com/funnyzak/dotfiles/commits/main)
 
-此目录用于集中管理各种 shell 相关的配置文件、别名设置、插件和主题，便于在不同环境中快速部署个人的 shell 开发环境。
+## Overview
 
-## 目录结构
+The shell configurations are organized into the following categories:
 
-```
-shells/
-├── oh-my-zsh/              # Oh My Zsh 相关配置
-│   ├── README.md           # Oh My Zsh 配置说明文档
-│   ├── zshrc.zsh-template  # Zsh 配置模板文件
-│   ├── custom/             # Oh My Zsh 自定义内容
-│   │   ├── aliases/        # 自定义别名集合
-│   │   ├── plugins/        # 自定义插件
-│   │   └── themes/         # 自定义主题
-│   └── tools/              # 工具脚本
-│       ├── install_omz.sh  # 安装 Oh My Zsh 的脚本
-│       └── install_omz_aliases.sh  # 下载别名文件的脚本
-├── zsh/                    # Zsh 专用配置
-```
+- [Shells](#shells)
+  - [Overview](#overview)
+  - [Oh My Zsh Configuration](#oh-my-zsh-configuration)
+    - [Available Components](#available-components)
+    - [Template Files](#template-files)
+    - [Utility Scripts](#utility-scripts)
+  - [Zsh Configuration](#zsh-configuration)
+    - [Available Components](#available-components-1)
+  - [Usage](#usage)
 
-## Oh My Zsh
+Each section provides a brief overview of the available configurations. For detailed documentation, please refer to the specific subdirectories.
 
-### Oh My Zsh 配置
+## Oh My Zsh Configuration
 
-#### 自定义别名
+The Oh My Zsh configuration provides a comprehensive setup for the Zsh shell with custom aliases, plugins, and themes. The configuration is designed to enhance productivity and provide a more user-friendly shell experience.
 
-Oh My Zsh 目录下包含了多种类型的别名文件，每个文件都聚焦于特定的功能领域:
+### Available Components
 
-- `archive_aliases.zsh`: 提供压缩和解压缩文件的快捷命令
-- `brew_aliases.zsh`: Homebrew 相关的命令别名
+- **Custom Aliases** (`oh-my-zsh/custom/aliases/`): A collection of aliases for various tasks and tools.
+  - `archive_aliases.zsh`: Shortcuts for compression and extraction operations
+  - `brew_aliases.zsh`: Homebrew-related command aliases
+  - Add new aliases by creating `.zsh` files in the `~/.oh-my-zsh/custom/aliases/` directory
 
-如需新增或修改别名，可以在 `~/.oh-my-zsh/custom/aliases/` 目录下创建新的 `.zsh` 文件，或者直接编辑现有的别名文件。请在 `install_omz_aliases.sh` 脚本中添加新的别名文件路径，以便于下载和管理。
+- **Custom Functions** (`oh-my-zsh/custom/custom_functions.zsh`): Utility functions for common tasks.
+  - Includes functions for command existence checking, URL detection, file operations, and more
+  - Provides cross-platform compatibility functions (WSL, macOS detection)
 
-#### Zshrc 模板
+- **Custom Plugins** (`oh-my-zsh/custom/plugins/`): Additional plugins beyond the standard Oh My Zsh collection.
 
-```bash
-# 远程安装模板
-curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/zshrc.zsh-template -o ~/.zshrc
-```
+- **Custom Themes** (`oh-my-zsh/custom/themes/`): Personalized themes for Oh My Zsh.
 
-### Oh My Zsh 脚本
+### Template Files
 
-#### Oh My Zsh 安装维护
+- **Zshrc Template** (`oh-my-zsh/zshrc.zsh-template`): A comprehensive template for the `.zshrc` configuration file.
+  - Includes pre-configured plugins, themes, and settings
+  - Can be installed remotely:
+    ```bash
+    curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/zshrc.zsh-template -o ~/.zshrc
+    ```
 
-`install_omz.sh` 是一个用于安装、更新或卸载 Oh My Zsh 的工具脚本，支持多种安装模式和配置选项。
+### Utility Scripts
 
-**文件位置**: `/shells/oh-my-zsh/tools/install_omz.sh`
+- **Oh My Zsh Installer** (`oh-my-zsh/tools/install_omz.sh`): A versatile script for installing, updating, or uninstalling Oh My Zsh.
+  - Supports multiple installation modes and configuration options
+  - Features automatic backup of existing configurations
+  - Provides options for forced reinstallation and shell switching
+  - Supports custom repository URLs and configuration files
+  - **Usage Examples**:
+    ```bash
+    # Basic installation
+    ./install_omz.sh
 
-**功能**:
-- 自动安装或更新 Oh My Zsh
-- 备份现有配置
-- 强制重新安装
-- 卸载 Oh My Zsh
-- 自动切换默认 shell 至 zsh
-- 支持自定义仓库 URL 和配置文件
+    # Non-interactive installation
+    ./install_omz.sh --yes
 
-**本地执行示例**:
-```bash
-# 基础安装
-./install_omz.sh
+    # Force reinstallation
+    ./install_omz.sh --force
 
-# 无交互式安装
-./install_omz.sh --yes
+    # Update Oh My Zsh only
+    ./install_omz.sh --update
 
-# 强制重新安装
-./install_omz.sh --force
+    # Uninstall Oh My Zsh
+    ./install_omz.sh --uninstall
+    ```
+  - **Remote Execution**:
+    ```bash
+    # Basic remote installation
+    curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash
+    ```
+  - **Environment Variables**:
+    ```bash
+    # Use custom repository URL
+    OMZ_REPO_URL=https://github.com/ohmyzsh/ohmyzsh.git ./install_omz.sh
 
-# 仅更新 Oh My Zsh
-./install_omz.sh --update
+    # Specify zshrc template branch
+    OMZ_ZSHRC_BRANCH=develop ./install_omz.sh
+    ```
 
-# 卸载 Oh My Zsh
-./install_omz.sh --uninstall
-```
+- **Aliases Installer** (`oh-my-zsh/tools/install_omz_aliases.sh`): A tool for downloading Oh My Zsh alias files from remote repositories.
+  - Supports downloading specific alias files or default collections
+  - Features custom download directories and repository URLs
+  - Provides options for overwriting existing files
+  - Automatically detects and uses the best URL source (with China acceleration support)
+  - **Usage Examples**:
+    ```bash
+    # Install all default alias files
+    ./install_omz_aliases.sh
 
-**远程执行示例**:
-```bash
-# 基础远程安装
-curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash
+    # Install specific alias files
+    ./install_omz_aliases.sh git_aliases.zsh help_aliases.zsh
+    ```
+  - **Remote Execution**:
+    ```bash
+    # Download all alias files
+    curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
+    ```
 
-# 无交互式远程安装
-curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --yes
+## Zsh Configuration
 
-# 强制重新安装
-curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --force
+The Zsh configuration provides a basic setup for the Zsh shell without Oh My Zsh, suitable for minimal environments or users who prefer a lighter configuration.
 
-# 卸载 Oh My Zsh
-curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --uninstall
-```
+### Available Components
 
-**环境变量配置**:
-```bash
-# 使用自定义仓库 URL
-OMZ_REPO_URL=https://github.com/ohmyzsh/ohmyzsh.git ./install_omz.sh
+- **Zshrc Template** (`zsh/.zshrc-template`): A basic template for the `.zshrc` configuration file.
+  - Includes essential settings for history management, completions, and aliases
+  - Designed to be modular and easily customizable
+  - Supports loading of environment variables, aliases, and functions from separate files
 
-# 指定 zshrc 模板分支
-OMZ_ZSHRC_BRANCH=develop ./install_omz.sh
+## Usage
 
-# 指定自定义 zshrc 模板 URL
-OMZ_ZSHRC_URL=https://example.com/my-zshrc.template ./install_omz.sh
+Each configuration has its own usage instructions and requirements. To use these configurations:
 
-# 自定义安装目录
-OMZ_INSTALL_DIR=~/custom-omz ./install_omz.sh
-```
+1. **For Oh My Zsh users**:
+   - Install Oh My Zsh using the provided installer script
+   - Copy or download the zshrc template to your home directory
+   - Install desired aliases using the aliases installer script
 
-**选项**:
-- `-y, --yes`: 跳过所有确认提示
-- `-s, --switch`: 自动将默认 shell 切换为 zsh
-- `-f, --force`: 强制重新安装
-- `-u, --update`: 仅更新已安装的 Oh My Zsh
-- `-r, --uninstall`: 卸载 Oh My Zsh
-- `-h, --help`: 显示帮助信息
+2. **For basic Zsh users**:
+   - Copy the `.zshrc-template` file to your home directory as `.zshrc`
+   - Customize the file according to your needs
 
-#### Oh My Zsh 别名安装
-
-`install_omz_aliases.sh` 是一个用于从远程仓库下载 Oh My Zsh 别名文件的工具脚本。
-
-**文件位置**: `/shells/oh-my-zsh/tools/install_omz_aliases.sh`
-
-**功能**:
-- 下载指定的别名文件或默认的别名文件集合
-- 支持自定义下载目录
-- 支持自定义远程仓库 URL
-- 可选是否覆盖现有文件
-- 自动检测并使用最佳 URL 来源（支持国内加速）
-
-**本地执行示例**:
-```bash
-# 安装所有默认别名文件
-./install_omz_aliases.sh
-
-# 安装指定的别名文件
-./install_omz_aliases.sh git_aliases.zsh help_aliases.zsh
-
-# 使用自定义 URL
-./install_omz_aliases.sh --url https://example.com/aliases/
-
-# 设置自定义默认列表
-./install_omz_aliases.sh --default-list "git_aliases.zsh,help_aliases.zsh"
-
-# 强制安装到指定目录
-./install_omz_aliases.sh --directory ~/custom_aliases --force
-```
-
-**远程执行示例**:
-```bash
-# 下载所有别名文件
-curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
-
-# 下载特定的别名文件
-curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- git_aliases.zsh system_aliases.zsh
-
-# 下载指定 URL 的别名文件
-curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --url https://example.com/aliases/ git_aliases.zsh
-
-# 下载所有别名文件到指定目录
-curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --directory ~/custom_aliases --force
-```
-
-**选项**:
-- `-h, --help`: 显示帮助信息
-- `-d, --directory DIR`: 指定下载目录 (默认: $ZSH/custom/aliases/)
-- `-n, --no-overwrite`: 不覆盖已存在的文件
-- `-v, --verbose`: 启用详细输出
-- `-f, --force`: 即使目录不存在也强制下载
-- `-u, --url URL`: 指定自定义仓库 URL
-- `-s, --default-list LIST`: 自定义默认别名列表（逗号分隔）
+For detailed information on installation, configuration, and usage examples, please refer to the specific documentation in each subdirectory.
