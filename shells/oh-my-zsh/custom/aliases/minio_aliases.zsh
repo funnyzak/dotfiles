@@ -112,20 +112,20 @@ alias minio-list='() {
     return 1
   fi
 
-  local path="$1"
-  local alias_name=$(echo "$path" | cut -d'/' -f1)
+  local dir="$1"
+  local alias_name=$(echo "$dir" | cut -d'/' -f1)
 
   if ! _minio_validate_alias "$alias_name"; then
     # Only warn, do not block execution
     :
   fi
 
-  echo "Listing contents of \"$path\"..."
+  echo "Listing contents of \"$dir\"..."
 
-  if mc ls "$path"; then
+  if mc ls "$dir"; then
     echo "List operation completed"
   else
-    echo "Error: Unable to list contents of \"$path\", please check if the path is correct" >&2
+    echo "Error: Unable to list contents of \"$dir\", please check if the path is correct" >&2
     return 1
   fi
 }'  # List MinIO buckets or objects
@@ -376,19 +376,19 @@ alias minio-find='() {
     return 1
   fi
 
-  local path="$1"
+  local dir="$1"
   local pattern="$2"
 
-  local alias_name=$(echo "$path" | cut -d'/' -f1)
+  local alias_name=$(echo "$dir" | cut -d'/' -f1)
 
   if ! _minio_validate_alias "$alias_name"; then
     # Only warn, do not block execution
     :
   fi
 
-  echo "Finding objects matching \"$pattern\" in \"$path\"..."
+  echo "Finding objects matching \"$pattern\" in \"$dir\"..."
 
-  if mc find "$path" --name "$pattern"; then
+  if mc find "$dir" --name "$pattern"; then
     echo "Find operation completed"
   else
     echo "No matching objects found or an error occurred" >&2

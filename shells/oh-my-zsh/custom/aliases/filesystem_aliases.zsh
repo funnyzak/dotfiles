@@ -699,27 +699,45 @@ alias fs-copy-by-ext='() {
   echo "Copy completed. Copied $count files with extension \".$ext\" to \"$target_dir/\""
 }'  # Copy all files with specific extension to target directory
 
+# Extract line counting into a separate helper function for better reusability
+_count_lines_in_files_filesystem_aliases() {
+  local search_path="$1"
+  local file_ext="$2"
+  local lines=0
+  local count=0
+
+  if [ "$file_ext" = "*" ]; then
+    lines=$(find "$search_path" -type f -not -path "*/\.*" -exec wc -l {} + 2>/dev/null | awk '{s+=$1} END {print s+0}')
+    count=$(find "$search_path" -type f -not -path "*/\.*" | wc -l | tr -d " ")
+  else
+    lines=$(find "$search_path" -name "*.$file_ext" -type f -not -path "*/\.*" -exec wc -l {} + 2>/dev/null | awk '{s+=$1} END {print s+0}')
+    count=$(find "$search_path" -name "*.$file_ext" -type f -not -path "*/\.*" | wc -l | tr -d " ")
+  fi
+
+  # Handle the case where no files are found
+  lines=${lines:-0}
+  count=${count:-0}
+
+  # Return the results as output
+  echo "$lines $count"
+}
+
 # Code line counting
 alias fs-count-lines='() {
-  echo "Count total lines of code in files.\nUsage:\n fs-count-lines [path:.] [extension:*]"
+  echo "Count total lines of code in files.\nUsage:\n fs-count-lines [dir:.] [extension:*]"
 
-  path=${1:-$(pwd)}
+  dir=${1:-$(pwd)}
   ext=${2:-*}
 
-  if [ ! -d "$path" ]; then
-    echo "Error: Directory \"$path\" does not exist." >&2
+  if [ ! -d "$dir" ]; then
+    echo "Error: Directory \"$dir\" does not exist." >&2
     return 1
   fi
 
-  if [ "$ext" = "*" ]; then
-    lines=$(find "$path" -type f -not -path "*/\.*" -exec wc -l {} + 2>/dev/null | awk "{s+=\$1} END {print s}")
-    file_count=$(find "$path" -type f -not -path "*/\.*" | wc -l | tr -d " ")
-  else
-    lines=$(find "$path" -name "*.$ext" -type f -not -path "*/\.*" -exec wc -l {} + 2>/dev/null | awk "{s+=\$1} END {print s}")
-    file_count=$(find "$path" -name "*.$ext" -type f -not -path "*/\.*" | wc -l | tr -d " ")
-  fi
+  # Call the helper function and parse the results
+  read lines file_count <<< "$(_count_lines_in_files_filesystem_aliases "$dir" "$ext")"
 
-  echo "Total lines of code in $file_count files with extension \"*$ext\" in \"$path\": $lines"
+  echo "Total lines of code in $file_count files with extension \"*$ext\" in \"$dir\": $lines"
 }'  # Count total lines of code in files
 
 # Quick file creation
