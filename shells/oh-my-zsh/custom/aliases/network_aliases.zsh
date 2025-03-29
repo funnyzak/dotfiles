@@ -530,6 +530,40 @@ alias net-wifi-status='() {
   fi
 }'  # Show current WiFi connection status
 
+alias net-port-monitor='() {
+  if ! _check_command_network_aliases nc; then
+    return 1
+  fi
+
+  if [ $# -lt 2 ]; then
+    _show_usage_network_aliases "Monitor port stability by continuous connection testing.\nUsage:\n net-port-monitor <host> <port> [interval_seconds:1]"
+    return 1
+  fi
+
+  local host="$1"
+  local port="$2"
+  local interval="${3:-1}"
+
+  echo "Starting port monitoring for $host:$port every $interval second(s)..."
+  echo "Press Ctrl+C to stop monitoring."
+
+  # Validate interval is a positive number
+  if ! [[ "$interval" =~ ^[0-9]+$ ]] || [ "$interval" -lt 1 ]; then
+    _show_error_network_aliases "Error: Interval must be a positive integer."
+    return 1
+  fi
+
+  while true; do
+    echo -n "$(date "+%Y-%m-%d %H:%M:%S") - $host:$port - "
+    if nc -zv "$host" "$port" 2>/dev/null; then
+      echo "Port status: OPEN"
+    else
+      echo "Port status: CLOSED"
+    fi
+    sleep "$interval"
+  done
+}'  # Monitor port stability with continuous connection testing
+
 # Help function for Network aliases
 alias net-help='() {
   echo "Network Aliases Help"
