@@ -127,8 +127,17 @@ best_remote_url_prefix() {
   echo $REMOTE_URL_PREFIX
 }
 
-# Auto-install and load zsh-autosuggestions and zsh-syntax-highlighting plugins
-zsh_plugins_load() {
+# Load zsh-autosuggestions and zsh-syntax-highlighting plugins
+alias zsh-plugins-load='() {
+  # Parse arguments for force option
+  local force=0
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -f|--force) force=1; shift ;;
+      *) shift ;;
+    esac
+  done
+
   local ZSH_CUSTOM=${ZSH_CUSTOM:-$ZSH/custom}
 
   # Define plugin variables using space-separated strings instead of arrays
@@ -154,7 +163,7 @@ zsh_plugins_load() {
   local i=1
   for plugin in ${=plugins}; do
     # Extract the corresponding plugin file using cut
-    plugin_file=$(echo $plugin_files | cut -d ' ' -f $i)
+    plugin_file=$(echo $plugin_files | cut -d " " -f $i)
     i=$((i+1))
 
     local plugin_dir="$ZSH_CUSTOM/plugins/$plugin"
@@ -163,8 +172,8 @@ zsh_plugins_load() {
     # Check if plugin already exists and is valid
     if [[ -d "$plugin_dir" && -f "$plugin_path" && -s "$plugin_path" ]]; then
       source "$plugin_path"
-    else
-      echo -e "${YELLOW}Plugin $plugin doesnt exist or is invalid, attempting to download...${NC}"
+    elif [[ $force -eq 1 ]]; then
+      echo -e "${YELLOW}Plugin $plugin doesnt exist or is invalid, downloading...${NC}"
 
       # Get best remote URL prefix
       local remote_url="$(best_remote_url_prefix)templates/packages/zsh/plugins/${plugin}.tar.gz"
@@ -186,7 +195,7 @@ zsh_plugins_load() {
           if [[ -f "$plugin_path" && -s "$plugin_path" ]]; then
             source "$plugin_path"
           else
-            echo -e "${RED}Cannot load $plugin: Extracted file $plugin_path doesn't exist or is empty${NC}"
+            echo -e "${RED}Cannot load $plugin: Extracted file $plugin_path doesn"t exist or is empty${NC}"
           fi
         else
           echo -e "${RED}Failed to extract $plugin${NC}"
@@ -194,21 +203,13 @@ zsh_plugins_load() {
       else
         echo -e "${RED}Failed to download $plugin, please check your network or install manually${NC}"
       fi
+    else
+      echo -e "${YELLOW}Plugin $plugin not found. Use \"zsh-plugins-load -f\" to download.${NC}"
     fi
   done
 
   # Clean up temporary directory
   rm -rf "$TEMP_DIR"
-}
-
-# Automatically load plugins
-zsh_plugins_load
-
-# Create alias for manually reloading plugins
-alias zsh-reload-plugins='() {
-  echo "Reloading zsh plugins..."
-  zsh_plugins_load
-  echo "Zsh plugins reloaded."
 }'
 
 # Install oh-my-zsh alias files from remote repository (Linux/macOS)
