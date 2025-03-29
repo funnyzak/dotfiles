@@ -1,0 +1,204 @@
+#!/usr/bin/expect -f
+
+# SSH Connection Script
+# Description: A versatile SSH connection tool supporting multiple servers with key or password authentication.
+# Author: [Your Name]
+# Last Updated: March 29, 2025
+
+# Usage:
+#   Interactive mode: ./ssh_connect.exp
+#   Non-interactive mode (by ID): ./ssh_connect.exp <server_id>
+#   Non-interactive mode (env): TARGET_SERVER_ID=<server_id> ./ssh_connect.exp
+#
+# Environment Variables:
+#   SERVERS_CONFIG: Path to the servers configuration file (default: servers.conf)
+#   TARGET_SERVER_ID: Server ID for non-interactive connection
+#   SSH_TIMEOUT: Connection timeout in seconds (default: 30)
+#   SSH_MAX_ATTEMPTS: Maximum connection attempts (default: 3)
+#
+# Configuration File Format:
+#   ID,Name,Host,Port,User,AuthType,AuthValue
+#   - ID: Unique identifier for the server
+#   - Name: Descriptive name of the server
+#   - Host: IP address or hostname
+#   - Port: SSH port number
+#   - User: SSH username
+#   - AuthType: 'key' or 'password'
+#   - AuthValue: Path to key file or password
+#
+# Example Configuration (servers.conf):
+#   # ID,Name,Host,Port,User,AuthType,AuthValue
+#   web1,Web Server 1,192.168.1.10,22,root,key,/home/user/.ssh/web1.key
+#   db1,Database Server 1,192.168.1.20,22,root,password,securepass123
+#   app1,App Server 1,192.168.1.30,2222,admin,key,/home/user/.ssh/app1.key
+#
+# Example Usage:
+#   ./ssh_connect.exp                  # Interactive selection
+#   ./ssh_connect.exp web1            # Connect to server with ID 'web1'
+#   SERVERS_CONFIG=/path/to/custom.conf ./ssh_connect.exp
+#   TARGET_SERVER_ID=db1 ./ssh_connect.exp
+#   SSH_TIMEOUT=60 SSH_MAX_ATTEMPTS=5 ./ssh_connect.exp
+
+# Default parameters
+set timeout [expr {[info exists ::env(SSH_TIMEOUT)] ? $::env(SSH_TIMEOUT) : 30}]
+set max_attempts [expr {[info exists ::env(SSH_MAX_ATTEMPTS)] ? $::env(SSH_MAX_ATTEMPTS) : 3}]
+set config_file [expr {[info exists ::env(SERVERS_CONFIG)] ? $::env(SERVERS_CONFIG) : "servers.conf"}]
+
+# Load server configurations
+proc load_servers {filename} {
+    set servers {}
+    if {![file exists $filename]} {
+        send_user "Error: Configuration file '$filename' does not exist\n"
+        exit 1
+    }
+
+    set fp [open $filename r]
+    while {[gets $fp line] >= 0} {
+        set line [string trim $line]
+        if {$line eq "" || [string match "#*" $line]} {
+            continue
+        }
+        set fields [split $line ","]
+        if {[llength $fields] < 6} {
+            send_user "Warning: Invalid config line skipped: $line\n"
+            continue
+        }
+        lappend servers $fields
+    }
+    close $fp
+    return $servers
+}
+
+# Find server by ID
+proc find_server_by_id {servers id} {
+    foreach server $servers {
+        if {[lindex $server 0] eq $id} {
+            return $server
+        }
+    }
+    return ""
+}
+
+# Display server selection menu
+proc select_server {servers} {
+    send_user "\nAvailable Servers:\n"
+    send_user "ID\tName\t\tHost\t\tPort\tUser\n"
+    send_user "------------------------------------------------\n"
+    foreach server $servers {
+        set id [lindex $server 0]
+        set name [lindex $server 1]
+        set host [lindex $server 2]
+        set port [lindex $server 3]
+        set user [lindex $server 4]
+        send_user "$id\t[string range "$name                " 0 15]$host\t$port\t$user\n"
+    }
+
+    send_user "\nEnter server ID or number (1-[llength $servers]): "
+    expect_user -re "(.*)\n"
+    set choice $expect_out(1,string)
+
+    if {[string is integer $choice]} {
+        set index [expr {$choice - 1}]
+        if {$index >= 0 && $index < [llength $servers]} {
+            return [lindex $servers $index]
+        }
+    } else {
+        set server [find_server_by_id $servers $choice]
+        if {$server ne ""} {
+            return $server
+        }
+    }
+    send_user "Invalid selection\n"
+    exit 1
+}
+
+# SSH connection function
+proc connect_ssh {server_info} {
+    global timeout max_attempts
+
+    set id    [lindex $server_info 0]
+    set name  [lindex $server_info 1]
+    set host  [lindex $server_info 2]
+    set port  [lindex $server_info 3]
+    set user  [lindex $server_info 4]
+    set auth  [lindex $server_info 5]
+    set value [lindex $server_info 6]
+
+    set attempt 1
+    while {$attempt <= $max_attempts} {
+        send_user "Connecting to $name ($host) - Attempt $attempt/$max_attempts\n"
+
+        spawn ssh -p $port -o StrictHostKeyChecking=no $user@$host
+
+        expect {
+            "yes/no" {
+                send "yes\r"
+                exp_continue
+            }
+            "password:" {
+                if {$auth ne "password"} {
+                    send_user "Server requires password but configured for key auth\n"
+                    return 0
+                }
+                send "$value\r"
+                exp_continue
+            }
+            "Permission denied" {
+                send_user "Authentication failed\n"
+                return 0
+            }
+            -re ".*#" {
+                if {$auth eq "key"} {
+                    spawn ssh -p $port -o PubkeyAuthentication=yes -i $value $user@$host
+                    expect -re ".*#"
+                }
+                send_user "Successfully connected to $name (ID: $id)!\n"
+                interact
+                return 1
+            }
+            "Connection refused" {
+                send_user "Connection refused\n"
+                sleep 5
+                incr attempt
+                exp_continue
+            }
+            timeout {
+                send_user "Connection timeout\n"
+                sleep 5
+                incr attempt
+                exp_continue
+            }
+            eof {
+                send_user "Connection terminated unexpectedly\n"
+                return 0
+            }
+        }
+    }
+    return 0
+}
+
+# Main program
+send_user "Loading server configurations...\n"
+set servers [load_servers $config_file]
+
+# Check for command-line argument or environment variable
+if {[llength $argv] > 0} {
+    set target_id [lindex $argv 0]
+} elseif {[info exists ::env(TARGET_SERVER_ID)]} {
+    set target_id $::env(TARGET_SERVER_ID)
+}
+
+if {[info exists target_id]} {
+    set selected_server [find_server_by_id $servers $target_id]
+    if {$selected_server eq ""} {
+        send_user "Error: No server found with ID '$target_id'\n"
+        exit 1
+    }
+} else {
+    set selected_server [select_server $servers]
+}
+
+if {![connect_ssh $selected_server]} {
+    send_user "Failed to connect to the selected server\n"
+    exit 1
+}
