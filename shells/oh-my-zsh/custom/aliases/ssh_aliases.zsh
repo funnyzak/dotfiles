@@ -809,6 +809,8 @@ alias ssh-connect='() {
 # SSH help function
 alias ssh-help='() {
   echo -e "SSH aliases and functions help\n"
+  echo "SSH Connection Management:"
+  echo "  ssh-connect            - Connect to a remote host using expect script"
   echo "SSH Key Management:"
   echo "  ssh-key-generate      - Generate a new SSH key with enhanced security"
   echo "  ssh-key-ed25519       - Generate Ed25519 SSH key (recommended)"
