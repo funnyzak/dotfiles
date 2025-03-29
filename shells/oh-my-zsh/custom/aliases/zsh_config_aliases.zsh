@@ -138,10 +138,10 @@ alias omz-edit='() {
   $EDITOR ~/.oh-my-zsh
 }'
 
-alias asearch='() {
+alias asg='() {
   if [ -z "$1" ]; then
     echo "Search for aliases by pattern" >&2
-    echo "Usage: asearch <pattern>" >&2
+    echo "Usage: asg <pattern>" >&2
     return 1
   fi
 
