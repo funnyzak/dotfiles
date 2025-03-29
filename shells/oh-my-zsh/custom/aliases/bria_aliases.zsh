@@ -115,7 +115,7 @@ _bria_process_and_download() {
 # -------------------
 
 alias bria-bg-remove='() {
-  echo -e "Remove background from an image.\nUsage:\n bria-bg-remove <image_path_or_url> [output_path]\n\nExamples:\n bria-bg-remove photo.jpg\n -> Creates photo_background_remove.jpg with transparent background\n\n bria-bg-remove https://example.com/image.png output.png\n -> Downloads image, removes background and saves as output.png"
+  echo -e "Remove background from an image.\nUsage:\n bria-bg-remove <image_path_or_url> [output_path]\n\nExamples:\n bria-bg-remove photo.jpg\n -> Creates photo_background_remove.jpg with transparent background\n\n bria-bg-remove https://example.com/image.png output.png\n -> Downloads image, removes background and saves as output.png\n"
 
   if [ -z "$1" ]; then
     echo "Error: Missing required parameter - image path or URL" >&2
@@ -129,7 +129,7 @@ alias bria-bg-remove='() {
 }' # Remove background from image
 
 alias bria-bg-replace='() {
-  echo -e "Replace image background with a generated one.\nUsage:\n bria-bg-replace <image_path_or_url> [output_path] [\"prompt:nature scene\"]\n\nExamples:\n bria-bg-replace portrait.jpg\n -> Replaces background with default nature scene, saves as portrait_bg_replaced.jpg\n\n bria-bg-replace photo.png new_photo.png \"city skyline at night\"\n -> Replaces background with city skyline, saves as new_photo.png"
+  echo -e "Replace image background with a generated one.\nUsage:\n bria-bg-replace <image_path_or_url> [output_path] [\"prompt:nature scene\"]\n\nExamples:\n bria-bg-replace portrait.jpg\n -> Replaces background with default nature scene, saves as portrait_bg_replaced.jpg\n\n bria-bg-replace photo.png new_photo.png \"city skyline at night\"\n -> Replaces background with city skyline, saves as new_photo.png\n"
 
   if [ -z "$1" ]; then
     echo "Error: Missing required parameter - image path or URL" >&2
@@ -209,7 +209,7 @@ alias bria-bg-replace='() {
 }' # Replace background with generated content
 
 alias bria-bg-blur='() {
-  echo -e "Blur background in an image.\nUsage:\n bria-bg-blur <image_path_or_url> [output_path]\n\nExamples:\n bria-bg-blur portrait.jpg\n -> Blurs the background while preserving the subject, saves as portrait_background_blur.jpg\n\n bria-bg-blur https://example.com/photo.png blurred.png\n -> Downloads image, blurs background and saves as blurred.png"
+  echo -e "Blur background in an image.\nUsage:\n bria-bg-blur <image_path_or_url> [output_path]\n\nExamples:\n bria-bg-blur portrait.jpg\n -> Blurs the background while preserving the subject, saves as portrait_background_blur.jpg\n\n bria-bg-blur https://example.com/photo.png blurred.png\n -> Downloads image, blurs background and saves as blurred.png\n"
 
   if [ -z "$1" ]; then
     echo "Error: Missing required parameter - image path or URL" >&2
@@ -222,7 +222,7 @@ alias bria-bg-blur='() {
 }' # Blur image background
 
 alias bria-erase-fg='() {
-  echo -e "Erase foreground from an image.\nUsage:\n bria-erase-fg <image_path_or_url> [output_path]\n\nExamples:\n bria-erase-fg scene.jpg\n -> Removes foreground objects, saves as scene_erase_foreground.jpg\n\n bria-erase-fg photo.png bg_only.png\n -> Erases foreground objects and saves just the background as bg_only.png"
+  echo -e "Erase foreground from an image.\nUsage:\n bria-erase-fg <image_path_or_url> [output_path]\n\nExamples:\n bria-erase-fg scene.jpg\n -> Removes foreground objects, saves as scene_erase_foreground.jpg\n\n bria-erase-fg photo.png bg_only.png\n -> Erases foreground objects and saves just the background as bg_only.png\n"
 
   if [ -z "$1" ]; then
     echo "Error: Missing required parameter - image path or URL" >&2
@@ -238,7 +238,7 @@ alias bria-erase-fg='() {
 # -----------------------
 
 alias bria-eraser='() {
-  echo -e "Erase parts of an image (requires mask).\nUsage:\n bria-eraser <image_path_or_url> <mask_path_or_url> [output_path]\n\nExamples:\n bria-eraser photo.jpg mask.png\n -> Erases areas defined by white regions in mask.png from photo.jpg\n -> Saves result as photo_erased.jpg\n\n bria-eraser https://example.com/image.jpg https://example.com/mask.png result.jpg\n -> Downloads image and mask, applies erasure, saves as result.jpg"
+  echo -e "Erase parts of an image (requires mask).\nUsage:\n bria-eraser <image_path_or_url> <mask_path_or_url> [output_path]\n\nExamples:\n bria-eraser photo.jpg mask.png\n -> Erases areas defined by white regions in mask.png from photo.jpg\n -> Saves result as photo_erased.jpg\n\n bria-eraser https://example.com/image.jpg https://example.com/mask.png result.jpg\n -> Downloads image and mask, applies erasure, saves as result.jpg\n"
 
   if [ -z "$1" ] || [ -z "$2" ]; then
     echo "Error: Missing required parameters - image path/URL and mask path/URL" >&2
@@ -331,7 +331,7 @@ alias bria-eraser='() {
 }' # Erase parts of image using mask
 
 alias bria-gen-fill='() {
-  echo -e "Fill masked area with generated content.\nUsage:\n bria-gen-fill <image_path_or_url> <mask_path_or_url> [output_path] [\"prompt:matching content\"]\n\nExamples:\n bria-gen-fill photo.jpg mask.png\n -> Fills areas defined by white regions in mask.png with AI-generated content\n -> Saves result as photo_gen_fill.jpg\n\n bria-gen-fill photo.png mask.png output.png \"mountains and sky\"\n -> Fills masked areas with generated mountains and sky content\n -> Saves as output.png"
+  echo -e "Fill masked area with generated content.\nUsage:\n bria-gen-fill <image_path_or_url> <mask_path_or_url> [output_path] [\"prompt:matching content\"]\n\nExamples:\n bria-gen-fill photo.jpg mask.png\n -> Fills areas defined by white regions in mask.png with AI-generated content\n -> Saves result as photo_gen_fill.jpg\n\n bria-gen-fill photo.png mask.png output.png \"mountains and sky\"\n -> Fills masked areas with generated mountains and sky content\n -> Saves as output.png\n"
 
   if [ -z "$1" ] || [ -z "$2" ]; then
     echo "Error: Missing required parameters - image path/URL and mask path/URL" >&2
@@ -429,7 +429,7 @@ alias bria-gen-fill='() {
 # --------------------------
 
 alias bria-expand-img='() {
-  echo -e "Expand image canvas with AI generated content.\nUsage:\n bria-expand-img <image_path_or_url> <width:1024> <height:1024> [output_path] [\"prompt:matching content\"]\n\nExamples:\n bria-expand-img portrait.jpg 2048 1536\n -> Expands portrait.jpg to 2048x1536px with AI generated content around the edges\n -> Saves as portrait_expanded.jpg\n\n bria-expand-img photo.png 800 1200 new_photo.png \"mountain landscape\"\n -> Expands photo.png to 800x1200px with mountain landscape around the edges\n -> Saves as new_photo.png"
+  echo -e "Expand image canvas with AI generated content.\nUsage:\n bria-expand-img <image_path_or_url> <width:1024> <height:1024> [output_path] [\"prompt:matching content\"]\n\nExamples:\n bria-expand-img portrait.jpg 2048 1536\n -> Expands portrait.jpg to 2048x1536px with AI generated content around the edges\n -> Saves as portrait_expanded.jpg\n\n bria-expand-img photo.png 800 1200 new_photo.png \"mountain landscape\"\n -> Expands photo.png to 800x1200px with mountain landscape around the edges\n -> Saves as new_photo.png\n"
 
   if [ -z "$1" ]; then
     echo "Error: Missing required parameter - image path or URL" >&2
@@ -513,7 +513,7 @@ alias bria-expand-img='() {
 }' # Expand image canvas with AI generated content
 
 alias bria-increase-res='() {
-  echo -e "Increase image resolution.\nUsage:\n bria-increase-res <image_path_or_url> [scale_factor:2] [output_path]\n\nExamples:\n bria-increase-res photo.jpg\n -> Doubles the resolution of photo.jpg using AI upscaling\n -> Saves as photo_upscaled.jpg\n\n bria-increase-res image.png 4 highres.png\n -> Increases resolution by 4x\n -> Saves as highres.png"
+  echo -e "Increase image resolution.\nUsage:\n bria-increase-res <image_path_or_url> [scale_factor:2] [output_path]\n\nExamples:\n bria-increase-res photo.jpg\n -> Doubles the resolution of photo.jpg using AI upscaling\n -> Saves as photo_upscaled.jpg\n\n bria-increase-res image.png 4 highres.png\n -> Increases resolution by 4x\n -> Saves as highres.png\n"
 
   if [ -z "$1" ]; then
     echo "Error: Missing required parameter - image path or URL" >&2
@@ -601,7 +601,7 @@ alias bria-increase-res='() {
 # -------------------------------
 
 alias bria-auto-crop='() {
-  echo -e "Automatically crop image with AI.\nUsage:\n bria-auto-crop <image_path_or_url> [output_path]\n\nExamples:\n bria-auto-crop photo.jpg\n -> Intelligently identifies the best composition and crops the image\n -> Saves as photo_crop.jpg\n\n bria-auto-crop https://example.com/image.png cropped.png\n -> Downloads image, intelligently crops it and saves as cropped.png"
+  echo -e "Automatically crop image with AI.\nUsage:\n bria-auto-crop <image_path_or_url> [output_path]\n\nExamples:\n bria-auto-crop photo.jpg\n -> Intelligently identifies the best composition and crops the image\n -> Saves as photo_crop.jpg\n\n bria-auto-crop https://example.com/image.png cropped.png\n -> Downloads image, intelligently crops it and saves as cropped.png\n"
 
   if [ -z "$1" ]; then
     echo "Error: Missing required parameter - image path or URL" >&2
@@ -614,7 +614,7 @@ alias bria-auto-crop='() {
 }' # Automatically crop image using AI
 
 alias bria-gen-mask='() {
-  echo -e "Generate masks for objects in image.\nUsage:\n bria-gen-mask <image_path_or_url> [output_path]\n\nExamples:\n bria-gen-mask photo.jpg\n -> Identifies all objects in the image and creates individual masks for each\n -> Saves masks as a ZIP file at photo_masks.zip\n\n bria-gen-mask https://example.com/image.jpg objects_masks.zip\n -> Processes the online image and saves object masks to objects_masks.zip"
+  echo -e "Generate masks for objects in image.\nUsage:\n bria-gen-mask <image_path_or_url> [output_path]\n\nExamples:\n bria-gen-mask photo.jpg\n -> Identifies all objects in the image and creates individual masks for each\n -> Saves masks as a ZIP file at photo_masks.zip\n\n bria-gen-mask https://example.com/image.jpg objects_masks.zip\n -> Processes the online image and saves object masks to objects_masks.zip\n"
 
   if [ -z "$1" ]; then
     echo "Error: Missing required parameter - image path or URL" >&2
@@ -695,7 +695,7 @@ alias bria-gen-mask='() {
 # ----------------------
 
 alias bria-to-psd='() {
-  echo -e "Convert image to PSD file with layers.\nUsage:\n bria-to-psd <image_path_or_url> <visual_id> [output_path]\n\nExamples:\n bria-to-psd photo.jpg 12345\n -> Converts photo.jpg to a PSD file with layers using visual ID 12345\n -> Saves as photo.psd\n\n bria-to-psd https://example.com/image.png 67890 layers.psd\n -> Downloads image, converts to layered PSD and saves as layers.psd"
+  echo -e "Convert image to PSD file with layers.\nUsage:\n bria-to-psd <image_path_or_url> <visual_id> [output_path]\n\nExamples:\n bria-to-psd photo.jpg 12345\n -> Converts photo.jpg to a PSD file with layers using visual ID 12345\n -> Saves as photo.psd\n\n bria-to-psd https://example.com/image.png 67890 layers.psd\n -> Downloads image, converts to layered PSD and saves as layers.psd\n"
 
   if [ -z "$1" ] || [ -z "$2" ]; then
     echo "Error: Missing required parameters - image path/URL and visual ID" >&2
@@ -753,7 +753,7 @@ alias bria-to-psd='() {
 # ---------------
 
 alias bria-vid-bg-remove='() {
-  echo -e "Remove background from a video.\nUsage:\n bria-vid-bg-remove <video_path_or_url> [output_path]\n\nExamples:\n bria-vid-bg-remove https://example.com/video.mp4\n -> Removes background from online video\n -> Saves as output_nobg.webm with transparent background\n\n bria-vid-bg-remove https://example.com/clip.mov transparent_clip.webm\n -> Removes background and saves as transparent_clip.webm\n\nNote: Processing time depends on video length. A 10-second video takes ~5 minutes."
+  echo -e "Remove background from a video.\nUsage:\n bria-vid-bg-remove <video_path_or_url> [output_path]\n\nExamples:\n bria-vid-bg-remove https://example.com/video.mp4\n -> Removes background from online video\n -> Saves as output_nobg.webm with transparent background\n\n bria-vid-bg-remove https://example.com/clip.mov transparent_clip.webm\n -> Removes background and saves as transparent_clip.webm\n\nNote: Processing time depends on video length. A 10-second video takes ~5 minutes.\n"
 
   if [ -z "$1" ]; then
     echo "Error: Missing required parameter - video path or URL" >&2
