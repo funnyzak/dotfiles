@@ -11,6 +11,12 @@ This directory contains shell-related utility scripts to enhance your workflow.
 
 `ssh_connect.exp` is a versatile Expect script designed to automate SSH connections to multiple servers. It supports both key-based and password-based authentication, with configurable retry logic and server selection.
 
+**Tips:** You can quickly set up ssh_connect.exp with the following script:
+
+```bash
+curl -s https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | bash
+```
+
 ### Features
 - **Interactive Mode**: Displays a list of servers for user selection.
 - **Non-Interactive Mode**: Connect directly to a server using its ID via command-line arguments or environment variables.
