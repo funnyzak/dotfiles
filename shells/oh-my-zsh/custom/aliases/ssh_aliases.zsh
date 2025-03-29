@@ -292,3 +292,4 @@ Usage:
 
   _generate_ssh_key_ssh_aliases "dsa" "$key_path" "$email" "" "DSA"
 }' # Generate DSA key
+
