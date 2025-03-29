@@ -215,7 +215,9 @@ _zsh_plugins_load() {
 _zsh_plugins_load
 
 alias zsh-load-plugins='(){
+  echo "Force loading plugins..."
   _aliases_load_plugins -f
+  echo "Plugins loaded successfully."
 }'
 
 # Install oh-my-zsh alias files from remote repository (Linux/macOS)
