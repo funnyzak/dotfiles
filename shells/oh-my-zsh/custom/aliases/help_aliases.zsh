@@ -16,40 +16,37 @@ alias cs='() {
   fi
 }' # Shell command cheatsheet tool
 
-# Helper function to extract alias descriptions from trailing comments
-_extract_alias_comments() {
-  local aliases_file="$1"
-  local file_content
 
-  # Read the file content into a variable
-  file_content=$(cat "$aliases_file")
+# Extract aliases with grep - simpler approach
+# Extract and print aliases from a file with descriptions
+extract_aliases() {
+  local alias_file=$1
+  local prefix=$2
 
-  # Process the file
-  echo "$file_content" | awk '
-    /^alias [a-zA-Z0-9_-]+=/,/^}'\''/ {
-      # Accumulate the alias definition
-      gathered = gathered $0 "\n"
+  grep "^alias " "$alias_file" | while read -r line; do
+    # Extract alias name
+    local alias_name=""
+    alias_name=$(echo "$line" | sed -e "s/^alias \([a-zA-Z0-9_-]*\)=.*/\1/")
+    # Skip if not matching prefix filter
+    if [ -n "$prefix" ] && ! echo "$alias_name" | grep -q "^$prefix"; then
+      continue
+    fi
 
-      # If this is the last line of the alias definition with a comment
-      if ($0 ~ /^}'\''.*#/) {
-        # Extract the alias name
-        match(gathered, /^alias ([a-zA-Z0-9_-]+)=/, arr)
-        if (arr[1] != "") {
-          name = arr[1]
+    # Try to find the comment at end of alias function
+    local comment="No description available"
+    local alias_end_line=$(grep -n "^}'" "$alias_file" | grep -A 1 -B 20 "$alias_name" | head -1)
 
-          # Extract the comment
-          match($0, /#[[:space:]]*(.*)[[:space:]]*$/, comment_arr)
-          if (comment_arr[1] != "") {
-            print name "|" comment_arr[1]
-          } else {
-            print name "|No description available"
-          }
-        }
-        # Reset for next alias
-        gathered = ""
-      }
-    }
-  '
+    if [ -n "$alias_end_line" ]; then
+      local line_num=${alias_end_line%%:*}
+      local comment_line=$(sed -n "${line_num}p" "$alias_file")
+
+      if echo "$comment_line" | grep -q "#"; then
+        comment=$(echo "$comment_line" | sed -e "s/^.*#[ ]*//" -e "s/[ ]*$//")
+      fi
+    fi
+    # Print alias with description
+    printf "  %-20s %s\n" "$alias_name" "$comment"
+  done
 }
 
 # Function to display all available aliases with descriptions
@@ -83,154 +80,170 @@ alias aliases-help='() {
 
   # Print verbose information if requested
   if $verbose; then
-    echo "\033[1;34m[DEBUG] Starting aliases-help with verbose output\033[0m"
-    echo "\033[1;34m[DEBUG] Aliases directory: $aliases_dir\033[0m"
-    [ -n "$prefix" ] && echo "\033[1;34m[DEBUG] Filtering by prefix: $prefix\033[0m"
-    [ -n "$file_prefix" ] && echo "\033[1;34m[DEBUG] Filtering by file prefix: $file_prefix\033[0m"
+    echo "[DEBUG] Starting aliases-help with verbose output"
+    echo "[DEBUG] Aliases directory: $aliases_dir"
+    [ -n "$prefix" ] && echo "[DEBUG] Filtering by prefix: $prefix"
+    [ -n "$file_prefix" ] && echo "[DEBUG] Filtering by file prefix: $file_prefix"
   fi
 
   # Check if aliases directory exists
-  if [[ ! -d "$aliases_dir" ]]; then
-    echo "\033[1;31mError: Aliases directory \"$aliases_dir\" does not exist\033[0m"
+  if [ ! -d "$aliases_dir" ]; then
+    echo "Error: Aliases directory \"$aliases_dir\" does not exist"
     return 1
   fi
 
-  # Use simple file structure for better compatibility
-  local file_pattern="*_aliases.zsh"
-  if [ -n "$file_prefix" ]; then
-    file_pattern="${file_prefix}*_aliases.zsh"
+  # Create temporary directory for category files
+  local tmp_dir=""
+  if command -v mktemp >/dev/null 2>&1; then
+    tmp_dir=$(mktemp -d)
+  else
+    # Fallback if mktemp not available
+    tmp_dir="/tmp/aliases_help_$$"
+    mkdir -p "$tmp_dir"
   fi
 
-  # If detailed view is requested, show each alias with its description
-  if $detailed; then
-    echo "\n\033[1;36m===== Detailed Aliases List =====\033[0m\n"
+  # Create category files
+  local sys_mgmt="$tmp_dir/system_management"
+  local containers="$tmp_dir/containers"
+  local network="$tmp_dir/network"
+  local version="$tmp_dir/version"
+  local file_ops="$tmp_dir/file_ops"
+  local media="$tmp_dir/media"
+  local help="$tmp_dir/help"
+  local other="$tmp_dir/other"
 
-    for alias_file in "$aliases_dir"/$file_pattern; do
-      # Skip if file doesn"t exist
+  # Create empty files
+  touch "$sys_mgmt" "$containers" "$network" "$version" "$file_ops" "$media" "$help" "$other"
+
+  # Build file list based on prefix
+  local file_list="$tmp_dir/file_list"
+  if [ -n "$file_prefix" ]; then
+    find "$aliases_dir" -type f -name "${file_prefix}*_aliases.zsh" | sort > "$file_list"
+  else
+    find "$aliases_dir" -type f -name "*_aliases.zsh" | sort > "$file_list"
+  fi
+
+  if $verbose; then
+    echo "[DEBUG] Found $(wc -l < "$file_list") alias files"
+  fi
+
+  # Process each alias file
+  if $detailed; then
+    echo ""
+    echo "===== Detailed Aliases List ====="
+    echo ""
+
+    while read -r alias_file; do
       [ ! -f "$alias_file" ] && continue
 
-      local file_basename=$(basename "$alias_file" .zsh)
-      local name=${file_basename%_aliases}
+      if $verbose; then
+        echo "[DEBUG] Processing file: $alias_file"
+      fi
+
+      # Get filename without path and extension
+      local basename=$(basename "$alias_file")
+      local name=${basename%_aliases.zsh}
 
       # Read file description
-      local file_desc=$(grep -m 1 "^# Description:" "$alias_file" | sed "s/^# Description: *//")
-      [ -z "$file_desc" ] && file_desc="No description available"
+      local desc=""
+      desc=$(grep "^# Description:" "$alias_file" | head -1)
+      desc=${desc#\# Description: }
+      [ -z "$desc" ] && desc="No description available"
 
-      echo "\033[1;33m${name} aliases:\033[0m (${file_desc})"
+      echo "${name} aliases: ($desc)"
 
-      # Extract aliases and their descriptions
-      local alias_data=$(_extract_alias_comments "$alias_file")
+      # Call the helper function with current file and prefix
+      extract_aliases "$alias_file" "$prefix"
 
-      # Show all aliases or filter by prefix
-      echo "$alias_data" | while IFS="|" read -r alias_name alias_desc; do
-        if [ -z "$prefix" ] || [[ "$alias_name" == "$prefix"* ]]; then
-          printf "  \033[1;32m%-20s\033[0m %s\n" "$alias_name" "$alias_desc"
+      echo ""
+    done < "$file_list"
+  else
+    echo ""
+    echo "===== Available Aliases Index ====="
+    echo ""
+
+    # Process all files for category view
+    while read -r alias_file; do
+      [ ! -f "$alias_file" ] && continue
+
+      if $verbose; then
+        echo "[DEBUG] Processing file: $alias_file"
+      fi
+
+      # Get filename without path and extension
+      local basename=$(basename "$alias_file")
+      local name=${basename%_aliases.zsh}
+
+      # Read file description
+      local desc=""
+      desc=$(grep "^# Description:" "$alias_file" | head -1)
+      desc=${desc#\# Description: }
+      [ -z "$desc" ] && desc="No description available"
+
+      # Count aliases in file if prefix filter is applied
+      if [ -n "$prefix" ]; then
+        local count=$(grep -c "^alias $prefix" "$alias_file" || echo "0")
+        if [ "$count" -eq 0 ]; then
+          continue
         fi
-      done
+        name="$name ($count aliases)"
+      fi
+
+      # Determine category
+      local target_file="$other"
+      if echo "$name" | grep -q "system\|srv\|vps"; then
+        target_file="$sys_mgmt"
+      elif echo "$name" | grep -q "docker\|environment"; then
+        target_file="$containers"
+      elif echo "$name" | grep -q "network\|ssh\|scp\|request\|tcpdump"; then
+        target_file="$network"
+      elif echo "$name" | grep -q "git"; then
+        target_file="$version"
+      elif echo "$name" | grep -q "file\|directory\|archive"; then
+        target_file="$file_ops"
+      elif echo "$name" | grep -q "image\|video\|audio\|pdf"; then
+        target_file="$media"
+      elif echo "$name" | grep -q "help\|zsh"; then
+        target_file="$help"
+      fi
+
+      # Add to category file
+      echo "$name|$desc" >> "$target_file"
+    done < "$file_list"
+
+    # Display categories
+    for category in "System Management:$sys_mgmt" "Containers & Environment:$containers" "Network Tools:$network" "Version Control:$version" "File Operations:$file_ops" "Media Processing:$media" "Help & Configuration:$help" "Other:$other"; do
+      local title=${category%%:*}
+      local file=${category#*:}
+
+      # Skip empty categories
+      if [ ! -s "$file" ]; then
+        continue
+      fi
+
+      echo "$title:"
+
+      # Display each entry
+      while read -r line; do
+        local name=${line%%|*}
+        local desc=${line#*|}
+        printf "  %-20s %s\n" "$name" "$desc"
+      done < "$file"
 
       echo ""
     done
-
-    return 0
   fi
 
-  echo "\n\033[1;36m===== Available Aliases Index =====\033[0m\n"
-
-  # Category-based display
-  local output=""
-  declare -A categories
-
-  # Initialize categories with empty arrays
-  categories["System Management"]=""
-  categories["Containers & Environment"]=""
-  categories["Network Tools"]=""
-  categories["Version Control"]=""
-  categories["File Operations"]=""
-  categories["Media Processing"]=""
-  categories["Help & Configuration"]=""
-  categories["Other"]=""
-
-  for alias_file in "$aliases_dir"/$file_pattern; do
-    # Skip if file doesn"t exist
-    [ ! -f "$alias_file" ] && continue
-
-    if $verbose; then
-      echo "\033[1;34m[DEBUG] Processing file: $alias_file\033[0m"
-    fi
-
-    # Get filename without path and extension
-    local file_basename=$(basename "$alias_file" .zsh)
-    local name=${file_basename%_aliases}
-
-    # Read description
-    local desc=$(grep -m 1 "^# Description:" "$alias_file" | sed "s/^# Description: *//")
-    [ -z "$desc" ] && desc="No description available"
-
-    # Determine category
-    local category="Other"
-    if [[ "$name" == *"system"* || "$name" == *"srv"* || "$name" == *"vps"* ]]; then
-      category="System Management"
-    elif [[ "$name" == *"docker"* || "$name" == *"environment"* ]]; then
-      category="Containers & Environment"
-    elif [[ "$name" == *"network"* || "$name" == *"ssh"* || "$name" == *"scp"* || "$name" == *"request"* || "$name" == *"tcpdump"* ]]; then
-      category="Network Tools"
-    elif [[ "$name" == *"git"* ]]; then
-      category="Version Control"
-    elif [[ "$name" == *"file"* || "$name" == *"directory"* || "$name" == *"archive"* ]]; then
-      category="File Operations"
-    elif [[ "$name" == *"image"* || "$name" == *"video"* || "$name" == *"audio"* || "$name" == *"pdf"* ]]; then
-      category="Media Processing"
-    elif [[ "$name" == *"help"* || "$name" == *"zsh"* ]]; then
-      category="Help & Configuration"
-    fi
-
-    if $verbose; then
-      echo "\033[1;34m[DEBUG] File: $name, Category: $category, Desc: $desc\033[0m"
-    fi
-
-    # Count aliases in file if prefix filter is applied
-    local alias_count=0
-    if [ -n "$prefix" ]; then
-      alias_count=$(grep -c "^alias ${prefix}" "$alias_file" || echo "0")
-
-      if [ "$alias_count" -eq 0 ]; then
-        # Skip files with no matching aliases
-        continue
-      fi
-    fi
-
-    # Add to appropriate category
-    local display_name="$name"
-    [ -n "$prefix" ] && display_name="${name} ($alias_count aliases)"
-
-    # Append to the category
-    categories["$category"]="${categories[$category]}${display_name}|${desc}\n"
-  done
-
-  # Display categorized output
-  for category in "System Management" "Containers & Environment" "Network Tools" "Version Control" "File Operations" "Media Processing" "Help & Configuration" "Other"; do
-    local category_content="${categories[$category]}"
-
-    # Skip empty categories
-    [ -z "$category_content" ] && continue
-
-    echo "\033[1;33m$category:\033[0m"
-
-    # Display each file in the category
-    echo -e "$category_content" | while IFS="|" read -r name desc; do
-      printf "  \033[1;32m%-20s\033[0m %s\n" "$name" "$desc"
-    done
-
-    echo ""
-  done
+  # Cleanup
+  rm -rf "$tmp_dir"
 
   # Show helpful tips
   if [ -n "$prefix" ]; then
-    echo "\033[1;36mTo see detailed descriptions: aliases-help -d -p $prefix\033[0m"
+    echo "To see detailed descriptions: aliases-help -d -p $prefix"
   elif [ -n "$file_prefix" ]; then
-    echo "\033[1;36mTo see detailed descriptions: aliases-help -d -f $file_prefix\033[0m"
+    echo "To see detailed descriptions: aliases-help -d -f $file_prefix"
   else
-    echo "\033[1;36mTips:\033[0m"
+    echo "Tips:"
     echo "  - Use \"aliases-help -d\" to see detailed descriptions of all aliases"
     echo "  - Use \"aliases-help -p prefix\" to filter aliases by prefix"
     echo "  - Use \"aliases-help -f file_prefix\" to show aliases from specific files"
