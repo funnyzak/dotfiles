@@ -736,7 +736,39 @@ alias ssh-key-fix-permissions='() {
 
 # Connect to a remote host using expect script
 alias ssh-connect='() {
-  echo -e "Connect to a remote host using expect script.\nUsage:\n  ssh-connect [server_id]\nOptions:\n  server_id: Optional server ID to connect directly\n\nEnvironment Variables:\n  TARGET_SERVER_ID: Pre-select a server ID\n  SERVERS_CONFIG: Path to custom servers config file\n  SSH_TIMEOUT: Connection timeout in seconds (default: 30)\n  SSH_MAX_ATTEMPTS: Maximum connection attempts (default: 3)\n  SSH_NO_COLOR: Disable colored output if set to any value\n  SSH_KEEP_ALIVE: Enable/disable keep-alive packets (default: 1 - enabled)\n  SSH_ALIVE_INTERVAL: Seconds between keep-alive packets (default: 60)\n  SSH_ALIVE_COUNT: Maximum missed keep-alive responses before disconnect (default: 3)\n  SSH_DEFAULT_SHELL: Shell to switch to after login (e.g., zsh, bash, fish) \n  CONNECTION_EXP_EXEC_PATH: Custom path to the expect script (default: ~/.ssh/ssh_connect.exp)\n"
+  echo -e "Connect to a remote host using expect script.\nUsage:\n  ssh-connect [server_id]\nOptions:\n  server_id: Optional server ID to connect directly\n\nEnvironment Variables:"
+
+  # Display environment variables with their current values if set
+  echo -n "  TARGET_SERVER_ID: Pre-select a server ID"
+  [[ -n "$TARGET_SERVER_ID" ]] && echo " (current: $TARGET_SERVER_ID)" || echo ""
+
+  echo -n "  SERVERS_CONFIG: Path to custom servers config file"
+  [[ -n "$SERVERS_CONFIG" ]] && echo " (current: $SERVERS_CONFIG)" || echo ""
+
+  echo -n "  SSH_TIMEOUT: Connection timeout in seconds"
+  [[ -n "$SSH_TIMEOUT" ]] && echo " (current: $SSH_TIMEOUT)" || echo " (default: 30)"
+
+  echo -n "  SSH_MAX_ATTEMPTS: Maximum connection attempts"
+  [[ -n "$SSH_MAX_ATTEMPTS" ]] && echo " (current: $SSH_MAX_ATTEMPTS)" || echo " (default: 3)"
+
+  echo -n "  SSH_NO_COLOR: Disable colored output if set to any value"
+  [[ -n "$SSH_NO_COLOR" ]] && echo " (current: enabled)" || echo " (default: disabled)"
+
+  echo -n "  SSH_KEEP_ALIVE: Enable/disable keep-alive packets"
+  [[ -n "$SSH_KEEP_ALIVE" ]] && echo " (current: $SSH_KEEP_ALIVE)" || echo " (default: 1 - enabled)"
+
+  echo -n "  SSH_ALIVE_INTERVAL: Seconds between keep-alive packets"
+  [[ -n "$SSH_ALIVE_INTERVAL" ]] && echo " (current: $SSH_ALIVE_INTERVAL)" || echo " (default: 60)"
+
+  echo -n "  SSH_ALIVE_COUNT: Maximum missed keep-alive responses before disconnect"
+  [[ -n "$SSH_ALIVE_COUNT" ]] && echo " (current: $SSH_ALIVE_COUNT)" || echo " (default: 3)"
+
+  echo -n "  SSH_DEFAULT_SHELL: Shell to switch to after login"
+  [[ -n "$SSH_DEFAULT_SHELL" ]] && echo " (current: $SSH_DEFAULT_SHELL)" || echo ""
+
+  echo -n "  CONNECTION_EXP_EXEC_PATH: Custom path to the expect script"
+  [[ -n "$CONNECTION_EXP_EXEC_PATH" ]] && echo " (current: $CONNECTION_EXP_EXEC_PATH)" || echo " (default: ~/.ssh/ssh_connect.exp)"
+  echo ""
 
   local connection_exp_exec_path="${CONNECTION_EXP_EXEC_PATH:-$HOME/.ssh/ssh_connect.exp}"
 

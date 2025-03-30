@@ -304,8 +304,8 @@ proc connect_ssh {server_info} {
                 }
 
                 # Ensure terminal is ready for interaction
-                send "\r"
-                sleep 0.2
+                # send "\r"
+                # sleep 0.2
 
                 send_user "${COLOR_INFO}Terminal ready for input${COLOR_RESET}\n"
                 interact
