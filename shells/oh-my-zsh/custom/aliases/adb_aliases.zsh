@@ -1,4 +1,4 @@
-# Description: ADB (Android Debug Bridge) related aliases for Android development and debugging.
+# Description: ADB (Android Debug Bridge) related aliases for Android development and debugging. Use "adb-help" for more information.
 
 # Helper functions
 # ---------------
