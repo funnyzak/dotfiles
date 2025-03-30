@@ -30,3 +30,12 @@ alias notif='() {
 
   echo "Notification sent successfully."
 }' # Send push notification using Apprise
+
+# Help function for notification aliases
+alias notification-help='() {
+  echo "Notification Aliases Help"
+  echo "======================="
+  echo "Available commands:"
+  echo "  notif             - Send push notifications using Apprise"
+  echo "  notification-help - Display this help message"
+}' # Display help for notification aliases
