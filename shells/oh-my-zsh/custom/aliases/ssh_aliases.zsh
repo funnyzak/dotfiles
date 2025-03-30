@@ -1,4 +1,4 @@
-# Description: SSH-related aliases for easier management and usage.
+# Description: SSH-related aliases for easier management and usage. Use `ssh-help` for more information.
 
 # Helper functions
 _show_error_ssh_aliases() {
