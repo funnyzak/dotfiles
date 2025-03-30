@@ -201,3 +201,19 @@ alias uv-req='() {
   fi
   _show_info_environment_aliases "Packages installed successfully from $req_file"
 }' # Install packages from requirements.txt using uv
+
+# Help function for environment aliases
+alias environment-help='() {
+  echo "Environment Management Aliases Help"
+  echo "================================"
+  echo "Available commands:"
+  echo "  venv-create        - Create or activate a Python virtual environment"
+  echo "  venv-exit          - Deactivate the current Python virtual environment"
+  echo "  venv-delete        - Delete a Python virtual environment"
+  echo "  venv-info          - Display information about the current Python virtual environment"
+  echo "  uv-venv            - Create or activate a Python virtual environment using uv"
+  echo "  uv-install         - Install Python packages using uv"
+  echo "  uv-update          - Update Python packages using uv"
+  echo "  uv-req             - Install packages from requirements file using uv"
+  echo "  environment-help   - Display this help message"
+}' # Display help for environment management aliases

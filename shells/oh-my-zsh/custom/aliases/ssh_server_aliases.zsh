@@ -1,4 +1,4 @@
-# Description: SSH server management aliases and functions
+# Description: SSH server management aliases and functions. Use `ssh-srv-help` for more information.
 
 _show_error_ssh_server() {
   echo "Error: $1" >&2

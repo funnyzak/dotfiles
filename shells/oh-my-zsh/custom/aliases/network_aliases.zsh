@@ -21,7 +21,7 @@ _check_command_network_aliases() {
 
 # System Information
 alias net-myip='() {
-  _show_usage_network_aliases "Get your public IP address."
+  _show_usage_network_aliases "Get your public IP address.\nExample:\n net-myip"
 
   if ! _check_command_network_aliases curl; then
     return 1
@@ -39,7 +39,7 @@ alias net-ipinfo='() {
   fi
 
   if [ $# -eq 0 ]; then
-    _show_usage_network_aliases "Get IP information.\nUsage:\n net-ipinfo [ip_address:current]"
+    _show_usage_network_aliases "Get IP information.\nUsage:\n net-ipinfo [ip_address:current]\nExamples:\n net-ipinfo\n net-ipinfo 8.8.8.8"
 
     if ! curl -s ipinfo.io; then
       _show_error_network_aliases "Failed to retrieve IP information. Check your internet connection."
@@ -59,7 +59,7 @@ alias net-domainip='() {
   fi
 
   if [ $# -eq 0 ]; then
-    _show_usage_network_aliases "Get IP address for a domain.\nUsage:\n net-domainip <domain>"
+    _show_usage_network_aliases "Get IP address for a domain.\nUsage:\n net-domainip <domain>\nExample:\n net-domainip google.com"
     return 1
   fi
 
@@ -80,7 +80,7 @@ alias net-ping='() {
   fi
 
   if [ $# -eq 0 ]; then
-    _show_usage_network_aliases "Ping a host with 5 attempts.\nUsage:\n net-ping <host>"
+    _show_usage_network_aliases "Ping a host with 5 attempts.\nUsage:\n net-ping <host>\nExample:\n net-ping google.com"
     return 1
   fi
 
@@ -99,7 +99,7 @@ alias net-port-test='() {
   fi
 
   if [ $# -lt 2 ]; then
-    _show_usage_network_aliases "Test port connectivity using netcat.\nUsage:\n net-port-test <host> <port>"
+    _show_usage_network_aliases "Test port connectivity using netcat.\nUsage:\n net-port-test <host> <port>\nExample:\n net-port-test google.com 80"
     return 1
   fi
 
@@ -166,7 +166,7 @@ alias net-bandwidth='() {
     return 1
   fi
 
-  _show_usage_network_aliases "Monitor network bandwidth.\nUsage:\n net-bandwidth [interface]"
+  _show_usage_network_aliases "Monitor network bandwidth.\nUsage:\n net-bandwidth [interface]\nExamples:\n net-bandwidth\n net-bandwidth en0"
 
   echo "Monitoring network bandwidth. Press q to quit."
   if [ $# -eq 0 ]; then
@@ -197,7 +197,7 @@ alias net-download='() {
   fi
 
   if [ $# -lt 2 ]; then
-    _show_usage_network_aliases "Download file from URL.\nUsage:\n net-download <url> <output_path>"
+    _show_usage_network_aliases "Download file from URL.\nUsage:\n net-download <url> <output_path>\nExample:\n net-download https://example.com/file.zip ./downloads/file.zip"
     return 1
   fi
 
@@ -215,7 +215,7 @@ alias net-download-all='() {
   fi
 
   if [ $# -eq 0 ]; then
-    _show_usage_network_aliases "Download all files from URL list file.\nUsage:\n net-download-all <url_list_file> [output_directory:./download]"
+    _show_usage_network_aliases "Download all files from URL list file.\nUsage:\n net-download-all <url_list_file> [output_directory:./download]\nExample:\n net-download-all urls.txt ./downloads"
     return 1
   fi
 
@@ -245,7 +245,7 @@ alias net-get='() {
   fi
 
   if [ $# -eq 0 ]; then
-    _show_usage_network_aliases "Send HTTP GET request.\nUsage:\n net-get <url> [curl_options]"
+    _show_usage_network_aliases "Send HTTP GET request.\nUsage:\n net-get <url> [curl_options]\nExample:\n net-get https://api.example.com/data"
     return 1
   fi
 
@@ -261,7 +261,7 @@ alias net-post='() {
   fi
 
   if [ $# -eq 0 ]; then
-    _show_usage_network_aliases "Send HTTP POST request.\nUsage:\n net-post <url> [data] [curl_options]"
+    _show_usage_network_aliases "Send HTTP POST request.\nUsage:\n net-post <url> [data] [curl_options]\nExample:\n net-post https://api.example.com/data -d '{\"key\":\"value\"}'"
     return 1
   fi
 
@@ -277,7 +277,7 @@ alias net-headers='() {
   fi
 
   if [ $# -eq 0 ]; then
-    _show_usage_network_aliases "Get HTTP headers only.\nUsage:\n net-headers <url> [curl_options]"
+    _show_usage_network_aliases "Get HTTP headers only.\nUsage:\n net-headers <url> [curl_options]\nExample:\n net-headers https://example.com"
     return 1
   fi
 
@@ -322,7 +322,7 @@ alias net-dns-lookup='() {
   fi
 
   if [ $# -eq 0 ]; then
-    _show_usage_network_aliases "DNS lookup for domain.\nUsage:\n net-dns-lookup <domain> [record_type:A]"
+    _show_usage_network_aliases "DNS lookup for domain.\nUsage:\n net-dns-lookup <domain> [record_type:A]\nExamples:\n net-dns-lookup google.com\n net-dns-lookup google.com MX"
     return 1
   fi
 
@@ -413,7 +413,7 @@ alias net-scan='() {
   fi
 
   if [ $# -eq 0 ]; then
-    _show_usage_network_aliases "Scan network for devices.\nUsage:\n net-scan <network_range>\nExample: net-scan 192.168.1.0/24"
+    _show_usage_network_aliases "Scan network for devices.\nUsage:\n net-scan <network_range>\nExample:\n net-scan 192.168.1.0/24"
     return 1
   fi
 
@@ -430,7 +430,7 @@ alias net-mtr='() {
   fi
 
   if [ $# -eq 0 ]; then
-    _show_usage_network_aliases "Run MTR (My Traceroute).\nUsage:\n net-mtr <hostname/ip>"
+    _show_usage_network_aliases "Run MTR (My Traceroute).\nUsage:\n net-mtr <hostname/ip>\nExample:\n net-mtr google.com"
     return 1
   fi
 
@@ -462,7 +462,7 @@ alias net-open-ports='() {
   fi
 
   if [ $# -eq 0 ]; then
-    _show_usage_network_aliases "Scan for open ports on a host.\nUsage:\n net-open-ports <host> [port_range:1-1000]"
+    _show_usage_network_aliases "Scan for open ports on a host.\nUsage:\n net-open-ports <host> [port_range:1-1000]\nExample:\n net-open-ports example.com 80-443"
     return 1
   fi
 
@@ -536,7 +536,7 @@ alias net-port-monitor='() {
   fi
 
   if [ $# -lt 2 ]; then
-    _show_usage_network_aliases "Monitor port stability by continuous connection testing.\nUsage:\n net-port-monitor <host> <port> [interval_seconds:1]"
+    _show_usage_network_aliases "Monitor port stability by continuous connection testing.\nUsage:\n net-port-monitor <host> <port> [interval_seconds:1]\nExample:\n net-port-monitor example.com 80 5"
     return 1
   fi
 

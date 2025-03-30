@@ -1251,3 +1251,31 @@ Usage:
 
   echo "Extraction completed: $file -> $destination"
 }'
+
+# Help function for archive aliases
+alias archive-help='() {
+  echo "Archive Management Aliases Help"
+  echo "============================="
+  echo "Available commands:"
+  echo "  zip-utils           - Unified ZIP compression function with multiple subcommands"
+  echo "  zip-cur             - Compress current directory to ZIP"
+  echo "  zip-dir             - Compress a directory to ZIP"
+  echo "  zip-dirp            - Compress directory with password"
+  echo "  zip-ext             - Compress files with specific extension"
+  echo "  zip-sub             - Compress subdirectories"
+  echo "  zip-each            - Compress each item in directory separately"
+  echo "  zip-single          - Compress a single file"
+  echo "  zip-singlep         - Compress a single file with password"
+  echo "  unzip-utils         - Unified ZIP extraction function with multiple subcommands"
+  echo "  unzip-file          - Extract a ZIP file"
+  echo "  unzip-each          - Extract all ZIP files in a directory"
+  echo "  unzip-pwd           - Extract password-protected ZIP file"
+  echo "  tar-utils           - Unified TAR compression function with multiple subcommands"
+  echo "  tar-dir             - Create .tar.gz archive from directory"
+  echo "  tar-file            - Create .tar.gz archive from file"
+  echo "  tar-cur             - Create .tar.gz archive from current directory"
+  echo "  tbz2-dir            - Create .tar.bz2 archive from directory"
+  echo "  txz-dir             - Create .tar.xz archive from directory"
+  echo "  untar-utils         - Extract TAR archives"
+  echo "  archive-help        - Display this help message"
+}' # Display help for archive management aliases

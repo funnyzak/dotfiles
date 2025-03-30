@@ -64,6 +64,7 @@ SSH_TIMEOUT=60 SSH_MAX_ATTEMPTS=5 ./ssh_connect.exp
 - **`TARGET_SERVER_ID`**: Server ID for non-interactive connection. No default.
 - **`SSH_TIMEOUT`**: Connection timeout in seconds. Default: `30`.
 - **`SSH_MAX_ATTEMPTS`**: Maximum number of connection attempts. Default: `3`.
+- **`SSH_DEFAULT_SHELL`**: Shell to switch to after login (e.g., zsh, bash, fish).
 
 ### Configuration File
 The script reads server details from a configuration file. See `servers.conf.example` for the format:

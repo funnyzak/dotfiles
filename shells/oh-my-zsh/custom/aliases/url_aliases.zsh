@@ -1,4 +1,4 @@
-# Description: URL services and functions for URL shortening, validation, encoding/decoding and analysis
+# Description: URL services and functions for URL shortening, validation, encoding/decoding and analysis. Use `url-help` for more information.
 
 #===================================
 # URL utilities and helpers
@@ -42,11 +42,11 @@ alias url-shorten-yourls='() {
   echo "Generate short URL using YOURLS.
 Usage:
  url-shorten-yourls <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
-  
+
   if ! _url_check_command "curl" || ! _url_check_command "jq"; then
     return 1
   fi
@@ -64,7 +64,7 @@ Usage:
   if ! _url_check_connectivity "$YOURLS_BASE_URL"; then
     return 1
   fi
-  
+
   curl -X POST "$YOURLS_BASE_URL/yourls-api.php" --data "format=json&signature=$YOURLS_TOKEN&action=shorturl&url=$1" | jq .
 }' # Generate short URL using YOURLS
 
@@ -73,7 +73,7 @@ alias url-shorten-sink='() {
   echo "Generate short URL using sink.
 Usage:
  url-shorten-sink <url> [custom_code]"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -96,7 +96,7 @@ alias url-shorten-tinyurl='() {
   echo "Generate short URL using TinyURL.
 Usage:
  url-shorten-tinyurl <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -113,7 +113,7 @@ Usage:
   if ! _url_check_connectivity "https://tinyurl.com"; then
     return 1
   fi
-  
+
   local result=$(curl -s "https://tinyurl.com/api-create.php?url=$1")
   if [ -z "$result" ]; then
     echo "Error: Failed to generate short URL" >&2
@@ -127,7 +127,7 @@ alias url-shorten-bitly='() {
   echo "Generate short URL using Bitly.
 Usage:
  url-shorten-bitly <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -149,7 +149,7 @@ Usage:
   if ! _url_check_connectivity "https://api-ssl.bitly.com"; then
     return 1
   fi
-  
+
   curl -X POST "https://api-ssl.bitly.com/v4/shorten" \
     -H "Authorization: Bearer $BITLY_TOKEN" \
     -H "Content-Type: application/json" \
@@ -161,7 +161,7 @@ alias url-shorten-isgd='() {
   echo "Generate short URL using is.gd.
 Usage:
  url-shorten-isgd <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -178,7 +178,7 @@ Usage:
   if ! _url_check_connectivity "https://is.gd"; then
     return 1
   fi
-  
+
   local result=$(curl -s "https://is.gd/create.php?format=simple&url=$1")
   if [ -z "$result" ] || [[ "$result" == *"Error"* ]]; then
     echo "Error: Failed to generate short URL" >&2
@@ -192,7 +192,7 @@ alias url-shorten-vgd='() {
   echo "Generate short URL using v.gd.
 Usage:
  url-shorten-vgd <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -209,7 +209,7 @@ Usage:
   if ! _url_check_connectivity "https://v.gd"; then
     return 1
   fi
-  
+
   local result=$(curl -s "https://v.gd/create.php?format=simple&url=$1")
   if [ -z "$result" ] || [[ "$result" == *"Error"* ]]; then
     echo "Error: Failed to generate short URL" >&2
@@ -223,7 +223,7 @@ alias url-shorten-shrtcode='() {
   echo "Generate short URL using shrtco.de.
 Usage:
  url-shorten-shrtcode <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -240,7 +240,7 @@ Usage:
   if ! _url_check_connectivity "https://api.shrtco.de"; then
     return 1
   fi
-  
+
   curl -s "https://api.shrtco.de/v2/shorten?url=$1" | jq .
 }' # Generate short URL using shrtco.de
 
@@ -249,7 +249,7 @@ alias url-shorten-t2m='() {
   echo "Generate short URL using T2M.
 Usage:
  url-shorten-t2m <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -271,7 +271,7 @@ Usage:
   if ! _url_check_connectivity "https://t2m.io"; then
     return 1
   fi
-  
+
   curl -X POST "https://t2m.io/api/v1/shorten" \
     -H "Authorization: Bearer $T2M_API_KEY" \
     -H "Content-Type: application/json" \
@@ -283,7 +283,7 @@ alias url-shorten-rebrandly='() {
   echo "Generate short URL using Rebrandly.
 Usage:
  url-shorten-rebrandly <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -305,7 +305,7 @@ Usage:
   if ! _url_check_connectivity "https://api.rebrandly.com"; then
     return 1
   fi
-  
+
   curl -X POST "https://api.rebrandly.com/v1/links" \
     -H "Content-Type: application/json" \
     -H "apikey: $REBRANDLY_API_KEY" \
@@ -321,7 +321,7 @@ alias url-encode='() {
   echo "URL encode a string.
 Usage:
  url-encode <text>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -330,7 +330,7 @@ Usage:
     echo "Error: python3 is required for URL encoding" >&2
     return 1
   fi
-  
+
   python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$1"
 }' # URL encode a string
 
@@ -339,7 +339,7 @@ alias url-decode='() {
   echo "URL decode a string.
 Usage:
  url-decode <encoded_text>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -348,7 +348,7 @@ Usage:
     echo "Error: python3 is required for URL decoding" >&2
     return 1
   fi
-  
+
   python3 -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.argv[1]))" "$1"
 }' # URL decode a string
 
@@ -361,7 +361,7 @@ alias url-extract-domain='() {
   echo "Extract domain from URL.
 Usage:
  url-extract-domain <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -369,7 +369,7 @@ Usage:
   if ! _url_validate_url "$1"; then
     return 1
   fi
-  
+
   python3 -c "import sys, urllib.parse; print(urllib.parse.urlparse(sys.argv[1]).netloc)" "$1"
 }' # Extract domain from URL
 
@@ -378,7 +378,7 @@ alias url-status='() {
   echo "Check HTTP status code of a URL.
 Usage:
  url-status <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -390,7 +390,7 @@ Usage:
   if ! _url_validate_url "$1"; then
     return 1
   fi
-  
+
   local status=$(curl -s -o /dev/null -w "%{http_code}" "$1")
   echo "HTTP Status code for $1: $status"
 }' # Check HTTP status code of a URL
@@ -400,7 +400,7 @@ alias url-check='() {
   echo "Check if a URL is accessible.
 Usage:
  url-check <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -412,7 +412,7 @@ Usage:
   if ! _url_validate_url "$1"; then
     return 1
   fi
-  
+
   if curl --silent --head --fail "$1" >/dev/null; then
     echo "✅ URL is accessible: $1"
     return 0
@@ -427,7 +427,7 @@ alias url-headers='() {
   echo "Get HTTP headers of a URL.
 Usage:
  url-headers <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -439,7 +439,7 @@ Usage:
   if ! _url_validate_url "$1"; then
     return 1
   fi
-  
+
   curl -s -I "$1"
 }' # Get HTTP headers of a URL
 
@@ -448,7 +448,7 @@ alias url-open='() {
   echo "Open URL in default browser.
 Usage:
  url-open <url>"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -456,7 +456,7 @@ Usage:
   if ! _url_validate_url "$1"; then
     return 1
   fi
-  
+
   if [[ "$OSTYPE" == "darwin"* ]]; then
     open "$1"
   elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -477,7 +477,7 @@ alias url-to-qr='() {
   echo "Generate QR code for URL.
 Usage:
  url-to-qr <url> [size:300]"
-  
+
   if [ $# -eq 0 ]; then
     return 1
   fi
@@ -485,18 +485,18 @@ Usage:
   if ! _url_validate_url "$1"; then
     return 1
   fi
-  
+
   local url="$1"
   local size="${2:-300}"
-  
+
   if ! _url_check_connectivity "https://api.qrserver.com"; then
     return 1
   fi
-  
+
   local qr_url="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${url}"
-  
+
   echo "QR code URL: $qr_url"
-  
+
   if [[ "$OSTYPE" == "darwin"* ]]; then
     open "$qr_url"
   elif [[ "$OSTYPE" == "linux-gnu"* ]]; then

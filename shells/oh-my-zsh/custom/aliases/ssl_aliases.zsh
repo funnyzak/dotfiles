@@ -508,3 +508,19 @@ EOF
   echo "Config: $output_dir/$domain.cnf"
   return 0
 }'
+
+alias ssl-help='() {
+  echo "SSL Certificate Management Aliases Help"
+  echo "==================================="
+  echo "Available commands:"
+  echo "  install-acmesh     - Install acme.sh SSL certificate tool"
+  echo "  acme.sh            - Quick access to acme.sh SSL tool"
+  echo "  ssl-self-signed    - Generate a self-signed SSL certificate"
+  echo "  ssl-info           - View SSL certificate information"
+  echo "  ssl-check          - Check SSL/TLS connection to a server"
+  echo "  ssl-expires        - Check SSL certificate expiration"
+  echo "  ssl-convert        - Convert SSL certificate between formats"
+  echo "  ssl-extract        - Extract SSL certificates from a domain"
+  echo "  ssl-csr            - Generate a Certificate Signing Request (CSR)"
+  echo "  ssl-help           - Display this help message"
+}' # Display help for SSL certificate management aliases
