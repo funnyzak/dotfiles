@@ -141,7 +141,7 @@ best_remote_url_prefix() {
 }
 
 # Load zsh-autosuggestions and zsh-syntax-highlighting plugins
-_aliases_load_plugins() {
+_zsh_load_plugins() {
   # Parse arguments for force option
   local force=0
   while [[ $# -gt 0 ]]; do
@@ -229,7 +229,7 @@ _zsh_plugins_load
 
 alias zsh-load-plugins='(){
   echo "Force loading plugins..."
-  _aliases_load_plugins -f
+  _zsh_load_plugins -f
   echo "Plugins loaded successfully."
 }'
 
