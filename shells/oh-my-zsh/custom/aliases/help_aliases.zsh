@@ -22,6 +22,20 @@ alias aliases-help='() {
   local categories=()
   local files=()
   local descriptions=()
+  local verbose=false
+
+  # Check for verbose flag
+  for arg in "$@"; do
+    if [[ "$arg" == "-v" || "$arg" == "--verbose" ]]; then
+      verbose=true
+    fi
+  done
+
+  # Print verbose information if requested
+  if $verbose; then
+    echo "\033[1;34m[DEBUG] Starting aliases-help with verbose output\033[0m"
+    echo "\033[1;34m[DEBUG] Aliases directory: $aliases_dir\033[0m"
+  fi
 
   echo "\n\033[1;36m===== Available Aliases Index =====\033[0m\n"
 
@@ -32,9 +46,26 @@ alias aliases-help='() {
   fi
 
   # Collect information from all alias files
+  if $verbose; then
+    echo "\033[1;34m[DEBUG] Searching for alias files in: $aliases_dir\033[0m"
+  fi
+
+  # Use temp files instead of arrays for better compatibility
+  local tmp_categories=$(mktemp)
+  local tmp_files=$(mktemp)
+  local tmp_descriptions=$(mktemp)
+
+  if $verbose; then
+    echo "\033[1;34m[DEBUG] Created temp files for storing data\033[0m"
+  fi
+
   while IFS= read -r file; do
     # Skip non-zsh files
     [[ "$file" != *.zsh ]] && continue
+
+    if $verbose; then
+      echo "\033[1;34m[DEBUG] Processing file: $file\033[0m"
+    fi
 
     # Get filename without path and extension
     local name=$(basename "$file" .zsh | sed "s/_aliases//")
@@ -63,11 +94,19 @@ alias aliases-help='() {
       category="Help & Configuration"
     fi
 
-    # Save information
-    categories+=("$category")
-    files+=("$name")
-    descriptions+=("$desc")
+    if $verbose; then
+      echo "\033[1;34m[DEBUG] File: $name, Category: $category, Desc: $desc\033[0m"
+    fi
+
+    # Save information to temp files
+    echo "$category" >> "$tmp_categories"
+    echo "$name" >> "$tmp_files"
+    echo "$desc" >> "$tmp_descriptions"
   done < <(find "$aliases_dir" -type f -name "*_aliases.zsh" | sort)
+
+  if $verbose; then
+    echo "\033[1;34m[DEBUG] Found ${#files[@]} alias files\033[0m"
+  fi
 
   # Display by category
   # Create array of unique categories
@@ -89,6 +128,10 @@ alias aliases-help='() {
   # Sort the unique_categories array
   IFS=$"\n" unique_categories=($(sort <<<"${unique_categories[*]}"))
   unset IFS
+
+  if $verbose; then
+    echo "\033[1;34m[DEBUG] Found ${#unique_categories[@]} unique categories\033[0m"
+  fi
 
   for category in "${unique_categories[@]}"; do
     echo "\033[1;33m$category:\033[0m"
