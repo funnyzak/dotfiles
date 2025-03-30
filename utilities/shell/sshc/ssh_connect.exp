@@ -272,6 +272,10 @@ proc connect_ssh {server_info} {
             # Match shell prompt to detect successful connection
             -re {(.*[$#%>]|.*[@].+[:])} {
                 send_user "${COLOR_SUCCESS}Successfully connected to $name (ID: $id)!${COLOR_RESET}\n"
+                # Send an empty line before entering interactive mode to help activate the terminal
+                send "\r"
+                # Brief delay to ensure the terminal is ready
+                sleep 0.5
                 interact
                 return 1
             }
