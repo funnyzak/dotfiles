@@ -225,7 +225,7 @@ _zsh_load_plugins() {
   rm -rf "$TEMP_DIR"
 }
 
-_zsh_plugins_load
+_zsh_load_plugins
 
 alias zsh-load-plugins='(){
   echo "Force loading plugins..."
