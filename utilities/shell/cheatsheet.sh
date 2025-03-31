@@ -86,11 +86,21 @@ COMMAND_DESCRIPTIONS["killall"]="按名称终止进程"
 COMMAND_CATEGORIES["less"]="system"
 COMMAND_DESCRIPTIONS["less"]="文件内容分页查看器"
 
+COMMAND_CATEGORIES["tail"]="system"
+COMMAND_DESCRIPTIONS["tail"]="查看文件尾部内容"
+
 COMMAND_CATEGORIES["ln"]="system"
 COMMAND_DESCRIPTIONS["ln"]="创建链接文件"
 
 COMMAND_CATEGORIES["lsof"]="system"
 COMMAND_DESCRIPTIONS["lsof"]="列出打开文件"
+
+COMMAND_CATEGORIES["date"]="system"
+COMMAND_DESCRIPTIONS["date"]="显示或设置系统日期和时间"
+
+COMMAND_CATEGORIES["more"]="system"
+COMMAND_DESCRIPTIONS["more"]="分页查看文件内容"
+
 
 COMMAND_CATEGORIES["mount"]="system"
 COMMAND_DESCRIPTIONS["mount"]="挂载文件系统"
