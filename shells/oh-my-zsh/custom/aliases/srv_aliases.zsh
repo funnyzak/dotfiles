@@ -896,6 +896,257 @@ alias kill-keyword='() {
   fi
 }' # Kill processes matching a keyword
 
+# Login welcome message management
+# -----------------------------
+alias srv-toggle-welcome='() {
+  echo -e "Toggle system login welcome message.\nUsage:\n  srv-toggle-welcome [--status|-s] [--verbose|-v]"
+  echo "Options:"
+  echo "  --status, -s    Only show current status without toggling"
+  echo "  --verbose, -v   Show detailed information"
+
+  local status_only=0
+  local verbose=0
+
+  # Parse arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --status|-s)
+        status_only=1
+        shift
+        ;;
+      --verbose|-v)
+        verbose=1
+        shift
+        ;;
+      *)
+        echo "Error: Unknown option $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  # Function to check welcome message status
+  _check_welcome_status() {
+    local motd_status="Unknown"
+    local issue_status="Unknown"
+    local system_type=""
+
+    # Detect system type
+    if [ -f "/etc/os-release" ]; then
+      system_type=$(grep -oP "^ID=\K.*" /etc/os-release | tr -d \")
+    elif [ "$(uname)" = "Darwin" ]; then
+      system_type="macos"
+    else
+      system_type="unknown"
+    fi
+
+    # Check common welcome message files
+    if [ "$system_type" = "macos" ]; then
+      if [ -f "/etc/motd" ] && [ -s "/etc/motd" ]; then
+        motd_status="Enabled"
+      else
+        motd_status="Disabled or empty"
+      fi
+    else
+      # Linux systems
+      # Check if motd is enabled
+      if [ -f "/etc/pam.d/login" ] && grep -q "motd" "/etc/pam.d/login" 2>/dev/null && ! grep -q "^#.*motd" "/etc/pam.d/login" 2>/dev/null; then
+        motd_status="Enabled in PAM"
+      elif [ -d "/etc/update-motd.d" ] && [ "$(ls -A /etc/update-motd.d 2>/dev/null)" ]; then
+        motd_status="Enabled via update-motd.d"
+      elif [ -f "/etc/motd" ] && [ -s "/etc/motd" ]; then
+        motd_status="Enabled via /etc/motd"
+      else
+        motd_status="Disabled or not configured"
+      fi
+
+      # Check issue files
+      if [ -f "/etc/issue" ] && [ -s "/etc/issue" ]; then
+        issue_status="Enabled"
+      else
+        issue_status="Disabled or empty"
+      fi
+    fi
+
+    echo "System type: $system_type"
+    echo "MOTD status: $motd_status"
+    if [ "$system_type" != "macos" ]; then
+      echo "Issue status: $issue_status"
+    fi
+
+    # Show detailed information if verbose
+    if [ "$verbose" -eq 1 ]; then
+      echo ""
+      echo "Welcome message configuration files:"
+
+      if [ -f "/etc/motd" ]; then
+        echo "- /etc/motd exists ($(wc -l < /etc/motd 2>/dev/null || echo "0") lines)"
+      else
+        echo "- /etc/motd does not exist"
+      fi
+
+      if [ "$system_type" != "macos" ]; then
+        if [ -f "/etc/issue" ]; then
+          echo "- /etc/issue exists ($(wc -l < /etc/issue 2>/dev/null || echo "0") lines)"
+        else
+          echo "- /etc/issue does not exist"
+        fi
+
+        if [ -f "/etc/issue.net" ]; then
+          echo "- /etc/issue.net exists ($(wc -l < /etc/issue.net 2>/dev/null || echo "0") lines)"
+        else
+          echo "- /etc/issue.net does not exist"
+        fi
+
+        if [ -d "/etc/update-motd.d" ]; then
+          echo "- /etc/update-motd.d directory exists with $(ls -A /etc/update-motd.d 2>/dev/null | wc -l) files"
+        else
+          echo "- /etc/update-motd.d directory does not exist"
+        fi
+      fi
+    fi
+  }
+
+  # If status only, just show status and return
+  if [ "$status_only" -eq 1 ]; then
+    _check_welcome_status
+    return 0
+  fi
+
+  # Detect system type for toggling
+  local system_type=""
+  if [ -f "/etc/os-release" ]; then
+    system_type=$(grep -oP "^ID=\K.*" /etc/os-release | tr -d \")
+  elif [ "$(uname)" = "Darwin" ]; then
+    system_type="macos"
+  else
+    system_type="unknown"
+  fi
+
+  echo "System type detected: $system_type"
+
+  # Toggle welcome message based on system type
+  if [ "$system_type" = "macos" ]; then
+    # macOS - Toggle MOTD
+    if [ -f "/etc/motd" ] && [ -s "/etc/motd" ]; then
+      echo "Disabling welcome message (backing up /etc/motd to /etc/motd.bak)"
+      sudo cp /etc/motd /etc/motd.bak
+      sudo truncate -s 0 /etc/motd
+      echo "Welcome message disabled"
+    else
+      echo "Enabling welcome message"
+      if [ -f "/etc/motd.bak" ]; then
+        sudo cp /etc/motd.bak /etc/motd
+        echo "Restored from backup file"
+      else
+        echo "No backup found. Creating default welcome message"
+        echo "Welcome to macOS" | sudo tee /etc/motd > /dev/null
+      fi
+      echo "Welcome message enabled"
+    fi
+
+  # Ubuntu/Debian
+  elif [ "$system_type" = "ubuntu" ] || [ "$system_type" = "debian" ]; then
+    # Check if update-motd.d exists
+    if [ -d "/etc/update-motd.d" ]; then
+      # Check if files exist and if they"re executable
+      local files=$(ls /etc/update-motd.d/* 2>/dev/null)
+      if [ -n "$files" ]; then
+        local enabled_count=0
+        local disabled_count=0
+
+        for file in $files; do
+          if [ -x "$file" ]; then
+            enabled_count=$((enabled_count + 1))
+          else
+            disabled_count=$((disabled_count + 1))
+          fi
+        done
+
+        # If more files are enabled than disabled, disable all
+        if [ "$enabled_count" -ge "$disabled_count" ]; then
+          echo "Disabling welcome messages (removing execute permission from MOTD scripts)"
+          sudo chmod -x /etc/update-motd.d/* 2>/dev/null
+          echo "Welcome messages disabled"
+        else
+          echo "Enabling welcome messages (adding execute permission to MOTD scripts)"
+          sudo chmod +x /etc/update-motd.d/* 2>/dev/null
+          echo "Welcome messages enabled"
+        fi
+      else
+        echo "No MOTD scripts found in /etc/update-motd.d"
+      fi
+    else
+      # Fallback to traditional motd file
+      if [ -f "/etc/motd" ] && [ -s "/etc/motd" ]; then
+        echo "Disabling welcome message (backing up /etc/motd to /etc/motd.bak)"
+        sudo cp /etc/motd /etc/motd.bak
+        sudo truncate -s 0 /etc/motd
+        echo "Welcome message disabled"
+      else
+        echo "Enabling welcome message"
+        if [ -f "/etc/motd.bak" ]; then
+          sudo cp /etc/motd.bak /etc/motd
+          echo "Restored from backup file"
+        else
+          echo "No backup found. Welcome message needs to be manually configured."
+        fi
+      fi
+    fi
+
+  # RHEL/CentOS/Fedora
+  elif [ "$system_type" = "rhel" ] || [ "$system_type" = "centos" ] || [ "$system_type" = "fedora" ]; then
+    # Check PAM configuration
+    if [ -f "/etc/pam.d/login" ]; then
+      if grep -q "^[^#].*pam_motd.so" "/etc/pam.d/login" 2>/dev/null; then
+        echo "Disabling welcome message via PAM"
+        sudo sed -i.bak "/pam_motd.so/s/^/#/" /etc/pam.d/login
+      else
+        echo "Enabling welcome message via PAM"
+        if grep -q "^#.*pam_motd.so" "/etc/pam.d/login" 2>/dev/null; then
+          sudo sed -i.bak "/pam_motd.so/s/^#//" /etc/pam.d/login
+        fi
+      fi
+    fi
+
+    # Also handle /etc/motd directly
+    if [ -f "/etc/motd" ] && [ -s "/etc/motd" ]; then
+      echo "Disabling welcome message (backing up /etc/motd to /etc/motd.bak)"
+      sudo cp /etc/motd /etc/motd.bak
+      sudo truncate -s 0 /etc/motd
+    else
+      echo "Enabling welcome message"
+      if [ -f "/etc/motd.bak" ]; then
+        sudo cp /etc/motd.bak /etc/motd
+        echo "Restored from backup file"
+      fi
+    fi
+
+  # Generic Unix-like system
+  else
+    echo "Generic Unix-like system detected"
+    if [ -f "/etc/motd" ] && [ -s "/etc/motd" ]; then
+      echo "Disabling welcome message (backing up /etc/motd to /etc/motd.bak)"
+      sudo cp /etc/motd /etc/motd.bak
+      sudo truncate -s 0 /etc/motd
+      echo "Welcome message disabled"
+    else
+      echo "Enabling welcome message"
+      if [ -f "/etc/motd.bak" ]; then
+        sudo cp /etc/motd.bak /etc/motd
+        echo "Restored from backup file"
+      else
+        echo "No backup found. Welcome message needs to be manually configured."
+      fi
+    fi
+  fi
+
+  # Show the new status after toggling
+  echo ""
+  echo "New status:"
+  _check_welcome_status
+}' # Toggle system login welcome message
+
 # Help function for server aliases
 alias srv-help='() {
   echo "Server Management Aliases Help"
