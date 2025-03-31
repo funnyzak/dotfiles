@@ -66,15 +66,15 @@
 set -euo pipefail
 
 # Script version
-SCRIPT_VERSION="v1.2.0"
+SCRIPT_VERSION="v0.0.10"
 
 # Color definitions
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-PLAIN='\033[0m'
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+YELLOW="\033[0;33m"
+BLUE="\033[0;34m"
+CYAN="\033[0;36m"
+PLAIN="\033[0m"
 
 # Ensure PATH includes standard directories
 export PATH=$PATH:/usr/local/bin:/usr/bin:/bin
@@ -1059,25 +1059,25 @@ show_frpc_tips() {
 # Display detailed usage information
 show_help() {
     cat <<EOF
-${BLUE}┌─────────────────────────────────────────────┐${PLAIN}
-${BLUE}│               FRPC Installer                │${PLAIN}
-${BLUE}│                ${SCRIPT_VERSION}                     │${PLAIN}
-${BLUE}└─────────────────────────────────────────────┘${PLAIN}
+$(echo -e "${BLUE}")┌─────────────────────────────────────────────┐$(echo -e "${PLAIN}")
+$(echo -e "${BLUE}")│               FRPC Installer                │$(echo -e "${PLAIN}")
+$(echo -e "${BLUE}")│               ${SCRIPT_VERSION}             │$(echo -e "${PLAIN}")
+$(echo -e "${BLUE}")└─────────────────────────────────────────────┘$(echo -e "${PLAIN}")
 
 FRP Client (frpc) is a tool for intranet penetration.
 This script helps install, configure, and manage frpc on your system.
 
-${YELLOW}Usage:${PLAIN}
+$(echo -e "${YELLOW}")Usage:$(echo -e "${PLAIN}")
   $0 [command] [options...]
 
-${YELLOW}Commands:${PLAIN}
+$(echo -e "${YELLOW}")Commands:$(echo -e "${PLAIN}")
   install [options]               Install and configure frpc
   config                          Show current frpc configuration
   uninstall                       Remove frpc installation
   tips                            Show helpful tips and commands
   help                            Display this help information
 
-${YELLOW}Options for install command:${PLAIN}
+$(echo -e "${YELLOW}")Options for install command:$(echo -e "${PLAIN}")
   --token <value>                 Set the FRP server token (required)
   --config-url <url>              Download configuration from URL
   --config-file <path>            Use local configuration file
@@ -1087,7 +1087,7 @@ ${YELLOW}Options for install command:${PLAIN}
   --config-path <path>            Custom config file path
   --version <version>             Specific version to install
 
-${YELLOW}Environment variables (alternatives to command options):${PLAIN}
+$(echo -e "${YELLOW}")Environment variables (alternatives to command options):$(echo -e "${PLAIN}")
   FRPC_INSTALL_PATH               Custom installation path (default: /opt/frpc)
   FRPC_CONFIG_PATH                Custom config path (default: /etc/frp/frpc.toml)
   FRPC_DOWNLOAD_URL               Custom download URL for frpc package
@@ -1099,7 +1099,7 @@ ${YELLOW}Environment variables (alternatives to command options):${PLAIN}
   TMP_PATH                        Temporary directory for downloads (default: /tmp/frpc_install)
   FRPC_SERVICE_NAME              Systemd service name (default: ${FRPC_SERVICE_NAME})
 
-${YELLOW}Examples:${PLAIN}
+$(echo -e "${YELLOW}")Examples:$(echo -e "${PLAIN}")
   # Install with URL configuration:
   $0 install --token my-token-value --config-url http://example.com/frpc.toml
 
