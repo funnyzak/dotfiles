@@ -198,8 +198,8 @@ alias kill-pid='() {
   fi
 }' # Kill process by PID
 
-alias sys-overview='() {
-  echo -e "Show system overview.\nUsage:\n  sys-overview"
+alias srv-overview='() {
+  echo -e "Show system overview.\nUsage:\n  srv-overview"
 
   echo "=== System Info ==="
   uname -a
@@ -231,8 +231,8 @@ alias sys-overview='() {
   uptime
 }' # Show system overview
 
-alias list-users='() {
-  echo -e "List all users on the system.\nUsage:\n  list-users [--active|-a]"
+alias srv-list-users='() {
+  echo -e "List all users on the system.\nUsage:\n  srv-list-users [--active|-a]"
 
   if [ "$1" = "--active" ] || [ "$1" = "-a" ]; then
     echo "Listing active users:"
@@ -258,8 +258,8 @@ alias list-users='() {
   fi
 }' # List system users
 
-alias clean-system='() {
-  echo -e "Clean system caches and temporary files.\nUsage:\n  clean-system [--thorough|-t]"
+alias srv-clean-system='() {
+  echo -e "Clean system caches and temporary files.\nUsage:\n  srv-clean-system [--thorough|-t]"
 
   local thorough=0
   if [ "$1" = "--thorough" ] || [ "$1" = "-t" ]; then
@@ -312,8 +312,8 @@ alias clean-system='() {
   echo "=== System cleaning complete ==="
 }' # Clean system caches and temp files
 
-alias backup-config='() {
-  echo -e "Backup system configuration files.\nUsage:\n  backup-config [destination:~/backups]"
+alias srv-backup-config='() {
+  echo -e "Backup system configuration files.\nUsage:\n  srv-backup-config [destination:~/backups]"
 
   local destination="${1:-$HOME/backups}"
   local date_str=$(date +%Y%m%d-%H%M%S)
@@ -347,8 +347,8 @@ alias backup-config='() {
 
 # Time synchronization
 # -----------------------------
-alias sync-time='() {
-  echo -e "Synchronize system time with NTP servers.\nUsage:\n  sync-time [ntp_server:pool.ntp.org]"
+alias srv-sync-time='() {
+  echo -e "Synchronize system time with NTP servers.\nUsage:\n  srv-sync-time [ntp_server:pool.ntp.org]"
 
   local ntp_server="${1:-pool.ntp.org}"
 
@@ -423,6 +423,479 @@ alias sync-time='() {
   echo "Current system time: $(date)"
 }' # Synchronize system time with NTP servers
 
+alias srv-fix-locale='() {
+  echo -e "Check and fix system locale settings.\nUsage:\n  srv-fix-locale [options] [target_locale:en_US.UTF-8]\nOptions:\n  --auto|-a       Auto-fix without prompting\n  --list|-l       List available locales\n  --test|-t       Test mode (no changes)\n  --verbose|-v    Verbose output"
+
+  # Parse arguments
+  local auto_fix=0
+  local test_mode=0
+  local verbose=0
+  local list_mode=0
+  local target_locale=""
+
+  # Process all arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --auto|-a)
+        auto_fix=1
+        shift
+        ;;
+      --test|-t)
+        test_mode=1
+        shift
+        ;;
+      --verbose|-v)
+        verbose=1
+        shift
+        ;;
+      --list|-l)
+        list_mode=1
+        shift
+        ;;
+      *)
+        # If not an option, treat as target locale
+        if [[ ! "$1" =~ ^- ]]; then
+          target_locale="$1"
+          shift
+        else
+          echo "Error: Unknown option $1" >&2
+          return 1
+        fi
+        ;;
+    esac
+  done
+
+  # List available locales and exit if requested
+  if [ "$list_mode" -eq 1 ]; then
+    echo "Available locales on this system:"
+    locale -a
+    return 0
+  fi
+
+  # Detect system type
+  local system_type=""
+  if [ -f "/etc/os-release" ]; then
+    system_type=$(grep -oP "^ID=\K.*" /etc/os-release | tr -d \")
+  elif [ "$(uname)" = "Darwin" ]; then
+    system_type="macos"
+  else
+    system_type="unknown"
+  fi
+
+  if [ "$verbose" -eq 1 ]; then
+    echo "Detected system: $system_type"
+  fi
+
+  # Determine target locale if not specified
+  if [ -z "$target_locale" ]; then
+    # Try to detect current system locale or fallback to en_US.UTF-8
+    if [ -n "$LANG" ]; then
+      target_locale="$LANG"
+    elif [ -f "/etc/default/locale" ]; then
+      target_locale=$(grep -oP "^LANG=\K.*" /etc/default/locale)
+    else
+      target_locale="en_US.UTF-8"
+    fi
+  fi
+
+  echo "Checking system locale settings (target: $target_locale)..."
+
+  # Check if locale command exists
+  if ! command -v locale >/dev/null 2>&1; then
+    echo "Error: locale command not found" >&2
+    return 1
+  fi
+
+  # Check current locale status
+  local locale_output
+  local has_error=0
+  locale_output=$(locale 2>&1)
+
+  if echo "$locale_output" | grep -q "Cannot set LC_"; then
+    has_error=1
+    echo "Issues found:"
+    echo "$locale_output" | grep "Cannot set LC_"
+    echo ""
+  fi
+
+  # On macOS, different validation approach
+  if [ "$system_type" = "macos" ]; then
+    if ! locale -a | grep -q "$target_locale"; then
+      has_error=1
+      echo "Warning: Target locale $target_locale not found on macOS" >&2
+    elif [ "$has_error" -eq 0 ]; then
+      echo "Locale settings appear correct on macOS"
+
+      if [ "$verbose" -eq 1 ]; then
+        echo "Current locale settings:"
+        locale
+      fi
+      return 0
+    fi
+  # Linux systems
+  else
+    # Check if target locale is available
+    if ! locale -a 2>/dev/null | grep -q "$target_locale"; then
+      echo "Warning: Target locale $target_locale not generated on this system"
+      has_error=1
+    elif [ "$has_error" -eq 0 ]; then
+      echo "Locale settings appear correct"
+
+      if [ "$verbose" -eq 1 ]; then
+        echo "Current locale settings:"
+        locale
+      fi
+      return 0
+    fi
+  fi
+
+  # Exit early in test mode
+  if [ "$test_mode" -eq 1 ]; then
+    if [ "$has_error" -eq 1 ]; then
+      echo "Test mode: Locale issues found, would fix by setting to $target_locale"
+    else
+      echo "Test mode: Locale settings appear correct"
+    fi
+    return 0
+  fi
+
+  # Prompt user for fix if not in auto mode
+  if [ "$has_error" -eq 1 ] && [ "$auto_fix" -eq 0 ]; then
+    echo "Would you like to fix locale settings to $target_locale? (y/n)"
+    read -r response
+    if ! [[ "$response" =~ ^[Yy]$ ]]; then
+      echo "User canceled. Keeping current settings."
+      return 0
+    fi
+  fi
+
+  # If we get here, either has_error=1 and (auto_fix=1 or user said yes)
+  if [ "$has_error" -eq 1 ]; then
+    echo "Starting locale fix process for $target_locale..."
+
+    # macOS specific fix
+    if [ "$system_type" = "macos" ]; then
+      echo "Setting macOS locale..."
+      if [ -f "$HOME/.zshrc" ]; then
+        # Check if LANG is already set in .zshrc
+        if grep -q "^export LANG=" "$HOME/.zshrc"; then
+          sed -i.bak "s|^export LANG=.*|export LANG=\"$target_locale\"|" "$HOME/.zshrc"
+        else
+          echo "export LANG=\"$target_locale\"" >> "$HOME/.zshrc"
+        fi
+
+        if grep -q "^export LC_ALL=" "$HOME/.zshrc"; then
+          sed -i.bak "s|^export LC_ALL=.*|export LC_ALL=\"$target_locale\"|" "$HOME/.zshrc"
+        else
+          echo "export LC_ALL=\"$target_locale\"" >> "$HOME/.zshrc"
+        fi
+      fi
+
+      # Apply to current session
+      export LANG="$target_locale"
+      export LC_ALL="$target_locale"
+
+    # Linux systems
+    else
+      # Debian/Ubuntu/etc.
+      if [ -f "/etc/locale.gen" ]; then
+        echo "Checking if locale needs to be generated..."
+
+        # Uncomment or add the target locale in locale.gen
+        local locale_pattern=$(echo "$target_locale" | sed "s/\./\\\./g")
+        if grep -q "^#\s*$locale_pattern" "/etc/locale.gen"; then
+          echo "Uncommenting $target_locale in /etc/locale.gen"
+          if [ "$verbose" -eq 1 ]; then
+            echo "Running: sudo sed -i \"s/^#\s*$locale_pattern/$locale_pattern/\" /etc/locale.gen"
+          fi
+          sudo sed -i "s/^#\s*$locale_pattern/$locale_pattern/" /etc/locale.gen
+        elif ! grep -q "$locale_pattern" "/etc/locale.gen"; then
+          echo "Adding $target_locale to /etc/locale.gen"
+          if [ "$verbose" -eq 1 ]; then
+            echo "Running: sudo bash -c \"echo \"$target_locale UTF-8\" >> /etc/locale.gen\""
+          fi
+          sudo bash -c "echo \"$target_locale UTF-8\" >> /etc/locale.gen"
+        else
+          echo "$target_locale already enabled in locale.gen"
+        fi
+
+        # Generate locales
+        echo "Generating locales..."
+        if [ "$verbose" -eq 1 ]; then
+          sudo locale-gen
+        else
+          sudo locale-gen > /dev/null
+        fi
+      fi
+
+      # Set default locale in appropriate config files
+      echo "Setting system-wide locale defaults..."
+
+      if [ -d "/etc/default" ]; then
+        if [ "$verbose" -eq 1 ]; then
+          echo "Updating /etc/default/locale with LANG=$target_locale and LC_ALL=$target_locale"
+        fi
+        sudo bash -c "echo \"LANG=$target_locale\" > /etc/default/locale"
+        sudo bash -c "echo \"LC_ALL=$target_locale\" >> /etc/default/locale"
+      fi
+
+      # Update user configs
+      if [ -f "$HOME/.profile" ]; then
+        echo "Updating user profile..."
+        if grep -q "export LANG=" "$HOME/.profile"; then
+          sed -i.bak "s|export LANG=.*|export LANG=\"$target_locale\"|" "$HOME/.profile"
+        else
+          echo "export LANG=\"$target_locale\"" >> "$HOME/.profile"
+        fi
+
+        if grep -q "export LC_ALL=" "$HOME/.profile"; then
+          sed -i.bak "s|export LC_ALL=.*|export LC_ALL=\"$target_locale\"|" "$HOME/.profile"
+        else
+          echo "export LC_ALL=\"$target_locale\"" >> "$HOME/.profile"
+        fi
+      fi
+    fi
+
+    # Apply to current session for both platforms
+    export LANG="$target_locale"
+    export LC_ALL="$target_locale"
+
+    echo "Locale fix applied. Verifying new settings..."
+    locale_output=$(locale 2>&1)
+
+    if echo "$locale_output" | grep -q "Cannot set LC_"; then
+      echo "Warning: Some locale issues still remain:" >&2
+      echo "$locale_output" | grep "Cannot set LC_" >&2
+      echo "A system restart may be required for all changes to take effect." >&2
+      return 1
+    else
+      echo "Locale successfully configured to $target_locale"
+      if [ "$verbose" -eq 1 ]; then
+        echo "Current locale settings:"
+        locale
+      fi
+      echo "Note: Some applications may require restart to recognize the new locale settings."
+    fi
+  fi
+}' # Check and fix system locale settings
+
+# Process management with enhanced killing options
+# -----------------------------
+alias kill-ports='() {
+  echo -e "Kill processes using specific ports.\nUsage:\n  kill-ports <port1> [port2] [port3] ..."
+  echo "Example:"
+  echo "  kill-ports 8080 3000 5000"
+  echo ""
+  echo "Note: Use with caution. This will kill all processes using the specified ports."
+  echo "      Ensure you have the correct ports to avoid killing unintended processes."
+
+  if [ $# -eq 0 ]; then
+    echo "Error: At least one port number is required" >&2
+    return 1
+  fi
+
+  local success=0
+  local error=0
+
+  for port in "$@"; do
+    if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+      echo "Error: \"$port\" is not a valid port number" >&2
+      error=1
+      continue
+    fi
+
+    local pid=""
+    local cmd=""
+
+    # Check if we"re on Linux or Mac
+    if command -v lsof >/dev/null 2>&1; then
+      pid=$(lsof -ti:$port)
+
+      # If pid is found, get process name
+      if [ -n "$pid" ]; then
+        cmd=$(ps -p "$pid" -o comm= 2>/dev/null)
+      fi
+    elif command -v netstat >/dev/null 2>&1; then
+      # Fallback to netstat if lsof is not available
+      pid=$(netstat -tuln 2>/dev/null | grep ":$port " | awk "{print \$7}" | cut -d/ -f1)
+
+      # If pid is found, get process name
+      if [ -n "$pid" ]; then
+        cmd=$(ps -p "$pid" -o comm= 2>/dev/null)
+      fi
+    else
+      echo "Error: Neither lsof nor netstat found" >&2
+      return 1
+    fi
+
+    if [ -z "$pid" ]; then
+      echo "No process found using port $port"
+      continue
+    fi
+
+    echo "Found process \"$cmd\" (PID: $pid) using port $port"
+    echo "Killing process..."
+
+    kill -15 $pid 2>/dev/null
+    sleep 0.1
+
+    # Check if process still exists, if yes try SIGKILL
+    if kill -0 $pid 2>/dev/null; then
+      echo "Process did not exit with SIGTERM, trying SIGKILL..."
+      kill -9 $pid
+    fi
+
+    # Verify process was killed
+    if ! kill -0 $pid 2>/dev/null; then
+      echo "Process using port $port killed successfully"
+      success=1
+    else
+      echo "Error: Failed to kill process using port $port" >&2
+      error=1
+    fi
+  done
+
+  if [ $error -eq 1 ] && [ $success -eq 0 ]; then
+    return 1
+  fi
+}' # Kill processes using specific ports
+
+alias kill-keyword='() {
+  echo -e "Kill processes matching a keyword.\nUsage:\n  kill-keyword <search_keyword> [--force|-f] [--interactive|-i]"
+  echo "Options:"
+  echo "  --force, -f       Force kill (SIGKILL)"
+  echo "  --interactive, -i  Ask for confirmation before killing each process"
+  echo ""
+  echo "Example:"
+  echo "  kill-keyword httpd --force"
+  echo "  kill-keyword sshd --interactive"
+  echo ""
+  echo "Note: Use with caution. This will kill all processes matching the keyword."
+  echo "      Ensure you have the correct keyword to avoid killing unintended processes."
+  echo ""
+
+  if [ $# -eq 0 ]; then
+    echo "Error: Search keyword required" >&2
+    return 1
+  fi
+
+  local keyword="$1"
+  shift
+
+  local force=0
+  local interactive=0
+
+  # Process options
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --force|-f)
+        force=1
+        shift
+        ;;
+      --interactive|-i)
+        interactive=1
+        shift
+        ;;
+      *)
+        echo "Error: Unknown option $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  # Find processes matching the keyword
+  local pids
+  local ps_cmd
+
+  if [ "$(uname)" = "Darwin" ]; then
+    # macOS ps format
+    ps_cmd="ps -ax -o pid,ppid,user,command"
+  else
+    # Linux ps format
+    ps_cmd="ps -eo pid,ppid,user,command"
+  fi
+
+  pids=$(eval "$ps_cmd" | grep -v "grep" | grep -i "$keyword" | awk "{print \$1}")
+
+  if [ -z "$pids" ]; then
+    echo "No processes found matching \"$keyword\""
+    return 0
+  fi
+
+  # Count matching processes
+  local count=$(echo "$pids" | wc -l)
+  count=$(echo "$count" | tr -d " \t")
+
+  echo "Found $count process(es) matching \"$keyword\":"
+
+  # Show process details
+  local pid_list=""
+  for pid in $pids; do
+    local cmd=$(ps -p "$pid" -o command= 2>/dev/null)
+    local user=$(ps -p "$pid" -o user= 2>/dev/null)
+    echo "PID: $pid | User: $user | Command: $cmd"
+    pid_list="$pid_list $pid"
+  done
+
+  # In interactive mode, ask for confirmation for each process
+  if [ "$interactive" -eq 1 ]; then
+    for pid in $pids; do
+      local cmd=$(ps -p "$pid" -o command= 2>/dev/null)
+      echo -n "Kill process $pid ($cmd)? (y/n): "
+      read -r response
+
+      if [[ "$response" =~ ^[Yy]$ ]]; then
+        if [ "$force" -eq 1 ]; then
+          kill -9 "$pid"
+        else
+          kill -15 "$pid"
+          sleep 0.1
+          # Check if process still exists, if yes try SIGKILL
+          if kill -0 "$pid" 2>/dev/null; then
+            echo "Process did not exit with SIGTERM, trying SIGKILL..."
+            kill -9 "$pid"
+          fi
+        fi
+
+        if ! kill -0 "$pid" 2>/dev/null; then
+          echo "Process $pid killed successfully"
+        else
+          echo "Error: Failed to kill process $pid" >&2
+        fi
+      else
+        echo "Skipped process $pid"
+      fi
+    done
+  else
+    # Kill all processes at once
+    echo "Killing all matching processes..."
+
+    local signal="-15"
+    if [ "$force" -eq 1 ]; then
+      signal="-9"
+    fi
+
+    for pid in $pids; do
+      kill $signal "$pid" 2>/dev/null
+
+      if [ "$force" -ne 1 ]; then
+        sleep 0.1
+        # Check if process still exists, if yes try SIGKILL
+        if kill -0 "$pid" 2>/dev/null; then
+          echo "Process $pid did not exit with SIGTERM, trying SIGKILL..."
+          kill -9 "$pid"
+        fi
+      fi
+
+      if ! kill -0 "$pid" 2>/dev/null; then
+        echo "Process $pid killed successfully"
+      else
+        echo "Error: Failed to kill process $pid" >&2
+      fi
+    done
+  fi
+}' # Kill processes matching a keyword
+
 # Help function for server aliases
 alias srv-help='() {
   echo "Server Management Aliases Help"
@@ -452,14 +925,17 @@ alias srv-help='() {
   echo ""
   echo "  Process management:"
   echo "  kill-pid          - Kill process by PID"
+  echo "  kill-ports        - Kill processes using specific ports"
+  echo "  kill-keyword      - Kill processes matching a keyword"
   echo ""
   echo "  System information and monitoring:"
-  echo "  sys-overview      - Show system overview"
-  echo "  list-users        - List all users on the system"
+  echo "  srv-overview      - Show system overview"
+  echo "  srv-list-users    - List all users on the system"
   echo ""
   echo "  System maintenance:"
-  echo "  clean-system      - Clean system caches and temporary files"
-  echo "  backup-config     - Backup system configuration files"
-  echo "  sync-time         - Synchronize system time with NTP servers"
-  echo "  srv-help          - Display this help message"
+  echo "  srv-clean-system      - Clean system caches and temporary files"
+  echo "  srv-backup-config     - Backup system configuration files"
+  echo "  srv-sync-time         - Synchronize system time with NTP servers"
+  echo "  srv-fix-locale        - Check and fix system locale settings"
+  echo "  srv-help              - Display this help message"
 }' # Display help for server management aliases
