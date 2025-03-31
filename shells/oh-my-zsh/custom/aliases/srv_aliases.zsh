@@ -2,13 +2,13 @@
 
 # System service management shortcuts
 # -----------------------------
-alias sc="systemctl" # Control system services
-alias scs="systemctl status" # Check system service status
+alias sc="systemctl"            # Control system services
+alias scs="systemctl status"    # Check system service status
 alias scstart="systemctl start" # Start system service
-alias scstop="systemctl stop" # Stop system service
-alias scr="systemctl restart" # Restart system service
-alias sce="systemctl enable" # Enable system service
-alias scd="systemctl disable" # Disable system service
+alias scstop="systemctl stop"   # Stop system service
+alias scr="systemctl restart"   # Restart system service
+alias sce="systemctl enable"    # Enable system service
+alias scd="systemctl disable"   # Disable system service
 
 # Enhanced systemctl functions
 # -----------------------------
@@ -36,9 +36,9 @@ alias sc-failed='() {
 # System log shortcuts
 # -----------------------------
 alias auditlog="tail -f /var/log/audit/audit.log -n 100" # Monitor audit logs
-alias syslog="tail -f /var/log/syslog -n 100" # Monitor system logs
-alias kernlog="tail -f /var/log/kern.log -n 100" # Monitor kernel logs
-alias authlog="tail -f /var/log/auth.log -n 100" # Monitor authentication logs
+alias syslog="tail -f /var/log/syslog -n 100"            # Monitor system logs
+alias kernlog="tail -f /var/log/kern.log -n 100"         # Monitor kernel logs
+alias authlog="tail -f /var/log/auth.log -n 100"         # Monitor authentication logs
 
 # Enhanced log viewing functions
 # -----------------------------
@@ -258,7 +258,6 @@ alias list-users='() {
   fi
 }' # List system users
 
-
 alias clean-system='() {
   echo -e "Clean system caches and temporary files.\nUsage:\n  clean-system [--thorough|-t]"
 
@@ -346,6 +345,84 @@ alias backup-config='() {
   echo "Backup completed: $backup_file"
 }' # Backup system configuration files
 
+# Time synchronization
+# -----------------------------
+alias sync-time='() {
+  echo -e "Synchronize system time with NTP servers.\nUsage:\n  sync-time [ntp_server:pool.ntp.org]"
+
+  local ntp_server="${1:-pool.ntp.org}"
+
+  echo "Attempting to synchronize time with NTP server: $ntp_server"
+
+  # Check if running as root (required for time changes)
+  if [ "$(id -u)" -ne 0 ]; then
+    echo "Note: Time synchronization typically requires root privileges"
+    echo "Attempting with sudo..."
+  fi
+
+  # Try different time sync commands based on what is available
+  if command -v ntpdate >/dev/null 2>&1; then
+    echo "Using ntpdate for time synchronization..."
+    sudo ntpdate "$ntp_server"
+
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to synchronize time using ntpdate" >&2
+      return 1
+    fi
+
+  elif command -v chronyd >/dev/null 2>&1; then
+    echo "Using chronyd for time synchronization..."
+    sudo chronyd -q "server $ntp_server iburst"
+
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to synchronize time using chronyd" >&2
+      return 1
+    fi
+
+  elif command -v timedatectl >/dev/null 2>&1; then
+    echo "Using timedatectl for time synchronization..."
+    sudo timedatectl set-ntp true
+
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to enable NTP using timedatectl" >&2
+      return 1
+    fi
+
+    # Manually sync with specified server on systems with systemd-timesyncd
+    if [ -f "/etc/systemd/timesyncd.conf" ]; then
+      sudo sed -i.bak "s/^#*NTP=.*/NTP=$ntp_server/" /etc/systemd/timesyncd.conf
+      sudo systemctl restart systemd-timesyncd
+    fi
+
+  elif command -v sntp >/dev/null 2>&1; then
+    echo "Using sntp for time synchronization..."
+    sudo sntp -s "$ntp_server"
+
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to synchronize time using sntp" >&2
+      return 1
+    fi
+
+  # macOS specific
+  elif command -v systemsetup >/dev/null 2>&1; then
+    echo "Using macOS systemsetup for time synchronization..."
+    sudo systemsetup -setnetworktimeserver "$ntp_server"
+    sudo systemsetup -setusingnetworktime on
+
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to configure time server on macOS" >&2
+      return 1
+    fi
+
+  else
+    echo "Error: No supported time synchronization tools found (ntpdate, chronyd, timedatectl, sntp, or systemsetup)" >&2
+    return 1
+  fi
+
+  echo "System time synchronized successfully with $ntp_server"
+  echo "Current system time: $(date)"
+}' # Synchronize system time with NTP servers
+
 # Help function for server aliases
 alias srv-help='() {
   echo "Server Management Aliases Help"
@@ -383,5 +460,6 @@ alias srv-help='() {
   echo "  System maintenance:"
   echo "  clean-system      - Clean system caches and temporary files"
   echo "  backup-config     - Backup system configuration files"
+  echo "  sync-time         - Synchronize system time with NTP servers"
   echo "  srv-help          - Display this help message"
 }' # Display help for server management aliases
