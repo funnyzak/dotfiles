@@ -39,31 +39,6 @@ alias rmi='rm -i' # Interactive removal - prompts before deleting files
 
 alias fs-rm-interactive='rm -i' # Interactive removal - prompts before deleting files
 
-alias log100='() {
-  echo "Display last 100 lines of file and follow updates.\nUsage:\n log100 <file_path>"
-  tail -f -n 100 "$@"
-}' # Display last 100 lines of file and follow updates
-
-alias log200='() {
-  echo "Display last 200 lines of file and follow updates.\nUsage:\n log200 <file_path>"
-  tail -f -n 200 "$@"
-}' # Display last 200 lines of file and follow updates
-
-alias log500='() {
-  echo "Display last 500 lines of file and follow updates.\nUsage:\n log500 <file_path>"
-  tail -f -n 500 "$@"
-}' # Display last 500 lines of file and follow updates
-
-alias log1000='() {
-  echo "Display last 1000 lines of file and follow updates.\nUsage:\n log1000 <file_path>"
-  tail -f -n 1000 "$@"
-}' # Display last 1000 lines of file and follow updates
-
-alias log2000='() {
-  echo "Display last 2000 lines of file and follow updates.\nUsage:\n log2000 <file_path>"
-  tail -f -n 2000 "$@"
-}' # Display last 2000 lines of file and follow updates
-
 alias rmdir='() {
   if ! _validate_params_filesystem_aliases "Remove directory recursively.\nUsage:\n rmdir <directory_path>"; then
     return 1
@@ -1101,13 +1076,6 @@ alias fs-help='() {
   echo "  fs-create-html            - Create HTML file with basic structure"
   echo "  fs-create-batch           - Create batch files with numbered sequence"
   echo "  fs-mirror-files           - Create files with new extension based on existing files"
-  echo ""
-  echo "Display File Content:"
-  echo "  log100            - Display last 100 lines of file and follow updates"
-  echo "  log200            - Display last 200 lines of file and follow updates"
-  echo "  log500            - Display last 500 lines of file and follow updates"
-  echo "  log1000           - Display last 1000 lines of file and follow updates"
-  echo "  log2000           - Display last 2000 lines of file and follow updates"
   echo ""
   echo "File Copying:"
   echo "  fs-copy-by-ext            - Copy all files with specific extension to target directory"

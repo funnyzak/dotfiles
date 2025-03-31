@@ -18,6 +18,7 @@ __docker_compose_cmd() {
 # Container Management
 alias dps='() {
   echo "Displays all Docker containers.\nUsage:\n dps [container_name_filter]"
+  echo "Example: dps nginx"
   if [ -n "$1" ]; then
     docker ps -a | grep "$1"
   else
@@ -613,7 +614,7 @@ alias dbuildx='() {
 alias dhealth='() {
   echo "Checks Docker container health status.\nUsage:\n dhealth [container_name_filter]"
 
-  format="table {{.Names}}\t{{.Status}}\t{{.Health.Status}}"
+  format="table {{.Names}}\t{{.Status}}"
   if [ -n "$1" ]; then
     docker ps --format "$format" | grep "$1"
   else
@@ -681,6 +682,303 @@ alias dip='() {
   echo "IP addresses for container $1:"
   docker inspect --format="{{range \$key, \$value := .NetworkSettings.Networks}}{{printf \"\$key: %s\\n\" \$value.IPAddress}}{{end}}" "$1"
 }' # Shows container IP address(es)
+
+# Docker Installation and Configuration
+alias dinstall='() {
+  echo "Interactive Docker installation for Linux systems.\nUsage:\n dinstall [--mirror=aliyun|tencent|ustc|...]"
+
+  # Check if Docker is already installed
+  if command -v docker &> /dev/null; then
+    echo "Docker is already installed. Current version:"
+    docker --version
+
+    read -p "Do you want to reinstall Docker? (y/n): " reinstall_docker
+    if [ "$reinstall_docker" != "y" ] && [ "$reinstall_docker" != "Y" ]; then
+      echo "Docker installation cancelled"
+      return 0
+    fi
+  fi
+
+  # Check system type
+  if [[ "$(uname)" == "Darwin" ]]; then
+    echo "macOS detected. Please install Docker Desktop manually from https://www.docker.com/products/docker-desktop"
+    echo "Or use Homebrew: brew install --cask docker"
+    return 0
+  fi
+
+  # Check if running with root privileges
+  if [ "$(id -u)" -ne 0 ]; then
+    echo "This script requires root privileges to install Docker."
+    echo "Please run with sudo or as root."
+    return 1
+  fi
+
+  # Setup mirror if specified
+  mirror_option=""
+  mirror_name="Docker default"
+
+  if [[ "$1" == --mirror=* ]]; then
+    mirror_type="${1#--mirror=}"
+    case "$mirror_type" in
+      aliyun)
+        mirror_option="--mirror Aliyun"
+        mirror_name="Aliyun mirror"
+        ;;
+      tencent)
+        mirror_option="--mirror Tencent"
+        mirror_name="Tencent mirror"
+        ;;
+      ustc)
+        mirror_option="--mirror USTC"
+        mirror_name="USTC mirror"
+        ;;
+      *)
+        mirror_option="--mirror $mirror_type"
+        mirror_name="$mirror_type mirror"
+        ;;
+    esac
+  else
+    # Ask for mirror preference if not specified
+    echo "Please select a download mirror for faster installation:"
+    echo "1) Default (Docker official)"
+    echo "2) Aliyun (recommended for China mainland)"
+    echo "3) Tencent (recommended for China mainland)"
+    echo "4) USTC (recommended for China mainland)"
+    read -p "Select mirror [1-4]: " mirror_choice
+
+    case "$mirror_choice" in
+      2)
+        mirror_option="--mirror Aliyun"
+        mirror_name="Aliyun mirror"
+        ;;
+      3)
+        mirror_option="--mirror Tencent"
+        mirror_name="Tencent mirror"
+        ;;
+      4)
+        mirror_option="--mirror USTC"
+        mirror_name="USTC mirror"
+        ;;
+      *)
+        mirror_option=""
+        mirror_name="Docker default"
+        ;;
+    esac
+  fi
+
+  echo "Starting Docker installation using $mirror_name..."
+
+  # Install curl if not available
+  if ! command -v curl &> /dev/null; then
+    echo "Installing curl..."
+    if command -v apt-get &> /dev/null; then
+      apt-get update && apt-get install -y curl
+    elif command -v yum &> /dev/null; then
+      yum install -y curl
+    elif command -v dnf &> /dev/null; then
+      dnf install -y curl
+    else
+      echo "Error: Package manager not found. Please install curl manually."
+      return 1
+    fi
+  fi
+
+  # Run Docker installation script
+  echo "Downloading and running Docker installation script..."
+  if [ -z "$mirror_option" ]; then
+    curl -fsSL https://get.docker.com | bash
+  else
+    curl -fsSL https://get.docker.com | bash -s docker $mirror_option
+  fi
+
+  if [ $? -ne 0 ]; then
+    echo "Error: Docker installation failed. Please check your internet connection and try again."
+    return 1
+  fi
+
+  # Enable and start Docker service
+  if command -v systemctl &> /dev/null; then
+    echo "Enabling and starting Docker service..."
+    systemctl enable docker
+    systemctl start docker
+  fi
+
+  # Verify installation
+  if command -v docker &> /dev/null; then
+    echo "Docker installed successfully!"
+    docker --version
+    echo "You may need to add your user to the docker group to run Docker without sudo:"
+    echo "  sudo usermod -aG docker $USER"
+    echo "Then log out and log back in to apply the changes."
+  else
+    echo "Error: Docker installation verification failed."
+    return 1
+  fi
+}' # Interactive Docker installation script
+
+alias dchangedir='() {
+  echo "Change Docker data root directory.\nUsage:\n dchangedir [new_path] [--non-interactive]"
+
+  # Check if Docker is installed
+  if ! command -v docker &> /dev/null; then
+    echo "Error: Docker is not installed. Please install Docker first."
+    return 1
+  fi
+
+  # Check if running with root privileges
+  if [ "$(id -u)" -ne 0 ] && [ "$1" != "--info" ]; then
+    echo "Changing Docker data directory requires root privileges."
+    echo "Please run with sudo or as root."
+    echo "You can run \"dchangedir --info\" to view current Docker data directory without root privileges."
+    return 1
+  fi
+
+  # Show current Docker data root if requested
+  if [ "$1" == "--info" ]; then
+    echo "Current Docker data root directory:"
+    docker info | grep "Docker Root Dir"
+    return 0
+  fi
+
+  if ! command -v systemctl &> /dev/null; then
+    echo "Error: systemctl not found. This function is designed for systems using systemd."
+    echo "For other systems, please modify Docker configuration manually."
+    return 1
+  fi
+
+  # Get current Docker data directory
+  current_dir=$(docker info | grep "Docker Root Dir" | awk "{print $NF}")
+  echo "Current Docker data directory: $current_dir"
+
+  # Check if path is provided as argument
+  new_dir=""
+  non_interactive=0
+
+  if [ $# -gt 0 ]; then
+    for arg in "$@"; do
+      if [ "$arg" == "--non-interactive" ]; then
+        non_interactive=1
+      elif [ "$arg" != "--info" ]; then
+        new_dir="$arg"
+      fi
+    done
+  fi
+
+  # If no path provided and interactive mode, ask for input
+  if [ -z "$new_dir" ] && [ $non_interactive -eq 0 ]; then
+    read -p "Enter new Docker data directory path: " new_dir
+  fi
+
+  # Validate input
+  if [ -z "$new_dir" ]; then
+    echo "Error: No directory path provided."
+    return 1
+  fi
+
+  # Expand path if it starts with ~
+  if [[ "$new_dir" == "~"* ]]; then
+    new_dir="${new_dir/\~/$HOME}"
+  fi
+
+  # Check if the new directory exists, create if it doesn"t
+  if [ ! -d "$new_dir" ]; then
+    if [ $non_interactive -eq 0 ]; then
+      read -p "Directory '$new_dir' does not exist. Create it? (y/n): " create_dir
+      if [ "$create_dir" != "y" ] && [ "$create_dir" != "Y" ]; then
+        echo "Operation cancelled."
+        return 0
+      fi
+    fi
+
+    mkdir -p "$new_dir"
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to create directory '$new_dir'."
+      return 1
+    fi
+    echo "Created directory: $new_dir"
+  fi
+
+  # Check if daemon.json exists
+  daemon_json="/etc/docker/daemon.json"
+  if [ ! -f "$daemon_json" ]; then
+    echo "{}" > "$daemon_json"
+  fi
+
+  # Check if jq is installed
+  if ! command -v jq &> /dev/null; then
+    echo "jq is not installed. Using simple file manipulation instead."
+
+    # Simple approach without jq
+    if grep -q "data-root" "$daemon_json"; then
+      # Replace existing data-root value
+      sed -i "s|\"data-root\": \".*\"|\"data-root\": \"$new_dir\"|" "$daemon_json"
+    else
+      # Add data-root setting
+      contents=$(cat "$daemon_json")
+      if [ "$contents" == "{}" ]; then
+        echo "{
+  \"data-root\": \"$new_dir\"
+}" > "$daemon_json"
+      else
+        # Insert before the last curly brace
+        sed -i "s|}\s*$|, \"data-root\": \"$new_dir\" }|" "$daemon_json"
+      fi
+    fi
+  else
+    # Use jq for more reliable JSON manipulation
+    tmp_file=$(mktemp)
+    jq --arg dir "$new_dir" ". + {\"data-root\": \$dir}" "$daemon_json" > "$tmp_file"
+    mv "$tmp_file" "$daemon_json"
+  fi
+
+  # Set proper permissions
+  chmod 644 "$daemon_json"
+
+  echo "Updated Docker configuration to use data directory: $new_dir"
+
+  # Stop Docker service
+  echo "Stopping Docker service..."
+  systemctl stop docker
+
+  # Optional: Ask user if they want to migrate existing data
+  if [ -d "$current_dir" ] && [ "$current_dir" != "$new_dir" ] && [ $non_interactive -eq 0 ]; then
+    read -p "Do you want to migrate existing Docker data to the new location? This may take a while. (y/n): " migrate_data
+    if [ "$migrate_data" == "y" ] || [ "$migrate_data" == "Y" ]; then
+      echo "Migrating Docker data from $current_dir to $new_dir..."
+      rsync -aqxP "$current_dir/" "$new_dir/" || {
+        echo "Error: Failed to migrate data. Reverting changes..."
+        # Restore original configuration
+        if command -v jq &> /dev/null; then
+          jq --arg dir "$current_dir" ". + {\"data-root\": $dir}" "$daemon_json" > "$tmp_file"
+          mv "$tmp_file" "$daemon_json"
+        else
+          sed -i "s|\"data-root\": \".*\"|\"data-root\": \"$current_dir\"|" "$daemon_json"
+        fi
+        systemctl start docker
+        return 1
+      }
+      echo "Data migration completed successfully."
+    else
+      echo "Skipping data migration."
+    fi
+  fi
+
+  # Restart Docker service
+  echo "Starting Docker service..."
+  systemctl start docker
+
+  # Verify the change
+  sleep 2
+  new_current_dir=$(docker info 2>/dev/null | grep "Docker Root Dir" | awk "{print $NF}")
+
+  if [ "$new_current_dir" == "$new_dir" ]; then
+    echo "Docker data directory successfully changed to: $new_dir"
+  else
+    echo "Warning: Docker data directory change may not have taken effect."
+    echo "Current directory reported by Docker: $new_current_dir"
+    echo "Please check Docker logs for more information: journalctl -u docker"
+  fi
+}' # Change Docker data root directory
 
 alias dbuild='() {
   echo "Builds a Docker image.\nUsage:\n dbuild <path_to_dockerfile> <image_name>:<tag> [--no-cache]"
@@ -825,188 +1123,74 @@ alias dcval='() {
   fi
 }' # Validates Docker Compose file
 
-# Docker Help Function
-alias dkr-help='() {
+
+
+alias dspa='() {
+  echo "Shows the status of all Docker containers.\nUsage:\n dspa"
+  docker ps -a
+}' # Shows the status of all Docker containers
+
+# display stopped containers
+alias dstoped='() {
+  echo "Shows the status of stopped Docker containers.\nUsage:\n dstoped"
+  docker ps -f "status=exited"
+}' # Shows the status of stopped Docker containers
+
+
+alias docker_help='() {
   echo "Docker Aliases Help"
-  echo "=================="
-  echo "Shows list of all available Docker aliases with descriptions.\nUsage:\n dkr-help [category]"
+  echo "====================="
+  echo ""
+  echo "Container Management:"
+  echo "  dps                - List all containers (optionally filter by name)"
+  echo "  dpsa               - List all containers (including stopped ones)"
+  echo "  dstoped           - List stopped containers"
+  echo "  watchdps           - Monitor container status in real-time"
+  echo "  dstop              - Stop specified container(s)"
+  echo "  dstopall           - Stop all running containers"
+  echo "  drm                - Remove specified container(s)"
+  echo "  drst               - Restart specified container(s)"
+  echo "  dsrm               - Stop and remove specified container(s)"
+  echo ""
+  echo "Image Management:"
+  echo "  dimages            - List all images (optionally filter by name)"
+  echo "  drmi               - Remove specified image(s)"
+  echo "  dpl                - Pull an image from a registry"
+  echo "  dbuild             - Build a Docker image"
+  echo "  dtag               - Tag a Docker image"
+  echo "  dpush              - Push a Docker image to a registry"
+  echo ""
+  echo "Network Management:"
+  echo "  dnet               - List all networks (optionally filter by name)"
+  echo "  dnetconnect        - Connect a container to a network"
+  echo "  dnetdisconnect     - Disconnect a container from a network"
+  echo "  dnetcreate         - Create a new Docker network"
+  echo ""
+  echo "Volume Management:"
+  echo "  dvol               - List all volumes (optionally filter by name)"
+  echo "  dclean-vol         - Remove unused volumes"
+  echo ""
+  echo "Logs and Monitoring:"
+  echo "  dlogs              - View logs of a container"
+  echo "  dtail              - View live logs from multiple containers"
+  echo "  dstat              - Display container resource usage"
+  echo "  dhealth            - Show health status of running containers"
+  echo ""
+  echo "Docker Compose:"
+  echo "  dcupd              - Start containers using Docker Compose"
+  echo "  dcdown             - Stop containers using Docker Compose"
+  echo "  dcrestart          - Restart containers using Docker Compose"
+  echo "  dcsrm              - Stop and remove containers using Docker Compose"
+  echo "  dcps               - Display Docker Compose container status"
+  echo "  dclogs             - View logs of Docker Compose containers"
+  echo ""
+  echo "Utilities:"
+  echo "  dprune             - Clean up unused Docker resources"
+  echo "  dinspect           - Inspect Docker resource details"
+  echo "  dip                - Show IP address of a container"
+  echo "  dsystem            - Display Docker system information"
+  echo ""
+  echo "For detailed usage of each command, run the command without arguments."
+}'
 
-  # Define categories as a string instead of array
-  local show_container=0
-  local show_image=0
-  local show_compose=0
-  local show_network=0
-  local show_system=0
-  local show_logs=0
-  local show_file=0
-  local show_forceful=0
-  local show_performance=0
-  local show_build=0
-  local show_cleanup=0
-
-  # Check if category was specified
-  if [ $# -gt 0 ]; then
-    case "$1" in
-      "container")
-        show_container=1
-        show_logs=1
-        ;;
-      "image")
-        show_image=1
-        show_build=1
-        ;;
-      "compose")
-        show_compose=1
-        ;;
-      "network")
-        show_network=1
-        ;;
-      "system")
-        show_system=1
-        show_performance=1
-        show_cleanup=1
-        ;;
-      "all")
-        show_container=1
-        show_image=1
-        show_compose=1
-        show_network=1
-        show_system=1
-        show_logs=1
-        show_file=1
-        show_forceful=1
-        show_performance=1
-        show_build=1
-        show_cleanup=1
-        ;;
-      *)
-        echo "Error: Unknown category: $1"
-        echo "Available categories: container, image, compose, network, system, all"
-        return 1
-        ;;
-    esac
-  else
-    # Default: show all categories
-    show_container=1
-    show_image=1
-    show_compose=1
-    show_network=1
-    show_system=1
-    show_logs=1
-    show_file=1
-    show_forceful=1
-    show_performance=1
-    show_build=1
-    show_cleanup=1
-  fi
-
-  # Container Management aliases
-  if [ $show_container -eq 1 ]; then
-    echo "\nContainer Management:"
-    echo "  dps              - Lists all containers, with optional filter"
-    echo "  watchdps         - Monitors container status in real-time, with adjustable refresh interval"
-    echo "  dstart           - Starts stopped container(s)"
-    echo "  dstop            - Stops specified container(s)"
-    echo "  dstopall         - Stops all containers"
-    echo "  drst             - Restarts specified container(s)"
-    echo "  dren             - Renames a container"
-    echo "  dhealth          - Shows health status of running containers"
-  fi
-
-  # Image Management aliases
-  if [ $show_image -eq 1 ]; then
-    echo "\nImage Management:"
-    echo "  dimages          - Lists all images, with optional filter"
-    echo "  drmi             - Removes specified image(s)"
-    echo "  dpl              - Pulls an image"
-    echo "  dtag             - Tags a Docker image"
-    echo "  dpush            - Pushes a Docker image to registry"
-  fi
-
-  # Container Operations aliases
-  if [ $show_forceful -eq 1 ]; then
-    echo "\nContainer Operations:"
-    echo "  drm              - Removes specified container(s)"
-    echo "  dsrm             - Stops and removes specified container(s)"
-    echo "  drmq             - Forcefully removes all containers, with optional confirmation prompt"
-  fi
-
-  # Container Logs and Terminal aliases
-  if [ $show_logs -eq 1 ]; then
-    echo "\nContainer Logs and Terminal:"
-    echo "  dlogs            - Shows container logs, defaults to last 300 lines"
-    echo "  dtail            - Shows live logs from multiple containers"
-    echo "  dbash            - Enters container terminal, tries bash, then sh"
-    echo "  dexec            - Executes a command in a container"
-  fi
-
-  # File Transfer aliases
-  if [ $show_file -eq 1 ]; then
-    echo "\nFile Transfer:"
-    echo "  dcp              - Copies file to container"
-    echo "  dcpl             - Copies file from container"
-  fi
-
-  # Network Management aliases
-  if [ $show_network -eq 1 ]; then
-    echo "\nNetwork Management:"
-    echo "  dnet             - Lists all networks, with optional filter"
-    echo "  dnetconnect      - Connects a container to a network"
-    echo "  dnetdisconnect   - Disconnects a container from a network"
-    echo "  dnetcreate       - Creates a Docker network"
-    echo "  dip              - Shows container IP address(es)"
-  fi
-
-  # Docker Compose Operations aliases
-  if [ $show_compose -eq 1 ]; then
-    echo "\nDocker Compose Operations:"
-    echo "  dcupd            - Starts containers using Docker Compose"
-    echo "  dcdown           - Stops containers using Docker Compose"
-    echo "  dcrestart        - Restarts containers using Docker Compose"
-    echo "  dcsrm            - Stops and removes containers using Docker Compose"
-    echo "  dcps             - Displays Docker Compose container status"
-    echo "  dclogs           - Displays Docker Compose container logs"
-    echo "  dcbash           - Enters Docker Compose container terminal"
-    echo "  dce              - Executes a command in a Docker Compose container"
-    echo "  dcr              - Runs a command using Docker Compose"
-    echo "  dcpse            - Pauses Docker Compose service(s)"
-    echo "  dcupse           - Unpauses Docker Compose service(s)"
-    echo "  dcstop           - Stops Docker Compose service(s)"
-    echo "  dctop            - Displays Docker Compose container resource usage"
-    echo "  dcval            - Validates Docker Compose file"
-  fi
-
-  # Performance Monitoring aliases
-  if [ $show_performance -eq 1 ]; then
-    echo "\nPerformance Monitoring:"
-    echo "  dstat            - Displays container resource usage, with optional container name filter"
-  fi
-
-  # System Management aliases
-  if [ $show_system -eq 1 ]; then
-    echo "\nSystem Management:"
-    echo "  dsystem          - Displays Docker system information"
-    echo "  dinspect         - Inspects Docker resource details"
-    echo "  dvol             - Lists Docker volumes with optional filter"
-  fi
-
-  # Build Operations aliases
-  if [ $show_build -eq 1 ]; then
-    echo "\nBuild Operations:"
-    echo "  dbuild           - Builds a Docker image"
-    echo "  dbuildx          - Docker BuildX helper"
-    echo "  dlint            - Lints Dockerfile using hadolint"
-  fi
-
-  # Cleanup Operations aliases
-  if [ $show_cleanup -eq 1 ]; then
-    echo "\nCleanup Operations:"
-    echo "  dprune           - Cleans up unused Docker resources"
-    echo "  dclean-img       - Removes unused Docker images"
-    echo "  dclean-vol       - Removes unused Docker volumes"
-  fi
-}' # Shows all available Docker aliases with their descriptions
-
-alias docker-help='dkr-help' # Alias for dkr-help
-alias docker-h='dkr-help' # Alias for dkr-help
-alias dkr='docker' # Alias for docker command
+alias dkr-help='docker_help'
