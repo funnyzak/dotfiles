@@ -782,6 +782,95 @@ alias gdlrelease='() {
   done
 }'
 
+#===================================
+# Branch deletion operations
+#===================================
+
+# Delete local branch and optionally remote branches
+alias gdelbr='() {
+  if ! _git_check_command || ! _git_check_repository; then
+    return 1
+  fi
+
+  if [ $# -eq 0 ]; then
+    echo -e "Delete local branch and optionally remote branches.\nUsage:\n gdelbr <branch_name> [-r|-ra] [remote_name]"
+    echo -e "Options:"
+    echo -e "  -r   - Delete from specified remote (or origin if not specified)"
+    echo -e "  -ra  - Delete from all remote repositories"
+    echo -e "Examples:"
+    echo -e "  gdelbr feature-123      - Delete local branch only"
+    echo -e "  gdelbr feature-123 -r   - Delete local branch and remote branch on origin"
+    echo -e "  gdelbr feature-123 -r github  - Delete local branch and remote branch on github"
+    echo -e "  gdelbr feature-123 -ra  - Delete local branch and branch on all remotes"
+    return 1
+  fi
+
+  # Parse parameters
+  branch_name=$1
+  delete_remote=""
+  remote_name="origin"
+
+  # Check for remote deletion option
+  if [ $# -gt 1 ]; then
+    if [ "$2" = "-r" ]; then
+      delete_remote="single"
+      if [ $# -gt 2 ]; then
+        remote_name=$3
+      fi
+    elif [ "$2" = "-ra" ]; then
+      delete_remote="all"
+    fi
+  fi
+
+  # Verify branch exists locally
+  if ! git show-ref --verify --quiet refs/heads/${branch_name}; then
+    echo "Error: Branch \"${branch_name}\" does not exist locally." >&2
+    return 1
+  fi
+
+  # Check if branch is the current branch
+  current_branch=$(_git_current_branch)
+  if [ "${branch_name}" = "${current_branch}" ]; then
+    echo "Error: Cannot delete the current branch. Please switch to another branch first." >&2
+    return 1
+  fi
+
+  # Delete local branch
+  echo "Deleting local branch \"${branch_name}\"..."
+  if git branch -D "${branch_name}"; then
+    echo "Local branch \"${branch_name}\" deleted successfully."
+  else
+    echo "Error: Failed to delete local branch \"${branch_name}\"." >&2
+    return 1
+  fi
+
+  # Handle remote branch deletion if requested
+  if [ "${delete_remote}" = "single" ]; then
+    echo "Deleting remote branch \"${branch_name}\" from \"${remote_name}\"..."
+    if git push "${remote_name}" --delete "${branch_name}" 2>/dev/null; then
+      echo "Remote branch \"${branch_name}\" deleted from \"${remote_name}\" successfully."
+    else
+      echo "Warning: Failed to delete remote branch \"${branch_name}\" from \"${remote_name}\". It might not exist." >&2
+    fi
+  elif [ "${delete_remote}" = "all" ]; then
+    if ! git remote | grep -q .; then
+      echo "No remote repositories found." >&2
+    else
+      git remote | while read -r remote; do
+        echo "Deleting remote branch \"${branch_name}\" from \"${remote}\"..."
+        if git push "${remote}" --delete "${branch_name}" 2>/dev/null; then
+          echo "Remote branch \"${branch_name}\" deleted from \"${remote}\" successfully."
+        else
+          echo "Warning: Failed to delete remote branch \"${branch_name}\" from \"${remote}\". It might not exist." >&2
+        fi
+      done
+    fi
+  fi
+
+  return 0
+}' # Delete local branch and optionally remote branches
+
+
 # Help function for Git aliases
 alias git-help='() {
   echo "Git Management Aliases Help"
@@ -799,6 +888,7 @@ alias git-help='() {
   echo "  gco               - Switch to specified branch"
   echo "  gcomain           - Switch to main branch"
   echo "  gcodev            - Switch to dev branch"
+  echo "  gdelbr            - Delete local branch and optionally remote branches"
   echo ""
   echo "  Push operations:"
   echo "  gpushbr           - Push current or specified branch to remote"
