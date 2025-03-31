@@ -4,16 +4,16 @@ alias cs='() {
   echo -e "Command cheatsheet tool.\nUsage:\n cs [command] - View specific command usage\n cs -l - List all supported commands"
 
   # Initialize variables with local
-  local remote_url_prefix="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
-  local remote_url_prefix_cn="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
+  local remote_url_prefix="https://raw.githubusercontent.com/funnyzak/cli-cheatsheets/refs/heads/${REPO_BRANCH:-main}/"
+  local remote_url_prefix_cn="https://raw.gitcode.com/funnyzak/cli-cheatsheets/raw/${REPO_BRANCH:-main}/"
   local cheatsheet_remote_url=""
   local tmpfile=""
 
   # Test connection to CN server with timeout to determine best URL
   if curl -s --connect-timeout 2 "$remote_url_prefix_cn" >/dev/null 2>&1; then
-    cheatsheet_remote_url="${remote_url_prefix_cn}utilities/shell/cheatsheet.sh"
+    cheatsheet_remote_url="${remote_url_prefix_cn}cheatsheet.sh"
   else
-    cheatsheet_remote_url="${remote_url_prefix}utilities/shell/cheatsheet.sh"
+    cheatsheet_remote_url="${remote_url_prefix}cheatsheet.sh"
   fi
 
   # Handle different execution modes based on arguments
