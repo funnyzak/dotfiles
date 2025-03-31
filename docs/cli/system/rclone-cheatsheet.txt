@@ -1,6 +1,6 @@
-```text
 ##############################################################################
 # rclone 速查表 (rclone Cheatsheet)
+# 实时文件同步工具 (Real-time file synchronization tool)
 # https://github.com/funnyzak/dotfiles
 ##############################################################################
 
@@ -156,4 +156,3 @@ rclone serve http REMOTE:PATH --addr :8080       # HTTP 服务 (通过 HTTP 访�
 # rclone 论坛 (rclone Forum): https://forum.rclone.org/
 
 # vim: set ts=4 sw=4 tw=0 et ft=bash :
-```
