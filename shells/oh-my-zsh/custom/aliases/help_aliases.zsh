@@ -1,5 +1,10 @@
 # Description: Command cheatsheet aliases for quick reference and usage.
 
+alias cs2='() {
+  local tmpfile=$(mktemp)
+  curl -sSL "Https://raw.githubusercontent.com/funnyzak/cli-cheatsheets/refs/heads/${REPO_BRANCH:-main}/cheatsheet.sh" -o "$tmpfile" && chmod +x "$tmpfile" && "$tmpfile" "$@" && rm -f "$tmpfile"
+}'
+
 alias cs='() {
   echo -e "Command cheatsheet tool.\nUsage:\n cs [command] - View specific command usage\n cs -l - List all supported commands"
 
