@@ -48,7 +48,7 @@ The Oh My Zsh configuration provides a comprehensive setup for the Zsh shell wit
   - Includes pre-configured plugins, themes, and settings
   - Can be installed remotely:
     ```bash
-    curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/zshrc.zsh-template -o ~/.zshrc
+    curl -fsSL https://gitee.com/funnyzak/dotfiless/raw/main/shells/oh-my-zsh/zshrc.zsh-template -o ~/.zshrc
     ```
 
 ### Utility Scripts
@@ -78,7 +78,7 @@ The Oh My Zsh configuration provides a comprehensive setup for the Zsh shell wit
   - **Remote Execution**:
     ```bash
     # Basic remote installation
-    curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash -- --force
+    curl -fsSL https://gitee.com/funnyzak/dotfiless/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash -- --force
     ```
   - **Environment Variables**:
     ```bash
@@ -105,7 +105,7 @@ The Oh My Zsh configuration provides a comprehensive setup for the Zsh shell wit
   - **Remote Execution**:
     ```bash
     # Download all alias files
-    curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
+    curl -fsSL https://gitee.com/funnyzak/dotfiless/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
     ```
 
 ## Zsh Configuration

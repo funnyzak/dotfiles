@@ -169,7 +169,7 @@ check_file_exists() {
 # Download configuration files
 download_templates() {
   local github_base_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/utilities/shell/sshc"
-  local gitcode_base_url="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/utilities/shell/sshc"
+  local gitcode_base_url="https://gitee.com/funnyzak/dotfiless/raw/${REPO_BRANCH:-main}/utilities/shell/sshc"
   local ssh_connect_file="$HOME/.ssh/ssh_connect.exp"
   local servers_conf_file="$HOME/.ssh/servers.conf"
   local download_source="GitHub"

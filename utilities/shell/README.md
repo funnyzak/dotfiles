@@ -179,7 +179,7 @@ app1,App Server 1,192.168.1.30,2222,admin,key,/home/user/.ssh/app1.key
 #### Remote Execution
 ```bash
 # Remote installation example
-curl -sSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/frp/install_frpc.sh | bash -s install --token your_token --config-url http://example.com/frpc.toml
+curl -sSL https://gitee.com/funnyzak/dotfiless/raw/main/utilities/shell/frp/install_frpc.sh | bash -s install --token your_token --config-url http://example.com/frpc.toml
 ```
 
 ### Options for Install Command
