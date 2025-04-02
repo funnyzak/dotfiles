@@ -777,7 +777,7 @@ alias ssh-connect='() {
     echo "SSH connection script not found. Downloading..."
 
     local remote_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
-    local remote_url_cn="https://gitee.com/funnyzak/dotfiless/raw/${REPO_BRANCH:-main}/"
+    local remote_url_cn="https://gitee.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
     local download_success=false
 
     # Try China mirror first if accessible

@@ -23,16 +23,16 @@ set -euo pipefail
 #
 # 2. Remote Execution Examples:
 #    - Basic remote installation:
-#      curl -fsSL https://gitee.com/funnyzak/dotfiless/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash
+#      curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash
 #
 #    - Non-interactive remote installation:
-#      curl -fsSL https://gitee.com/funnyzak/dotfiless/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --yes
+#      curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --yes
 #
 #    - Force reinstall remotely:
 #      curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --force
 #
 #    - Uninstall remotely:
-#      curl -fsSL https://gitee.com/funnyzak/dotfiless/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --uninstall
+#      curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --uninstall
 #
 # 3. Environment Variables:
 #    - OMZ_REPO_URL:        Custom Oh My Zsh repository URL
@@ -137,7 +137,7 @@ OMZ_INSTALL_DIR="${OMZ_INSTALL_DIR:-$HOME/.oh-my-zsh}"
 
 # zshrc configuration URL
 OMZ_ZSHRC_BRANCH=${OMZ_ZSHRC_BRANCH:-main}
-OMZ_ZSHRC_URL=${OMZ_ZSHRC_URL:-https://gitee.com/funnyzak/dotfiless/raw/${OMZ_ZSHRC_BRANCH}/shells/oh-my-zsh/zshrc.zsh-template}
+OMZ_ZSHRC_URL=${OMZ_ZSHRC_URL:-https://gitee.com/funnyzak/dotfiles/raw/${OMZ_ZSHRC_BRANCH}/shells/oh-my-zsh/zshrc.zsh-template}
 OMZ_REPO_URL=${OMZ_REPO_URL:-https://gitcode.com/gh_mirrors/oh/ohmyzsh.git}
 
 # Command line flags

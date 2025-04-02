@@ -116,7 +116,7 @@ alias aliases-help='() {
   echo "  • View specific alias definitions: ${bold}less $ZSH_CUSTOM/aliases/ALIAS_NAME_aliases.zsh${reset}"
   echo "    For example: ${bold}less $ZSH_CUSTOM/aliases/git_aliases.zsh${reset}"
   echo "  • ${green}Download more alias files:${reset} "
-  echo "    ${bold}curl -fsSL https://gitee.com/funnyzak/dotfiless/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force ALIAS_FILENAME${reset}"
-  echo "    Example: ${cyan}curl -fsSL https://gitee.com/funnyzak/dotfiless/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force git_aliases.zsh${reset}"
+  echo "    ${bold}curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force ALIAS_FILENAME${reset}"
+  echo "    Example: ${cyan}curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force git_aliases.zsh${reset}"
   echo "  • Browse available alias files: ${blue}https://github.com/funnyzak/dotfiles/tree/main/shells/oh-my-zsh/custom/aliases${reset}"
 }' # Display all available aliases with descriptions

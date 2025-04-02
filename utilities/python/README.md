@@ -55,10 +55,10 @@ Execute the script directly from the repository without downloading:
 
 ```bash
 # Interactive mode (Linux/MacOS)
-python3 <(curl -s https://gitee.com/funnyzak/dotfiless/raw/main/utilities/python/bria/background_remover.py)
+python3 <(curl -s https://gitee.com/funnyzak/dotfiles/raw/main/utilities/python/bria/background_remover.py)
 
 # Command-line mode
-python3 <(curl -s https://gitee.com/funnyzak/dotfiless/raw/main/utilities/python/bria/background_remover.py) --api_token YOUR_API_TOKEN --url https://example.com/image.jpg --output_path ./output
+python3 <(curl -s https://gitee.com/funnyzak/dotfiles/raw/main/utilities/python/bria/background_remover.py) --api_token YOUR_API_TOKEN --url https://example.com/image.jpg --output_path ./output
 ```
 
 ### Options
@@ -80,7 +80,7 @@ python3 <(curl -s https://gitee.com/funnyzak/dotfiless/raw/main/utilities/python
 2. **Download the Script**:
    Place `background_remover.py` in a directory of your choice:
    ```bash
-   curl -o background_remover.py https://gitee.com/funnyzak/dotfiless/raw/main/utilities/python/bria/background_remover.py
+   curl -o background_remover.py https://gitee.com/funnyzak/dotfiles/raw/main/utilities/python/bria/background_remover.py
    chmod +x background_remover.py
    ```
 
