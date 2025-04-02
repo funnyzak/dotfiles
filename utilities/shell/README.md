@@ -37,13 +37,15 @@ Run the script without arguments to see a list of servers and select one:
 ```
 
 #### Non-Interactive Mode
-Connect directly to a server by specifying its ID:
+Connect directly to a server by specifying its ID or number:
 ```bash
-./ssh_connect.exp web1
+./ssh_connect.exp web1     # Connect using server ID
+./ssh_connect.exp 2        # Connect using server number (2nd server in list)
 ```
-Or use an environment variable:
+Or use environment variables:
 ```bash
-TARGET_SERVER_ID=web1 ./ssh_connect.exp
+TARGET_SERVER_ID=web1 ./ssh_connect.exp    # Connect using server ID
+TARGET_SERVER_NUM=3 ./ssh_connect.exp      # Connect using server number (3rd server in list)
 ```
 
 #### Custom Configuration
@@ -61,6 +63,7 @@ SSH_TIMEOUT=60 SSH_MAX_ATTEMPTS=5 ./ssh_connect.exp
 ### Environment Variables
 - **`SERVERS_CONFIG`**: Path to the server configuration file. Default: `servers.conf`.
 - **`TARGET_SERVER_ID`**: Server ID for non-interactive connection. No default.
+- **`TARGET_SERVER_NUM`**: Server number (index) for non-interactive connection. No default.
 - **`SSH_TIMEOUT`**: Connection timeout in seconds. Default: `30`.
 - **`SSH_MAX_ATTEMPTS`**: Maximum number of connection attempts. Default: `3`.
 - **`SSH_DEFAULT_SHELL`**: Shell to switch to after login (e.g., zsh, bash, fish).
