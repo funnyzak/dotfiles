@@ -1,18 +1,48 @@
 # Description: Command cheatsheet aliases for quick reference and usage.
 
+alias cs2='() {
+  local tmpfile=$(mktemp)
+  curl -sSL "Https://raw.githubusercontent.com/funnyzak/cli-cheatsheets/refs/heads/${REPO_BRANCH:-main}/cheatsheet.sh" -o "$tmpfile" && chmod +x "$tmpfile" && "$tmpfile" "$@" && rm -f "$tmpfile"
+}'
+
 alias cs='() {
-  REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
-  REMOTE_URL_PREFIX_CN="https://raw.gitcode.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
-  if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
-    REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
+  echo -e "Command cheatsheet tool.\nUsage:\n cs [command] - View specific command usage\n cs -l - List all supported commands"
+
+  # Initialize variables with local
+  local remote_url_prefix="https://raw.githubusercontent.com/funnyzak/cli-cheatsheets/refs/heads/${REPO_BRANCH:-main}/"
+  local remote_url_prefix_cn="https://gitee.com/funnyzak/cli-cheatsheets/raw/${REPO_BRANCH:-main}/"
+  local cheatsheet_remote_url=""
+  local tmpfile=""
+
+  # Test connection to CN server with timeout to determine best URL
+  if curl -s --connect-timeout 2 "$remote_url_prefix_cn" >/dev/null 2>&1; then
+    cheatsheet_remote_url="${remote_url_prefix_cn}cheatsheet.sh"
+  else
+    cheatsheet_remote_url="${remote_url_prefix}cheatsheet.sh"
   fi
-  CHEATSHEET_REMOTE_URL="${REMOTE_URL_PREFIX}utilities/shell/cheatsheet.sh"
-  echo "Command cheatsheet tool.\nUsage:\n cs [command] to view specific command\n cs -l to list all supported commands"
+
+  # Handle different execution modes based on arguments
   if [ $# -eq 0 ]; then
     tmpfile=$(mktemp)
-    curl -sSL "$CHEATSHEET_REMOTE_URL" -o "$tmpfile" && chmod +x "$tmpfile" && "$tmpfile"
+    if ! curl -sSL "$cheatsheet_remote_url" -o "$tmpfile"; then
+      echo >&2 "Error: Failed to download cheatsheet script from $cheatsheet_remote_url"
+      return 1
+    fi
+
+    chmod +x "$tmpfile"
+    if ! "$tmpfile"; then
+      echo >&2 "Error: Failed to execute cheatsheet script"
+      rm -f "$tmpfile"
+      return 1
+    fi
+
+    # Clean up temporary file
+    rm -f "$tmpfile"
   else
-    curl -sSL "$CHEATSHEET_REMOTE_URL" | bash -s -- "$@" || echo "Error executing command."
+    if ! curl -sSL "$cheatsheet_remote_url" | bash -s -- "$@"; then
+      echo >&2 "Error: Failed to execute command \"$*\" with cheatsheet script"
+      return 1
+    fi
   fi
 }' # Shell command cheatsheet tool
 
@@ -86,7 +116,7 @@ alias aliases-help='() {
   echo "  • View specific alias definitions: ${bold}less $ZSH_CUSTOM/aliases/ALIAS_NAME_aliases.zsh${reset}"
   echo "    For example: ${bold}less $ZSH_CUSTOM/aliases/git_aliases.zsh${reset}"
   echo "  • ${green}Download more alias files:${reset} "
-  echo "    ${bold}curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force ALIAS_FILENAME${reset}"
-  echo "    Example: ${cyan}curl -fsSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force git_aliases.zsh${reset}"
+  echo "    ${bold}curl -fsSL https://gitee.com/funnyzak/dotfiless/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force ALIAS_FILENAME${reset}"
+  echo "    Example: ${cyan}curl -fsSL https://gitee.com/funnyzak/dotfiless/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force git_aliases.zsh${reset}"
   echo "  • Browse available alias files: ${blue}https://github.com/funnyzak/dotfiles/tree/main/shells/oh-my-zsh/custom/aliases${reset}"
 }' # Display all available aliases with descriptions

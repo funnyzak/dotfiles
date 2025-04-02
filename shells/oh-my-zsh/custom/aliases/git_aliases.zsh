@@ -120,6 +120,18 @@ alias gco='() {
   git checkout "$@"
 }'
 
+# List all branches
+alias gbranchl='() {
+  if ! _git_check_command || ! _git_check_repository; then
+    return 1
+  fi
+
+  echo "Listing all branches"
+  git branch -a
+}'
+
+alias gbranchs=
+
 # Switch to main branch
 alias gcomain='() {
   if ! _git_check_command || ! _git_check_repository; then
@@ -139,6 +151,159 @@ alias gcodev='() {
   echo "Switching to dev branch"
   git checkout dev
 }'
+
+#===================================
+# Branch deletion operations
+#===================================
+# Delete specified branch(es) locally and optionally from remotes
+alias grmbr='() {
+  if ! _git_check_command || ! _git_check_repository; then
+    return 1
+  fi
+
+  if [ $# -eq 0 ]; then
+    echo -e "Delete specified branch(es) locally and optionally from remotes.\nUsage:\n grmbr <branch_name> [branch_name2 ...] [-r] [-a]"
+    echo -e "Options:\n  -r  - Also delete from origin\n  -a  - Delete from all remotes"
+    return 1
+  fi
+
+  current_branch=$(_git_current_branch)
+  delete_from_origin=false
+  delete_from_all=false
+  branches_to_delete=()
+
+  # Parse arguments to separate branches from options
+  for arg in "$@"; do
+    if [ "$arg" = "-r" ]; then
+      delete_from_origin=true
+    elif [ "$arg" = "-a" ]; then
+      delete_from_all=true
+    else
+      branches_to_delete+=("$arg")
+    fi
+  done
+
+  # Process each branch
+  for branch_name in "${branches_to_delete[@]}"; do
+    # Check if trying to delete current branch
+    if [ "$branch_name" = "$current_branch" ]; then
+      echo "Error: Cannot delete the currently checked out branch '$branch_name'. Switch to a different branch first." >&2
+      continue
+    fi
+
+    # Delete local branch if it exists
+    if git show-ref --verify --quiet refs/heads/"$branch_name"; then
+      echo "Deleting local branch: $branch_name"
+      git branch -D "$branch_name"
+      if [ $? -ne 0 ]; then
+        echo "Error: Failed to delete local branch '$branch_name'." >&2
+      fi
+    else
+      echo "Notice: Branch '$branch_name' does not exist locally, proceeding with remote deletion if requested." >&2
+    fi
+
+    # Handle remote deletion
+    if [ "$delete_from_origin" = true ]; then
+      echo "Deleting branch from origin remote: $branch_name"
+      git push origin --delete "$branch_name" 2>/dev/null
+      if [ $? -ne 0 ]; then
+        echo "Warning: Failed to delete branch '$branch_name' from origin. Branch may not exist on remote." >&2
+      fi
+    fi
+
+    if [ "$delete_from_all" = true ]; then
+      if ! git remote | grep -q .; then
+        echo "No remote repositories found." >&2
+      else
+        git remote | while read -r remote; do
+          echo "Deleting branch from remote $remote: $branch_name"
+          git push "$remote" --delete "$branch_name" 2>/dev/null
+          if [ $? -ne 0 ]; then
+            echo "Warning: Failed to delete branch '$branch_name' from remote '$remote'. Branch may not exist on this remote." >&2
+          fi
+        done
+      fi
+    fi
+  done
+
+  echo "Branch deletion operations completed."
+}'
+
+# Delete all fully merged branches
+alias gclbr='() {
+  if ! _git_check_command || ! _git_check_repository; then
+    return 1
+  fi
+
+  echo -e "Clean merged branches locally and optionally from remotes.\nUsage:\n gclbr [-r] [-a]"
+
+  current_branch=$(_git_current_branch)
+
+  # Get merged branches, excluding main/master, develop branches and current branch
+  merged_branches=$(git branch --merged | grep -v "\*" | grep -v "main" | grep -v "master" | grep -v "develop" | grep -v "dev" | sed "s/^[ \t]*//" | sed "s/^[ \t]*//")
+
+  if [ -z "$merged_branches" ]; then
+    echo "No merged branches to clean."
+    return 0
+  fi
+
+  echo "The following merged branches will be deleted:"
+  echo "$merged_branches"
+  echo ""
+  echo "Proceed with deletion? (y/N)"
+  read -k 1 confirm
+  echo ""
+
+  if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+    echo "Operation cancelled."
+    return 0
+  fi
+
+  # Delete local merged branches
+  echo "$merged_branches" | while read -r branch; do
+    if [ -n "$branch" ]; then
+      echo "Deleting local branch: $branch"
+      git branch -d "$branch"
+    fi
+  done
+
+  # Check for remote deletion options
+  for arg in "$@"; do
+    if [ "$arg" = "-r" ]; then
+      echo "Deleting merged branches from origin remote"
+      echo "$merged_branches" | while read -r branch; do
+        if [ -n "$branch" ]; then
+          echo "Deleting branch from origin: $branch"
+          git push origin --delete "$branch" 2>/dev/null
+          if [ $? -ne 0 ]; then
+            echo "Warning: Failed to delete branch '$branch' from origin. Branch may not exist on remote." >&2
+          fi
+        fi
+      done
+    elif [ "$arg" = "-a" ]; then
+      if ! git remote | grep -q .; then
+        echo "No remote repositories found." >&2
+      else
+        git remote | while read -r remote; do
+          echo "Deleting merged branches from remote $remote"
+          echo "$merged_branches" | while read -r branch; do
+            if [ -n "$branch" ]; then
+              echo "Deleting branch from remote $remote: $branch"
+              git push "$remote" --delete "$branch" 2>/dev/null
+              if [ $? -ne 0 ]; then
+                echo "Warning: Failed to delete branch '$branch' from remote '$remote'. Branch may not exist on this remote." >&2
+              fi
+            fi
+          done
+        done
+      fi
+    fi
+  done
+
+  echo "Branch cleanup completed."
+}'
+
+
 
 #===================================
 # Push operations
@@ -470,12 +635,11 @@ alias gsetremote='() {
   fi
 
   if [ $# -eq 0 ]; then
-    echo "Set remote origin URL.\nUsage:\n gsetremote <url>"
+    echo "Set remote origin URL.\nUsage:\n gsetremote <repo_url> [remote:origin]"
     return 1
   fi
 
-  echo "Setting remote origin URL"
-  git remote set-url origin "$1"
+  git remote set-url ${2:-origin} "$1" && echo "Remote URL set to $1 for ${2:-origin}"
 }'
 
 # Remove remote repository
@@ -799,6 +963,9 @@ alias git-help='() {
   echo "  gco               - Switch to specified branch"
   echo "  gcomain           - Switch to main branch"
   echo "  gcodev            - Switch to dev branch"
+  echo "  grmbr            - Delete specified branch(es) locally and optionally from remotes"
+  echo "  gclbr            - Clean merged branches locally and optionally from remotes"
+  echo "  gbranchl         - List all branches"
   echo ""
   echo "  Push operations:"
   echo "  gpushbr           - Push current or specified branch to remote"

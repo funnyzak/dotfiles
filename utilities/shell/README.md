@@ -4,7 +4,6 @@ This directory contains shell-related utility scripts to enhance your workflow.
 
 ## Contents
 - [ssh_connect.exp](#ssh_connectexp)
-- [cheatsheet.sh](#cheatsheetsh)
 - [frp (Fast Reverse Proxy)](#frp-fast-reverse-proxy)
 
 ## ssh_connect.exp
@@ -129,74 +128,6 @@ app1,App Server 1,192.168.1.30,2222,admin,key,/home/user/.ssh/app1.key
 - **Permissions**: Ensure `ssh_connect.exp` is executable (`chmod +x`) and the configuration file is readable only by you (`chmod 600 ~/.servers.conf`).
 - **Troubleshooting**: If connections fail, check your SSH keys, network, and server availability.
 
-## cheatsheet.sh
-
-`cheatsheet.sh` is a powerful command-line cheatsheet tool that provides quick access to syntax and usage examples for various commands, supporting multiple command categories.
-
-### Features
-- **Interactive Menu**: Browse commands by category through an interactive interface.
-- **Direct Command Lookup**: Quickly view cheatsheets for specific commands.
-- **Local Caching**: Improves access speed with 7-day cache validity.
-- **Optimized URL Sources**: Automatically detects and uses the best URL source (with China acceleration support).
-- **Comprehensive Coverage**: Includes commands from system, network, tools, Android, media, package management, runtime, and web server categories.
-
-### Supported Command Categories
-- **System**: apt, awk, cat, chmod, chown, df, grep, vim, etc.
-- **Network**: curl, netstat, ssh, wget, tcpdump, etc.
-- **Tools**: docker, git, jq, etc.
-- **Android**: adb
-- **Media**: ffmpeg, Imagemagick
-- **Package Management**: npm, pip, brew, cargo, etc.
-- **Runtime**: golang, java, node, python
-- **Web Server**: caddy, nginx, apachectl
-
-### Requirements
-- Bash environment
-- curl tool
-- less command
-
-### Usage
-
-#### Local Execution
-```bash
-# Make executable
-chmod +x cheatsheet.sh
-
-# Launch interactive menu
-./cheatsheet.sh
-
-# View cheatsheet for a specific command
-./cheatsheet.sh git
-
-# List all supported commands
-./cheatsheet.sh -l
-./cheatsheet.sh --list
-
-# Display help information
-./cheatsheet.sh -h
-./cheatsheet.sh --help
-
-# Use custom URL prefix
-./cheatsheet.sh -u https://example.com/path/ git
-```
-
-#### Remote Execution
-```bash
-# Launch interactive menu
-curl -sSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh | bash
-
-# View git command cheatsheet
-curl -sSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh | bash -s -- git
-
-# List all supported commands
-curl -sSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/cheatsheet.sh | bash -s -- -l
-```
-
-### Options
-- `-h, --help`: Display help information
-- `-l, --list`: List all supported commands
-- `-u, --url URL`: Specify custom URL prefix
-
 ## frp (Fast Reverse Proxy)
 
 `install_frpc.sh` is a comprehensive installation and management script for FRP Client (frpc), which helps establish secure connections between local and remote networks through NAT or firewalls.
@@ -248,7 +179,7 @@ curl -sSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/che
 #### Remote Execution
 ```bash
 # Remote installation example
-curl -sSL https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/shell/frp/install_frpc.sh | bash -s install --token your_token --config-url http://example.com/frpc.toml
+curl -sSL https://gitee.com/funnyzak/dotfiless/raw/main/utilities/shell/frp/install_frpc.sh | bash -s install --token your_token --config-url http://example.com/frpc.toml
 ```
 
 ### Options for Install Command

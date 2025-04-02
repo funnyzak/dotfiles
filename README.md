@@ -11,7 +11,7 @@ Used to centrally manage personal configuration scripts, system settings, utilit
 
 * GitHub raw: [`https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/`](https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/)
 * Vercel: [`https://idotfiles.vercel.app`](https://idotfiles.vercel.app)
-* GitCode: [`https://raw.gitcode.com/funnyzak/dotfiles/raw/main/`](https://raw.gitcode.com/funnyzak/dotfiles/raw/main/)
+* GitCode: [`https://gitee.com/funnyzak/dotfiless/raw/main/`](https://gitee.com/funnyzak/dotfiless/raw/main/)
 * jsdelivr: [`https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/`](https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/)
 
 ## Directory Structure

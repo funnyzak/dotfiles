@@ -27,6 +27,12 @@ Python utilities provide automation scripts for various tasks. For detailed docu
   - Features concurrent processing with configurable multi-threading
   - Provides both interactive and non-interactive operation modes
 
+- **Image Background Overlay Processor** (`python/image-background-overlay-processor.py`): A versatile utility for overlaying foreground images onto background images.
+  - Supports intelligent scaling, centering, and margin adjustments
+  - Features batch processing and remote URL image fetching
+  - Provides customizable output formats
+
+
 ## Shell Utilities
 
 Shell utilities provide command-line tools and scripts for system operations. For detailed documentation, see [Shell Utilities Documentation](./shell/README.md).
@@ -37,11 +43,6 @@ Shell utilities provide command-line tools and scripts for system operations. Fo
   - Supports both interactive and non-interactive modes
   - Handles key-based and password-based authentication
   - Includes retry mechanisms and customizable configuration
-
-- **Cheatsheet** (`shell/cheatsheet.sh`): A command-line reference tool providing quick access to syntax and usage examples.
-  - Covers multiple command categories (system, network, tools, etc.)
-  - Features interactive menu and direct command lookup
-  - Supports local caching and optimized URL sources
 
 - **FRP Client Installer** (`shell/frp/install_frpc.sh`): Installation and management script for Fast Reverse Proxy Client.
   - Automates installation and configuration

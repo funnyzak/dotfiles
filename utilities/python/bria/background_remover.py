@@ -30,10 +30,10 @@
     3. 获取Bria API Token(https://platform.bria.ai/console)
 
     # 远程执行脚本(交互式模式, Linux/MacOS)
-    python3 <(curl -s https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/python/bria/background_remover.py)
+    python3 <(curl -s https://gitee.com/funnyzak/dotfiless/raw/main/utilities/python/bria/background_remover.py)
 
     # 远程执行脚本(命令行模式)
-    python3 <(curl -s https://raw.gitcode.com/funnyzak/dotfiles/raw/main/utilities/python/bria/background_remover.py) --api_token YOUR_API_TOKEN --url https://example.com/image.jpg --output_path ./output
+    python3 <(curl -s https://gitee.com/funnyzak/dotfiless/raw/main/utilities/python/bria/background_remover.py) --api_token YOUR_API_TOKEN --url https://example.com/image.jpg --output_path ./output
 
 
 选项:
