@@ -13,12 +13,16 @@
 # =========================================================================
 #   Interactive mode: ./ssh_connect.exp
 #   Non-interactive mode (by ID): ./ssh_connect.exp <server_id>
+#   Non-interactive mode (by number): ./ssh_connect.exp <number>
 #   Non-interactive mode (env): TARGET_SERVER_ID=<server_id> ./ssh_connect.exp
+#   Non-interactive mode (env number): TARGET_SERVER_NUM=<number> ./ssh_connect.exp
 #
 # Examples:
 #   ./ssh_connect.exp                    # Start in interactive mode
 #   ./ssh_connect.exp web1               # Connect directly to server with ID 'web1'
+#   ./ssh_connect.exp 2                  # Connect directly to the second server in the list
 #   TARGET_SERVER_ID=db1 ./ssh_connect.exp   # Connect to db1 using env variable
+#   TARGET_SERVER_NUM=3 ./ssh_connect.exp    # Connect to the third server in the list
 #   SSH_ALIVE_INTERVAL=120 ./ssh_connect.exp # Custom keep-alive interval
 #   SSH_DEFAULT_SHELL=zsh ./ssh_connect.exp  # Switch to zsh upon login
 
@@ -27,6 +31,7 @@
 # =========================================================================
 #   SERVERS_CONFIG: Path to the servers configuration file (default: servers.conf)
 #   TARGET_SERVER_ID: Server ID for non-interactive connection
+#   TARGET_SERVER_NUM: Server number (index) for non-interactive connection
 #   SSH_TIMEOUT: Connection timeout in seconds (default: 30)
 #   SSH_MAX_ATTEMPTS: Maximum connection attempts (default: 3)
 #   SSH_NO_COLOR: Disable colored output if set to any value
@@ -152,12 +157,21 @@ proc load_servers {filename} {
     return $servers
 }
 
-# Find a server by its ID
+# Find a server by its ID or number
 # Returns the server config or empty string if not found
 proc find_server_by_id {servers id} {
-    foreach server $servers {
-        if {[lindex $server 0] eq $id} {
-            return $server
+    # Check if ID is an integer (server number)
+    if {[string is integer $id]} {
+        set index [expr {$id - 1}]
+        if {$index >= 0 && $index < [llength $servers]} {
+            return [lindex $servers $index]
+        }
+    } else {
+        # Original behavior for string IDs
+        foreach server $servers {
+            if {[lindex $server 0] eq $id} {
+                return $server
+            }
         }
     }
     return ""
@@ -352,6 +366,21 @@ if {[llength $argv] > 0} {
 
 # Select server either automatically by ID or interactively
 if {[info exists target_id]} {
+    set selected_server [find_server_by_id $servers $target_id]
+    if {$selected_server eq ""} {
+        send_user "${COLOR_ERROR}Error: No server found with ID or number '$target_id'${COLOR_RESET}\n"
+        exit 1
+    }
+} elseif {[info exists ::env(TARGET_SERVER_NUM)] && [string is integer $::env(TARGET_SERVER_NUM)]} {
+    # Support for numeric server selection via environment variable
+    set num $::env(TARGET_SERVER_NUM)
+    set selected_server [find_server_by_id $servers $num]
+    if {$selected_server eq ""} {
+        send_user "${COLOR_ERROR}Error: Invalid server number '$num'${COLOR_RESET}\n"
+        exit 1
+    }
+} elseif {[info exists ::env(TARGET_SERVER_ID)]} {
+    set target_id $::env(TARGET_SERVER_ID)
     set selected_server [find_server_by_id $servers $target_id]
     if {$selected_server eq ""} {
         send_user "${COLOR_ERROR}Error: No server found with ID '$target_id'${COLOR_RESET}\n"
