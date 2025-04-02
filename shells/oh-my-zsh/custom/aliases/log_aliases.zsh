@@ -353,7 +353,7 @@ alias logw='() {
     fi
   fi
 
-  # If there's still an argument, it's the keyword
+  # If there"s still an argument, it"s the keyword
   if [ $# -ge 2 ]; then
     keyword="$2"
   fi
@@ -427,7 +427,7 @@ alias log-watch='() {
     fi
   fi
 
-  # If there's still an argument, it's the keyword
+  # If there"s still an argument, it"s the keyword
   if [ $# -ge 2 ]; then
     keyword="$2"
   fi
