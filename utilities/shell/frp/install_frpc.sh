@@ -57,7 +57,7 @@
 #   ./install_frpc.sh uninstall
 #
 #   # Remote execution example using pipe:
-#   curl -sSL https://gitee.com/funnyzak/dotfiless/raw/main/utilities/shell/frp/install_frpc.sh | bash -s install --token your_token --config-url http://example.com/frpc.toml
+#   curl -sSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/frp/install_frpc.sh | bash -s install --token your_token --config-url http://example.com/frpc.toml
 # Author: Leon
 # Date: March 27, 2025
 #########################################################################

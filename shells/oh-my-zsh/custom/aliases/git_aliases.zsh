@@ -639,7 +639,15 @@ alias gsetremote='() {
     return 1
   fi
 
-  git remote set-url ${2:-origin} "$1" && echo "Remote URL set to $1 for ${2:-origin}"
+  remote_name=${2:-origin}
+
+  if ! git remote | grep -q "^${remote_name}$"; then
+    git remote add "${remote_name}" "$1"
+    echo "Remote ${remote_name} added with URL $1"
+  else
+    git remote set-url "${remote_name}" "$1"
+    echo "Remote URL set to $1 for ${remote_name}"
+  fi
 }'
 
 # Remove remote repository

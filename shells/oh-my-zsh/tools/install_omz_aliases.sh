@@ -158,7 +158,7 @@ download_errors=0  # Initialize download error counter
 
 # Define the base URL for the remote aliases files
 remote_base_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/"
-remote_base_url_cn="https://gitee.com/funnyzak/dotfiless/raw/${REPO_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/"
+remote_base_url_cn="https://gitee.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/"
 
 remote_base_url=$(detect_best_url "$remote_base_url" "$remote_base_url_cn")
 # Use China-specific URL if CN=true
