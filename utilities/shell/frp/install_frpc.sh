@@ -91,7 +91,7 @@ SERVER_INSTALL_PATH="/etc/systemd/system"                # Systemd service insta
 TMP_PATH="/tmp/frpc_install_$(date +%s)"                 # Temporary directory with timestamp
 
 # Network settings
-PROXY_URL="${PROXY_URL:-https://ghproxy.com/}"           # GitHub proxy for downloads
+PROXY_URL="${PROXY_URL:-https://ghfast.top/}"           # GitHub proxy for downloads
 
 # Embedded systemd service config
 SYSTEMD_SERVICE_CONTENT=$(cat <<EOF
@@ -695,7 +695,6 @@ detect_cpu_arch() {
             ;;
     esac
 
-    log_message "info" "Detected CPU architecture: $arch (platform: $platform)"
     echo "$platform"
 }
 
@@ -719,26 +718,12 @@ get_download_url() {
     local proxy_url="${PROXY_URL}${github_url}"
     local final_url=""
 
-    # Check direct internet access (using google.com as test)
-    log_message "info" "Testing internet connectivity..."
-
     if check_url_accessibility "https://www.google.com"; then
-        log_message "info" "Direct internet access available, using GitHub official URL."
         final_url="${github_url}"
     else
-        log_message "info" "No direct internet access, trying mirror: ${PROXY_URL}"
-
-        # Test mirror accessibility
-        if check_url_accessibility "${PROXY_URL}https://www.google.com"; then
-            log_message "info" "Mirror is accessible, using mirror URL."
-            final_url="${proxy_url}"
-        else
-            log_message "warning" "Mirror not accessible, falling back to GitHub official URL."
-            final_url="${github_url}"
-        fi
+        final_url="${proxy_url}"
     fi
 
-    log_message "info" "Selected download URL: ${final_url}"
     echo "${final_url}"
 }
 
