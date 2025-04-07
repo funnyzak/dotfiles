@@ -329,11 +329,22 @@ parse_arguments() {
                 exit 1
             fi
 
-            # Validate configuration method (only one should be used)
             local config_methods=0
-            [[ -n "$CONFIG_URL" ]] && ((config_methods++))
-            [[ -n "$CONFIG_FILE" ]] && ((config_methods++))
-            [[ "$INTERACTIVE_MODE" == true ]] && ((config_methods++))
+            # Count configuration methods selected
+            [[ -n "$CONFIG_URL" ]] && config_methods=$((config_methods+1))
+            [[ -n "$CONFIG_FILE" ]] && config_methods=$((config_methods+1))
+            [[ "$INTERACTIVE_MODE" == true ]] && config_methods=$((config_methods+1))
+
+            # Log the selected configuration method
+            if [[ -n "$CONFIG_URL" ]]; then
+                log_message "info" "Configuration method: URL (${CONFIG_URL})"
+            elif [[ -n "$CONFIG_FILE" ]]; then
+                log_message "info" "Configuration method: Local file (${CONFIG_FILE})"
+            elif [[ "$INTERACTIVE_MODE" == true ]]; then
+                log_message "info" "Configuration method: Interactive setup"
+            else
+                log_message "info" "Configuration method: Default template"
+            fi
 
             if [[ $config_methods -gt 1 ]]; then
                 log_message "error" "Please specify only one configuration method: --config-url, --config-file, or --interactive"
