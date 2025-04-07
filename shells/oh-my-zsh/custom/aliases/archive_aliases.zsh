@@ -577,7 +577,7 @@ Usage:
       local tar_name="${2:-$(basename ${tar_path})$timestamp.$file_ext}"
 
       echo "Creating archive ($compress_format): $tar_name from directory: $tar_path"
-      eval "tar $compress_opt -cf \"$tar_name\" $(_archive_tar_opts) -C \"$(dirname \"$tar_path\")\" \"$(basename \"$tar_path\")\"" || {
+      eval "tar $compress_opt -cf \"$tar_name\" $(_archive_tar_opts) -C $(dirname \"$tar_path\")/$(basename \"$tar_path\") ." || {
         echo "Error: Failed to create TAR archive" >&2
         return 1
       }
