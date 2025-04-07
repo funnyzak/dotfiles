@@ -241,32 +241,59 @@ alias img-resize-1024='() {
 # --------------------------------
 
 alias img-convert-format='() {
+  echo "Convert image files to different format."
+  echo "Usage: img-convert-format <source_path> <new_extension>"
+  echo "       img-convert-format <source_dir> <new_extension>"
+  echo "Examples:"
+  echo "  img-convert-format image.jpg png -> Converts single file to PNG"
+  echo "  img-convert-format ./photos webp -> Converts all images in directory to WebP"
+
   if [ $# -lt 2 ]; then
-    echo "Convert image files to different format."
-    echo "Usage: img-convert-format <source_dir> <new_extension>"
     return 0
   fi
 
-  _image_aliases_validate_dir "$1" || return 1
+  _image_aliases_check_imagemagick || return 1
+  local magick_cmd=$(_image_aliases_magick_cmd)
 
-  local source_dir="$1"
+  local source_path="$1"
   local new_ext="$2"
   local count=0
   local errors=0
 
-  for img in "$source_dir"/*.(jpg|png|jpeg|bmp|heic|tif|tiff); do
-    if [ -f "$img" ]; then
-      if magick convert "$img" "${img%.*}.$new_ext"; then
-        echo "Converted: $img -> ${img%.*}.$new_ext"
-        count=$((count+1))
-      else
-        echo "Error converting: $img" >&2
-        errors=$((errors+1))
-      fi
-    fi
-  done
+  # Remove leading dot from extension if present
+  new_ext="${new_ext#.}"
 
-  echo "Conversion complete: $count files converted, $errors errors"
+  # Check if source is a file or directory
+  if [ -f "$source_path" ]; then
+    # Single file conversion
+    local output_path="${source_path%.*}.${new_ext}"
+    if $magick_cmd convert "$source_path" "$output_path"; then
+      echo "Converted: $source_path -> $output_path"
+      count=1
+    else
+      echo "Error: Failed to convert $source_path to $new_ext format." >&2
+      errors=1
+    fi
+  elif [ -d "$source_path" ]; then
+    # Directory conversion
+    for img in "$source_path"/*.(jpg|png|jpeg|bmp|heic|tif|tiff|gif|webp); do
+      if [ -f "$img" ]; then
+        local output_path="${img%.*}.${new_ext}"
+        if $magick_cmd convert "$img" "$output_path"; then
+          echo "Converted: $img -> $output_path"
+          count=$((count+1))
+        else
+          echo "Error: Failed to convert $img to $new_ext format." >&2
+          errors=$((errors+1))
+        fi
+      fi
+    done
+  else
+    echo "Error: Source path \"$source_path\" is neither a valid file nor a directory." >&2
+    return 1
+  fi
+
+  echo "Conversion complete: $count file(s) converted, $errors error(s)"
   [ $errors -eq 0 ] || return 1
 }'  # Convert image files to different format
 
