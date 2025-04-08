@@ -39,6 +39,11 @@ dotfiles/
 │   ├── templates/       # Documentation templates
 ```
 
+## Links
+
+* [cli-cheatsheets](https://github.com/funnyzak/cli-cheatsheets)
+* [frpc](https://github.com/funnyzak/frpc)
+
 ## License
 
 Under the [MIT License](LICENSE).

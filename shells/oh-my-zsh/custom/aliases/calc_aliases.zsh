@@ -108,8 +108,8 @@ alias calc-from-hex='() {
     echo "Error: Input must be a valid hexadecimal number." >&2
     return 1
   fi
-
-  echo "ibase=16; ${hex_value^^}" | bc
+  hex_value=$(echo "$hex_value" | tr "[:lower:]" "[:upper:]")
+  echo "ibase=16; $hex_value" | bc
 }' # Convert hexadecimal to decimal
 
 alias calc-from-bin='() {

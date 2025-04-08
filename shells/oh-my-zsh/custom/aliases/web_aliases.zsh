@@ -250,3 +250,17 @@ alias http-server='() {
     return 1
   fi
 }' # Start a simple HTTP server
+
+
+alias web-help='() {
+  echo "Web-related aliases and functions:"
+  echo "  qr <string>         Generate a QR code from a string"
+  echo "  qrdecode <file>     Decode a QR code from an image file"
+  echo "  urlencode <string>   Encode a string to URL format"
+  echo "  urldecode <string>   Decode a URL encoded string"
+  echo "  b64urlencode <string> Encode a string to base64 URL format"
+  echo "  b64decode <string>   Decode a base64 encoded string"
+  echo "  b64encode <string>   Encode a string to base64"
+  echo "  speedtest           Test internet connection speed"
+  echo "  http-server [port]  Start a simple HTTP server on specified port (default: 8080)"
+}' # Display help for web-related aliases and functions

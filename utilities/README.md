@@ -44,11 +44,6 @@ Shell utilities provide command-line tools and scripts for system operations. Fo
   - Handles key-based and password-based authentication
   - Includes retry mechanisms and customizable configuration
 
-- **FRP Client Installer** (`shell/frp/install_frpc.sh`): Installation and management script for Fast Reverse Proxy Client.
-  - Automates installation and configuration
-  - Supports multiple configuration methods
-  - Provides customizable installation paths
-
 ## Usage
 
 Each utility has its own usage instructions and requirements. Please refer to the individual documentation in the respective subdirectories for detailed information on installation, configuration, and usage examples.
