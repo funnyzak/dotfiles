@@ -275,7 +275,7 @@ alias img-convert-format='() {
   if [ -f "$source_path" ]; then
     # Single file conversion
     local output_path="${source_path%.*}.${new_ext}"
-    if $magick_cmd convert "$source_path" "$output_path"; then
+    if $magick_cmd "$source_path" "$output_path"; then
       echo "Converted: $source_path -> $output_path"
       count=1
     else
@@ -284,10 +284,14 @@ alias img-convert-format='() {
     fi
   elif [ -d "$source_path" ]; then
     # Directory conversion
+    local output_dir="$source_path/$new_ext"
+    mkdir -p "$output_dir"
+
     for img in "$source_path"/*.(jpg|png|jpeg|bmp|heic|tif|tiff|gif|webp); do
       if [ -f "$img" ]; then
-        local output_path="${img%.*}.${new_ext}"
-        if $magick_cmd convert "$img" "$output_path"; then
+        local filename=$(basename "$img")
+        local output_path="$output_dir/${filename%.*}.${new_ext}"
+        if $magick_cmd "$img" "$output_path"; then
           echo "Converted: $img -> $output_path"
           count=$((count+1))
         else
@@ -296,6 +300,8 @@ alias img-convert-format='() {
         fi
       fi
     done
+
+    echo "Converted files saved to: $output_dir"
   else
     echo "Error: Source path \"$source_path\" is neither a valid file nor a directory." >&2
     return 1
@@ -1010,6 +1016,142 @@ alias img-blur='() {
 }'  # Apply blur effect to an image
 
 # --------------------------------
+# Image Background Functions
+# --------------------------------
+
+alias img-add-bg='() {
+  echo "Add background image to foreground image(s)."
+  echo "Usage: img-add-bg <foreground_image> <background_image> [output_path]"
+  echo "Example: img-add-bg image.png background.jpg"
+  echo "         img-add-bg image.png background.jpg output.png"
+
+  if [ $# -lt 2 ]; then
+    return 0
+  fi
+
+  _image_aliases_check_imagemagick || return 1
+
+  local foreground_path="$1"
+  local background_path="$2"
+  local output_path="${3:-${foreground_path%.*}_with_bg.${foreground_path##*.}}"
+
+  _image_aliases_validate_file "$foreground_path" || return 1
+  _image_aliases_validate_file "$background_path" || return 1
+
+  local magick_cmd=$(_image_aliases_magick_cmd)
+
+  # Get the dimensions of the foreground image
+  local dimensions=$($magick_cmd identify -format "%wx%h" "$foreground_path" 2>/dev/null)
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to get dimensions of foreground image." >&2
+    return 1
+  fi
+
+  # Resize background to match foreground dimensions while maintaining aspect ratio
+  # Then composite foreground on top of background
+  if $magick_cmd "$background_path" -resize "$dimensions^" -gravity center -extent "$dimensions" \
+     "$foreground_path" -gravity center -composite "$output_path"; then
+    echo "Background added successfully, saved to $output_path"
+    return 0
+  else
+    echo "Error: Failed to add background to image." >&2
+    return 1
+  fi
+}' # Add background image to foreground image
+
+alias img-add-bg-dir='() {
+  echo "Add background image to all images in a directory."
+  echo "Usage: img-add-bg-dir <foreground_dir> <background_image> [output_dir]"
+  echo "Example: img-add-bg-dir images/ background.jpg"
+  echo "         img-add-bg-dir images/ background.jpg output_dir"
+
+  if [ $# -lt 2 ]; then
+    return 0
+  fi
+
+  _image_aliases_check_imagemagick || return 1
+
+  local foreground_dir="$1"
+  local background_path="$2"
+  local output_dir="${3:-$foreground_dir/with_background}"
+
+  _image_aliases_validate_dir "$foreground_dir" || return 1
+  _image_aliases_validate_file "$background_path" || return 1
+
+  mkdir -p "$output_dir"
+
+  local magick_cmd=$(_image_aliases_magick_cmd)
+  local errors=0
+  local processed=0
+
+  find "$foreground_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" -o -iname "*.webp" \) | while IFS= read -r img; do
+    local base_name="$(basename "$img")"
+    local output_path="$output_dir/$base_name"
+
+    # Get the dimensions of the current foreground image
+    local dimensions=$($magick_cmd identify -format "%wx%h" "$img" 2>/dev/null)
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to get dimensions of image $img" >&2
+      errors=$((errors+1))
+      continue
+    fi
+
+    # Apply background to each image
+    if $magick_cmd "$background_path" -resize "$dimensions^" -gravity center -extent "$dimensions" \
+       "$img" -gravity center -composite "$output_path"; then
+      echo "Processed: $base_name"
+      processed=$((processed+1))
+    else
+      echo "Error: Failed to add background to $base_name" >&2
+      errors=$((errors+1))
+    fi
+  done
+
+  echo "Background addition complete: $processed files processed, $errors errors"
+  echo "Output saved to: $output_dir"
+  [ $errors -eq 0 ] || return 1
+}' # Add background image to all images in a directory
+
+alias img-add-color-background='() {
+  echo "Add solid color background to image(s)."
+  echo "Usage: img-add-color-background <foreground_image> <color> [output_path]"
+  echo "Examples:"
+  echo "  img-add-color-background image.png \"#FF0000\"   # Red background"
+  echo "  img-add-color-background logo.png white         # White background"
+
+  if [ $# -lt 2 ]; then
+    return 0
+  fi
+
+  _image_aliases_check_imagemagick || return 1
+
+  local foreground_path="$1"
+  local background_color="$2"
+  local output_path="${3:-${foreground_path%.*}_with_${background_color}_bg.${foreground_path##*.}}"
+
+  _image_aliases_validate_file "$foreground_path" || return 1
+
+  local magick_cmd=$(_image_aliases_magick_cmd)
+
+  # Get the dimensions of the foreground image
+  local dimensions=$($magick_cmd identify -format "%wx%h" "$foreground_path" 2>/dev/null)
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to get dimensions of foreground image." >&2
+    return 1
+  fi
+
+  # Create a solid color background and composite foreground on top
+  if $magick_cmd -size "$dimensions" "canvas:$background_color" \
+     "$foreground_path" -gravity center -composite "$output_path"; then
+    echo "Color background added successfully, saved to $output_path"
+    return 0
+  else
+    echo "Error: Failed to add color background to image." >&2
+    return 1
+  fi
+}' # Add solid color background to image(s)
+
+# --------------------------------
 # Batch Rename Functions
 # --------------------------------
 
@@ -1096,6 +1238,8 @@ alias image-help='() {
   echo "  img-grayscale-binary-dir - Convert directory of images to grayscale and binarize"
   echo "  img-sepia            - Apply sepia tone effect to an image"
   echo "  img-blur             - Apply blur effect to an image"
+  echo "  img-add-bg    - Add background image to foreground image"
+  echo "  img-add-bg-dir - Add background image to all images in a directory"
   echo
   echo "Image Information:"
   echo "  img-info             - Display basic information about image files"
