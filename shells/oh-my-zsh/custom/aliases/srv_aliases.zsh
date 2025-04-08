@@ -896,6 +896,10 @@ alias kill-keyword='() {
   fi
 }' # Kill processes matching a keyword
 
+alias srv-frpc='() {
+  curl -sSL https://gitee.com/funnyzak/frpc/raw/main/frpc.sh | bash -s "$@"
+}'
+
 
 # Help function for server aliases
 alias srv-help='() {
@@ -932,6 +936,9 @@ alias srv-help='() {
   echo "  System information and monitoring:"
   echo "  srv-overview      - Show system overview"
   echo "  srv-list-users    - List all users on the system"
+  echo ""
+  echo "  System tool management:"
+  echo "  srv-frpc          - Install and configure frp client"
   echo ""
   echo "  System maintenance:"
   echo "  srv-clean-system      - Clean system caches and temporary files"
