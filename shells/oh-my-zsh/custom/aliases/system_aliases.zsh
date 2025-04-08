@@ -378,6 +378,126 @@ alias process-mon='() {
   esac
 }'  # Monitor system processes sorted by resource usage
 
+
+# Hostname management
+alias change-hostname='() {
+  echo "Change system hostname with proper validation."
+  echo -e "Usage:\n change-hostname <new_hostname>"
+
+  if [ $# -lt 1 ]; then
+    _show_error_system_aliases "Error: New hostname parameter is required"
+    return 1
+  fi
+
+  local new_hostname="$1"
+
+  # Validate hostname format (RFC 1123 compliant)
+  if ! [[ "$new_hostname" =~ ^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$ ]]; then
+    _show_error_system_aliases "Error: Invalid hostname format. Hostname must:
+    - Start and end with alphanumeric characters
+    - Contain only alphanumeric characters and hyphens
+    - Be between 1 and 63 characters"
+    return 1
+  fi
+
+  echo "Changing hostname from $(hostname) to $new_hostname"
+
+  # Detect OS and use appropriate commands
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    # macOS
+    if ! sudo scutil --set HostName "$new_hostname"; then
+      _show_error_system_aliases "Error: Failed to set HostName"
+      return 1
+    fi
+
+    if ! sudo scutil --set LocalHostName "$new_hostname"; then
+      _show_error_system_aliases "Error: Failed to set LocalHostName"
+      return 1
+    fi
+
+    if ! sudo scutil --set ComputerName "$new_hostname"; then
+      _show_error_system_aliases "Error: Failed to set ComputerName"
+      return 1
+    fi
+
+    # Update bonjour name
+    if ! sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "$new_hostname"; then
+      _show_error_system_aliases "Warning: Failed to update NetBIOS name"
+    fi
+
+  elif [[ -f /etc/debian_version ]]; then
+    # Debian/Ubuntu
+    if ! echo "$new_hostname" | sudo tee /etc/hostname > /dev/null; then
+      _show_error_system_aliases "Error: Failed to write to /etc/hostname"
+      return 1
+    fi
+
+    if ! sudo hostname "$new_hostname"; then
+      _show_error_system_aliases "Error: Failed to set hostname temporarily"
+      return 1
+    fi
+
+    # Update /etc/hosts file to include new hostname
+    if grep -q "$(hostname)" /etc/hosts; then
+      if ! sudo sed -i "s/$(hostname)/$new_hostname/g" /etc/hosts; then
+        _show_error_system_aliases "Warning: Failed to update hostname in /etc/hosts"
+      fi
+    else
+      echo "127.0.1.1 $new_hostname" | sudo tee -a /etc/hosts > /dev/null
+    fi
+
+  elif [[ -f /etc/redhat-release ]]; then
+    # RHEL/CentOS/Fedora
+    if command -v hostnamectl &> /dev/null; then
+      if ! sudo hostnamectl set-hostname "$new_hostname"; then
+        _show_error_system_aliases "Error: Failed to set hostname using hostnamectl"
+        return 1
+      fi
+    else
+      if ! sudo hostname "$new_hostname"; then
+        _show_error_system_aliases "Error: Failed to set hostname temporarily"
+        return 1
+      fi
+
+      if ! echo "$new_hostname" | sudo tee /etc/hostname > /dev/null; then
+        _show_error_system_aliases "Error: Failed to write to /etc/hostname"
+        return 1
+      fi
+    fi
+
+    # Update /etc/hosts file
+    if grep -q "$(hostname)" /etc/hosts; then
+      if ! sudo sed -i "s/$(hostname)/$new_hostname/g" /etc/hosts; then
+        _show_error_system_aliases "Warning: Failed to update hostname in /etc/hosts"
+      fi
+    else
+      echo "127.0.1.1 $new_hostname" | sudo tee -a /etc/hosts > /dev/null
+    fi
+  else
+    # Generic approach for other Linux systems
+    if command -v hostnamectl &> /dev/null; then
+      if ! sudo hostnamectl set-hostname "$new_hostname"; then
+        _show_error_system_aliases "Error: Failed to set hostname using hostnamectl"
+        return 1
+      fi
+    else
+      if ! sudo hostname "$new_hostname"; then
+        _show_error_system_aliases "Error: Failed to set hostname temporarily"
+        return 1
+      fi
+
+      if ! echo "$new_hostname" | sudo tee /etc/hostname > /dev/null; then
+        _show_error_system_aliases "Error: Failed to write to /etc/hostname"
+        return 1
+      fi
+    fi
+  fi
+
+  echo "Hostname successfully changed to $new_hostname"
+  echo "Note: Some services may require restart to recognize the new hostname"
+  echo "You may need to log out and log back in for all changes to take effect"
+}'  # Change system hostname on Linux or macOS
+
 # Help function for system aliases
 alias sys-help='() {
   echo "System Management Aliases Help"
@@ -407,6 +527,7 @@ alias sys-help='() {
   echo "  General utilities:"
   echo "  cls               - Clear screen"
   echo "  clear-history     - Clear command history"
+  echo "  change-hostname   - Change system hostname with proper validation"
   echo ""
   echo "  File synchronization:"
   echo "  rsync-files       - Sync files/directories with rsync"
