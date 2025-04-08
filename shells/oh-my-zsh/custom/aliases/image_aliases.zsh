@@ -120,11 +120,19 @@ alias img-resize-dir='() {
 
   mkdir -p "$output_dir"
 
-  if magick mogrify -resize "$size" -quality "$quality" -path "$output_dir" "$source_dir"/*.(jpg|png|jpeg|bmp|heic|tif|tiff) 2>/dev/null; then
-    echo "Resize complete, exported to $output_dir"
-  else
-    echo "Warning: Some images may not have been processed correctly." >&2
-  fi
+  local total_files=$(find "$source_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" -o -iname "*.tif" -o -iname "*.tiff" \) | wc -l | tr -d " ")
+  local processed=0
+
+  echo "Found $total_files images to process..."
+
+  find "$source_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" -o -iname "*.tif" -o -iname "*.tiff" \) | while IFS= read -r file; do
+    local filename=$(basename "$file")
+    processed=$((processed+1))
+    echo "[$processed/$total_files] Processing: $filename"
+    magick "$file" -resize "$size" -quality "$quality" "$output_dir/$filename"
+  done
+
+  echo "Resize complete, exported $processed images to $output_dir"
 }'  # Batch resize images in directory
 
 # --------------------------------
