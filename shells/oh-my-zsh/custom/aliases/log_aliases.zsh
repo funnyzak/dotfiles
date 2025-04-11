@@ -684,6 +684,64 @@ alias sysl='() {
   fi
 }' # View system log with highlighting
 
+# Log file clearing
+
+alias log-clear='() {
+  echo -e "Clear log file(s) (truncate to zero length)\nUsage:\n log-clear <file_path1> [file_path2] [file_path3...]\nExample:\n log-clear /var/log/app.log /var/log/error.log"
+
+  # Parameter validation
+  if [ $# -lt 1 ]; then
+    echo "Error: At least one log file path is required." >&2
+    return 1
+  fi
+
+  local success_count=0
+  local failure_count=0
+  local file_path=""
+  local current_file=""
+
+  # Process each file
+  for file_path in "$@"; do
+    current_file="$file_path"
+
+    # Validate file exists
+    if [ ! -f "$current_file" ]; then
+      echo "Error: Log file \"$current_file\" not found or not accessible." >&2
+      failure_count=$((failure_count + 1))
+      continue
+    fi
+
+    # Validate file is writable
+    if [ ! -w "$current_file" ]; then
+      echo "Error: No write permission for log file \"$current_file\"." >&2
+      failure_count=$((failure_count + 1))
+      continue
+    fi
+
+    # Clear the log file
+    : > "$current_file"
+    if [ $? -eq 0 ]; then
+      echo "Successfully cleared log file: \"$current_file\""
+      success_count=$((success_count + 1))
+    else
+      echo "Error: Failed to clear log file \"$current_file\"." >&2
+      failure_count=$((failure_count + 1))
+    fi
+  done
+
+  # Summary
+  echo ""
+  echo "Summary: Cleared $success_count file(s), failed to clear $failure_count file(s)."
+
+  # Return success only if all files were cleared successfully
+  if [ $failure_count -gt 0 ]; then
+    return 1
+  fi
+  return 0
+}' # Clear log file(s) (truncate to zero length) (original name)
+
+alias logc='log-clear' # Alias for log-clear
+
 alias log100='() {
   echo "Display last 100 lines of file and follow updates.\nUsage:\n log100 <file_path>"
   tail -f -n 100 "$@"
@@ -729,6 +787,10 @@ alias log-help='() {
   echo "  log-watch         - Watch log in real-time (original name)"
   echo "  logfh             - Follow log with highlighting (short for log-follow-highlight)"
   echo "  log-follow-highlight - Follow log with highlighting (original name)"
+  echo ""
+  echo "Log clearing:"
+  echo "  log-clear         - Clear log file(s) (truncate to zero length)"
+  echo "  logc              - Alias for log-clear"
   echo ""
   echo "Quick shortcuts:"
   echo "  sysl              - View system log with highlighting"
