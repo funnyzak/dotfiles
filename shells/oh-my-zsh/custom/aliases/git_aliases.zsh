@@ -130,8 +130,6 @@ alias gbranchl='() {
   git branch -a
 }'
 
-alias gbranchs=
-
 # Switch to main branch
 alias gcomain='() {
   if ! _git_check_command || ! _git_check_repository; then
