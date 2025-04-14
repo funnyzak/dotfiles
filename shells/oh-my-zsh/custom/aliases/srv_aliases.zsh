@@ -901,6 +901,11 @@ alias srv-frpc='() {
 }'
 
 
+# Other useful aliases
+alias disable-welcome="sudo chmod -x /etc/update-motd.d/*" # Disable welcome message
+
+
+
 # Help function for server aliases
 alias srv-help='() {
   echo "Server Management Aliases Help"
