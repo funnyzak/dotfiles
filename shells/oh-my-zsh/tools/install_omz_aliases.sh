@@ -160,7 +160,7 @@ download_errors=0  # Initialize download error counter
 remote_base_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/"
 remote_base_url_cn="https://gitee.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/"
 
-remote_base_url=$(detect_best_url "$remote_base_url" "$remote_base_url_cn")
+remote_base_url=$(detect_best_url "$remote_base_url_cn" "$remote_base_url")
 # Use China-specific URL if CN=true
 if [ "$CN" = "true" ]; then
   remote_base_url="$remote_base_url_cn"
