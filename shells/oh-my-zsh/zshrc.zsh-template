@@ -136,7 +136,7 @@ best_remote_url_prefix() {
   local REMOTE_URL_PREFIX_CN="https://gitee.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
 
   # Check if CN mirror is accessible
-  if curl -s --connect-timeout 2 "$REMOTE_URL_PREFIX_CN" >/dev/null 2>&1; then
+  if curl -s --connect-timeout 2 "https://gitee.com" >/dev/null 2>&1; then
     REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
   fi
 
