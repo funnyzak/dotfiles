@@ -887,6 +887,8 @@ alias srv-create-deploy='() {
   echo -e "Examples:"
   echo -e "  srv-create-deploy deployuser"
   echo -e "  srv-create-deploy myapp myappgroup /var/www/myapplication --shell"
+  echo -e "  srv-create-deploy newuser mygroup /var/www/newapp --no-password"
+  echo -e "  srv-create-deploy anotheruser anothergroup /var/www/anotherapp --shell"
 
   # Check if username is provided
   if [ -z "$1" ]; then
