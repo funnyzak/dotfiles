@@ -883,7 +883,7 @@ alias srv-create-deploy='() {
   echo -e "Create a deployment user with proper permissions.\nUsage:\n  srv-create-deploy <username> [group_name:username] [deploy_dir:/var/www/username] [--shell|-s] [--no-password|-n]"
   echo -e "Options:"
   echo -e "  --shell, -s         Allow shell access (default: no shell access)"
-  echo -e "  --no-password, -n   Don\"t set password (use key-based auth only)"
+  echo -e "  --no-password, -n   Do not set password (use key-based auth only)"
   echo -e "Examples:"
   echo -e "  srv-create-deploy deployuser"
   echo -e "  srv-create-deploy myapp myappgroup /var/www/myapplication --shell"
@@ -932,8 +932,8 @@ alias srv-create-deploy='() {
     esac
   done
 
-  # Create group if it doesn"t exist
-  echo "Creating group $group_name if it doesn\"t exist..."
+  # Create group if it does not exist
+  echo "Creating group $group_name if it does not exist..."
   if ! getent group "$group_name" > /dev/null 2>&1; then
     sudo groupadd "$group_name"
     if [ $? -ne 0 ]; then
@@ -1017,7 +1017,8 @@ alias srv-create-deploy='() {
     echo "   sudo chmod 700 ${home_dir}/.ssh"
     echo "   sudo chmod 600 ${home_dir}/.ssh/authorized_keys"
   fi
-}' # Create a deployment user with proper permissions
+}' #}' # Create a deployment user with proper permissions
+
 
 # Help function for server aliases
 alias srv-help='() {
