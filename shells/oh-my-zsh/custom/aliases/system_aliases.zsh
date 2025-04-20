@@ -533,5 +533,486 @@ alias sys-help='() {
   echo "  rsync-files       - Sync files/directories with rsync"
   echo "  rsync-mirror      - Sync files/directories with rsync using delete option"
   echo "  rsync-remote      - Rsync from/to remote server using specific SSH port"
+  echo ""
+  echo "  User management:"
+  echo "  list-users        - List all users on the system with details"
+  echo "  add-user          - Add a new user with optional parameters"
+  echo "  del-user          - Delete a user with optional force flag"
+  echo ""
   echo "  system-help       - Display this help message"
 }' # Display help for system management aliases
+
+# User Management
+# -----------------
+
+# List all users on the system
+alias list-users='() {
+  echo "List all users on the system with details."
+  echo -e "Usage:\n list-users [filter_pattern]"
+
+  local filter_pattern="$1"
+  local user_list_command=""
+  local sort_command="sort"
+
+  # Detect OS and use appropriate commands
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    # macOS
+    if [ -z "$filter_pattern" ]; then
+      dscl . list /Users | grep -v "^_" | while read -r username; do
+        echo "Username: $username"
+        echo "UID: $(dscl . -read /Users/$username UniqueID 2>/dev/null | awk "{print \$2}")"
+        echo "Home: $(dscl . -read /Users/$username NFSHomeDirectory 2>/dev/null | awk "{print \$2}")"
+        echo "Shell: $(dscl . -read /Users/$username UserShell 2>/dev/null | awk "{print \$2}")"
+        echo "-----"
+      done
+    else
+      dscl . list /Users | grep -v "^_" | grep "$filter_pattern" | while read -r username; do
+        echo "Username: $username"
+        echo "UID: $(dscl . -read /Users/$username UniqueID 2>/dev/null | awk "{print \$2}")"
+        echo "Home: $(dscl . -read /Users/$username NFSHomeDirectory 2>/dev/null | awk "{print \$2}")"
+        echo "Shell: $(dscl . -read /Users/$username UserShell 2>/dev/null | awk "{print \$2}")"
+        echo "-----"
+      done
+    fi
+  else
+    # Linux
+    if [ -z "$filter_pattern" ]; then
+      getent passwd | grep -v "nologin\|false" | sort -t: -k3 -n | while IFS=: read -r user _ uid gid desc home shell; do
+        echo "Username: $user"
+        echo "UID: $uid"
+        echo "GID: $gid"
+        echo "Description: $desc"
+        echo "Home: $home"
+        echo "Shell: $shell"
+        echo "-----"
+      done
+    else
+      getent passwd | grep "$filter_pattern" | grep -v "nologin\|false" | sort -t: -k3 -n | while IFS=: read -r user _ uid gid desc home shell; do
+        echo "Username: $user"
+        echo "UID: $uid"
+        echo "GID: $gid"
+        echo "Description: $desc"
+        echo "Home: $home"
+        echo "Shell: $shell"
+        echo "-----"
+      done
+    fi
+  fi
+}'  # List all users on the system with details
+
+# Add a new user with various options
+alias add-user='() {
+  echo "Add a new user with optional parameters."
+  echo -e "Usage:\n add-user <username> [options]"
+  echo -e "Options:"
+  echo -e "  -p <password>    : Set user password (random if not specified)"
+  echo -e "  -d <home_dir>    : Set home directory path"
+  echo -e "  -s <shell>       : Set login shell"
+  echo -e "  -g <group>       : Set primary group"
+  echo -e "  -G <groups>      : Set additional groups (comma-separated)"
+  echo -e "  -m <dir_perms>   : Set home directory permissions (e.g., 755)"
+  echo -e "  -c <comment>     : Set comment/description"
+  echo -e "Examples:"
+  echo -e " add-user john"
+  echo -e " add-user jane -p secretpass -m 750 -c \"Jane Doe\""
+
+  if [ $# -lt 1 ]; then
+    _show_error_system_aliases "Error: Username parameter is required"
+    return 1
+  fi
+
+  local username="$1"
+  shift
+
+  # Check if username is valid
+  if ! [[ "$username" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+    _show_error_system_aliases "Error: Invalid username format. Username must:
+    - Start with a lowercase letter or underscore
+    - Contain only lowercase letters, digits, underscores, or hyphens
+    - Be at most 32 characters long"
+    return 1
+  fi
+
+  # Check if user already exists
+  if id "$username" &>/dev/null; then
+    _show_error_system_aliases "Error: User '$username' already exists"
+    return 1
+  fi
+
+  # Default values
+  local password=""
+  local home_dir=""
+  local shell=""
+  local group=""
+  local groups=""
+  local dir_perms="755"
+  local comment=""
+  local gen_passwd=true
+  local password_length=12
+
+  # Parse options
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -p)
+        if [ -z "$2" ]; then
+          _show_error_system_aliases "Error: Password value missing after -p option"
+          return 1
+        fi
+        password="$2"
+        gen_passwd=false
+        shift 2
+        ;;
+      -d)
+        if [ -z "$2" ]; then
+          _show_error_system_aliases "Error: Home directory value missing after -d option"
+          return 1
+        fi
+        home_dir="$2"
+        shift 2
+        ;;
+      -s)
+        if [ -z "$2" ]; then
+          _show_error_system_aliases "Error: Shell value missing after -s option"
+          return 1
+        fi
+        shell="$2"
+        shift 2
+        ;;
+      -g)
+        if [ -z "$2" ]; then
+          _show_error_system_aliases "Error: Group value missing after -g option"
+          return 1
+        fi
+        group="$2"
+        shift 2
+        ;;
+      -G)
+        if [ -z "$2" ]; then
+          _show_error_system_aliases "Error: Groups value missing after -G option"
+          return 1
+        fi
+        groups="$2"
+        shift 2
+        ;;
+      -m)
+        if [ -z "$2" ]; then
+          _show_error_system_aliases "Error: Directory permissions value missing after -m option"
+          return 1
+        fi
+        dir_perms="$2"
+        shift 2
+        ;;
+      -c)
+        if [ -z "$2" ]; then
+          _show_error_system_aliases "Error: Comment value missing after -c option"
+          return 1
+        fi
+        comment="$2"
+        shift 2
+        ;;
+      *)
+        _show_error_system_aliases "Error: Unknown option: $1"
+        return 1
+        ;;
+    esac
+  done
+
+  # Generate random password if not specified
+  if $gen_passwd; then
+    if ! command -v openssl &>/dev/null; then
+      _show_error_system_aliases "Error: openssl command not found, cannot generate random password"
+      return 1
+    fi
+    password=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | fold -w "$password_length" | head -n 1)
+    echo "Generated random password for user $username: $password"
+  fi
+
+  # Detect OS and add user with appropriate commands
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    # macOS
+    echo "Creating user on macOS..."
+
+    # Generate next available UID
+    local next_uid=$(dscl . -list /Users UniqueID | awk "{print \$2}" | sort -n | tail -1 | awk "{print \$1+1}")
+
+    # Create user
+    if ! sudo dscl . -create /Users/"$username"; then
+      _show_error_system_aliases "Error: Failed to create user"
+      return 1
+    fi
+
+    # Set UID
+    if ! sudo dscl . -create /Users/"$username" UniqueID "$next_uid"; then
+      _show_error_system_aliases "Error: Failed to set UID"
+      return 1
+    fi
+
+    # Set primary group (staff by default)
+    if [ -z "$group" ]; then
+      group="staff"
+    fi
+    local gid=$(dscl . -read /Groups/"$group" PrimaryGroupID 2>/dev/null | awk "{print \$2}")
+    if [ -z "$gid" ]; then
+      _show_error_system_aliases "Error: Group '$group' does not exist"
+      return 1
+    fi
+    if ! sudo dscl . -create /Users/"$username" PrimaryGroupID "$gid"; then
+      _show_error_system_aliases "Error: Failed to set primary group"
+      return 1
+    fi
+
+    # Set home directory
+    if [ -z "$home_dir" ]; then
+      home_dir="/Users/$username"
+    fi
+    if ! sudo dscl . -create /Users/"$username" NFSHomeDirectory "$home_dir"; then
+      _show_error_system_aliases "Error: Failed to set home directory"
+      return 1
+    fi
+
+    # Set shell
+    if [ -z "$shell" ]; then
+      shell="/bin/zsh"
+    fi
+    if ! sudo dscl . -create /Users/"$username" UserShell "$shell"; then
+      _show_error_system_aliases "Error: Failed to set shell"
+      return 1
+    fi
+
+    # Set password
+    if ! sudo dscl . -passwd /Users/"$username" "$password"; then
+      _show_error_system_aliases "Error: Failed to set password"
+      return 1
+    fi
+
+    # Set real name / comment
+    if [ -n "$comment" ]; then
+      if ! sudo dscl . -create /Users/"$username" RealName "$comment"; then
+        _show_error_system_aliases "Error: Failed to set real name"
+        return 1
+      fi
+    fi
+
+    # Create home directory
+    if ! sudo mkdir -p "$home_dir"; then
+      _show_error_system_aliases "Error: Failed to create home directory"
+      return 1
+    fi
+
+    # Set home directory permissions
+    if ! sudo chmod "$dir_perms" "$home_dir"; then
+      _show_error_system_aliases "Error: Failed to set home directory permissions"
+      return 1
+    fi
+
+    # Set home directory ownership
+    if ! sudo chown -R "$username:$group" "$home_dir"; then
+      _show_error_system_aliases "Error: Failed to set home directory ownership"
+      return 1
+    fi
+
+    # Add to additional groups
+    if [ -n "$groups" ]; then
+      IFS=',' read -ra ADDR <<< "$groups"
+      for i in "${ADDR[@]}"; do
+        if ! sudo dseditgroup -o edit -a "$username" -t user "$i"; then
+          _show_error_system_aliases "Warning: Failed to add user to group '$i'"
+        fi
+      done
+    fi
+
+  else
+    # Linux
+    echo "Creating user on Linux..."
+    local useradd_cmd="sudo useradd"
+
+    # Set options based on arguments
+    if [ -n "$comment" ]; then
+      useradd_cmd="$useradd_cmd -c \"$comment\""
+    fi
+
+    if [ -n "$home_dir" ]; then
+      useradd_cmd="$useradd_cmd -d \"$home_dir\""
+    fi
+
+    if [ -n "$shell" ]; then
+      useradd_cmd="$useradd_cmd -s \"$shell\""
+    fi
+
+    if [ -n "$group" ]; then
+      useradd_cmd="$useradd_cmd -g \"$group\""
+    fi
+
+    if [ -n "$groups" ]; then
+      useradd_cmd="$useradd_cmd -G \"$groups\""
+    fi
+
+    # Create home directory
+    useradd_cmd="$useradd_cmd -m"
+
+    # Add username
+    useradd_cmd="$useradd_cmd \"$username\""
+
+    # Execute useradd command
+    if ! eval "$useradd_cmd"; then
+      _show_error_system_aliases "Error: Failed to create user"
+      return 1
+    fi
+
+    # Set home directory permissions if specified
+    if [ -n "$dir_perms" ]; then
+      local home_path
+      if [ -n "$home_dir" ]; then
+        home_path="$home_dir"
+      else
+        home_path="/home/$username"
+      fi
+
+      if [ -d "$home_path" ]; then
+        if ! sudo chmod "$dir_perms" "$home_path"; then
+          _show_error_system_aliases "Warning: Failed to set home directory permissions"
+        fi
+      fi
+    fi
+
+    # Set password
+    if ! echo "$username:$password" | sudo chpasswd; then
+      _show_error_system_aliases "Error: Failed to set password"
+      return 1
+    fi
+  fi
+
+  echo "User '$username' created successfully!"
+  if $gen_passwd; then
+    echo "Remember to save the generated password: $password"
+  fi
+}'  # Add a new user with optional parameters
+
+# Delete a user with options
+alias del-user='() {
+  echo "Delete a user from the system."
+  echo -e "Usage:\n del-user <username> [-f] [-h] [-r]"
+  echo -e "Options:"
+  echo -e "  -f  : Force removal without confirmation"
+  echo -e "  -h  : Keep home directory (default is to remove)"
+  echo -e "  -r  : Remove all files owned by user"
+  echo -e "Examples:"
+  echo -e " del-user john"
+  echo -e " del-user jane -f"
+  echo -e " del-user john -h"
+
+  if [ $# -lt 1 ]; then
+    _show_error_system_aliases "Error: Username parameter is required"
+    return 1
+  fi
+
+  local username="$1"
+  shift
+
+  # Check if user exists
+  if ! id "$username" &>/dev/null; then
+    _show_error_system_aliases "Error: User '$username' does not exist"
+    return 1
+  fi
+
+  # Default options
+  local force=false
+  local keep_home=false
+  local remove_all=false
+
+  # Parse options
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -f)
+        force=true
+        shift
+        ;;
+      -h)
+        keep_home=true
+        shift
+        ;;
+      -r)
+        remove_all=true
+        shift
+        ;;
+      *)
+        _show_error_system_aliases "Error: Unknown option: $1"
+        return 1
+        ;;
+    esac
+  done
+
+  # Get user home directory
+  local home_dir=""
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    home_dir=$(dscl . -read /Users/"$username" NFSHomeDirectory 2>/dev/null | awk "{print \$2}")
+  else
+    home_dir=$(getent passwd "$username" | cut -d: -f6)
+  fi
+
+  # Confirm deletion if not forced
+  if ! $force; then
+    echo "Are you sure you want to delete user '$username'? [y/N]"
+    read -r confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+      echo "User deletion canceled"
+      return 0
+    fi
+  fi
+
+  # Detect OS and delete user with appropriate commands
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    # macOS
+    echo "Deleting user on macOS..."
+
+    # Find processes running by the user and kill them
+    if $remove_all; then
+      echo "Killing processes owned by user '$username'..."
+      pids=$(ps -u "$username" -o pid | grep -v PID)
+      if [ -n "$pids" ]; then
+        echo "$pids" | xargs sudo kill -9
+      fi
+    fi
+
+    # Delete user account
+    if ! sudo dscl . -delete /Users/"$username"; then
+      _show_error_system_aliases "Error: Failed to delete user"
+      return 1
+    fi
+
+    # Delete home directory if requested
+    if [ -n "$home_dir" ] && [ -d "$home_dir" ] && ! $keep_home; then
+      echo "Removing home directory: $home_dir"
+      if ! sudo rm -rf "$home_dir"; then
+        _show_error_system_aliases "Warning: Failed to remove home directory"
+      fi
+    fi
+
+  else
+    # Linux
+    echo "Deleting user on Linux..."
+    local userdel_cmd="sudo userdel"
+
+    # Set options based on arguments
+    if ! $keep_home; then
+      userdel_cmd="$userdel_cmd -r"
+    fi
+
+    # Remove all files owned by user
+    if $remove_all; then
+      echo "Finding and removing files owned by user '$username'..."
+      sudo find / -user "$username" -delete 2>/dev/null
+    fi
+
+    # Add username
+    userdel_cmd="$userdel_cmd \"$username\""
+
+    # Execute userdel command
+    if ! eval "$userdel_cmd"; then
+      _show_error_system_aliases "Error: Failed to delete user"
+      return 1
+    fi
+  fi
+
+  echo "User '$username' deleted successfully!"
+}'  # Delete a user with options
