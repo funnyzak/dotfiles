@@ -52,7 +52,7 @@ Thumbs.db
 
 *.code-workspace
 
-.cursor/
+# .cursor/
 
 test.sh
 

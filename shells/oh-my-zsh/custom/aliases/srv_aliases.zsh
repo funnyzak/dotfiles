@@ -231,33 +231,6 @@ alias srv-overview='() {
   uptime
 }' # Show system overview
 
-alias srv-list-users='() {
-  echo -e "List all users on the system.\nUsage:\n  srv-list-users [--active|-a]"
-
-  if [ "$1" = "--active" ] || [ "$1" = "-a" ]; then
-    echo "Listing active users:"
-    who
-  else
-    echo "Listing all system users:"
-
-    # Try different methods based on what available
-    if [ -f "/etc/passwd" ]; then
-      # Using grep and cut instead of awk to avoid zshrc issues
-      grep -v "^#" /etc/passwd | while IFS=: read -r username _ uid _; do
-        if [ "$uid" -ge 1000 ] && [ "$uid" -ne 65534 ]; then
-          echo "$username"
-        fi
-      done
-    elif command -v dscl >/dev/null 2>&1; then
-      # macOS specific
-      dscl . -list /Users | grep -v "^_"
-    else
-      echo "Error: Could not determine method to list users" >&2
-      return 1
-    fi
-  fi
-}' # List system users
-
 alias srv-clean-system='() {
   echo -e "Clean system caches and temporary files.\nUsage:\n  srv-clean-system [--thorough|-t]"
 
@@ -904,6 +877,149 @@ alias srv-frpc='() {
 # Other useful aliases
 alias disable-welcome="sudo chmod -x /etc/update-motd.d/*" # Disable welcome message
 
+# User management for deployment
+# -----------------------------
+alias srv-create-deploy='() {
+  echo -e "Create a deployment user with proper permissions.\nUsage:\n  srv-create-deploy <username> [group_name:username] [deploy_dir:/var/www/username] [--shell|-s] [--no-password|-n]"
+  echo -e "Options:"
+  echo -e "  --shell, -s         Allow shell access (default: no shell access)"
+  echo -e "  --no-password, -n   Do not set password (use key-based auth only)"
+  echo -e "Examples:"
+  echo -e "  srv-create-deploy deployuser"
+  echo -e "  srv-create-deploy myapp myappgroup /var/www/myapplication --shell --no-password"
+  echo -e "  srv-create-deploy newuser mygroup /var/www/newapp --no-password"
+  echo -e "  srv-create-deploy anotheruser anothergroup /var/www/anotherapp --shell"
+
+  # Check if username is provided
+  if [ -z "$1" ]; then
+    echo "Error: Username is required" >&2
+    return 1
+  fi
+
+  local username="$1"
+  shift
+
+  # Default values
+  local group_name="$username"
+  local deploy_dir="/var/www/$username"
+  local allow_shell=0
+  local set_password=1
+
+  # Process all arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --shell|-s)
+        allow_shell=1
+        shift
+        ;;
+      --no-password|-n)
+        set_password=0
+        shift
+        ;;
+      *)
+        # If first positional parameter after username and not an option, treat as group name
+        if [[ ! "$1" =~ ^- ]] && [ -z "$2" ]; then
+          group_name="$1"
+          shift
+        # If second positional parameter and not an option, treat as deploy directory
+        elif [[ ! "$1" =~ ^- ]]; then
+          group_name="$1"
+          deploy_dir="$2"
+          shift 2
+        else
+          echo "Error: Unknown option $1" >&2
+          return 1
+        fi
+        ;;
+    esac
+  done
+
+  # Create group if it does not exist
+  echo "Creating group $group_name if it does not exist..."
+  if ! getent group "$group_name" > /dev/null 2>&1; then
+    sudo groupadd "$group_name"
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to create group $group_name" >&2
+      return 1
+    fi
+    echo "Group $group_name created successfully"
+  else
+    echo "Group $group_name already exists"
+  fi
+
+  # Check if user already exists
+  if id "$username" > /dev/null 2>&1; then
+    echo "Error: User $username already exists" >&2
+    return 1
+  fi
+
+  # Create user with default home directory
+  echo "Creating user $username..."
+  sudo useradd -m -g "$group_name" "$username"
+
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to create user $username" >&2
+    return 1
+  fi
+
+  # Set password if required
+  if [ "$set_password" -eq 1 ]; then
+    echo "Setting password for $username..."
+    sudo passwd "$username"
+
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to set password for $username" >&2
+      return 1
+    fi
+  else
+    echo "Skipping password setup (key-based authentication recommended)"
+  fi
+
+  # Disable shell access if requested
+  if [ "$allow_shell" -eq 0 ]; then
+    echo "Disabling shell access for $username..."
+    sudo usermod -s /usr/sbin/nologin "$username"
+
+    if [ $? -ne 0 ]; then
+      echo "Warning: Failed to disable shell access for $username" >&2
+    fi
+  fi
+
+  # Make sure deployment directory exists and has correct permissions
+  echo "Setting up deployment directory $deploy_dir with correct permissions..."
+  if [ ! -d "$deploy_dir" ]; then
+    sudo mkdir -p "$deploy_dir"
+  fi
+
+  sudo chown "$username:$group_name" "$deploy_dir"
+  sudo chmod 755 "$deploy_dir"
+
+  # Get the actual home directory
+  local home_dir=$(eval echo ~${username})
+
+  echo "Created deployment user $username successfully:"
+  echo "  - Username: $username"
+  echo "  - Group: $group_name"
+  echo "  - Home directory: $home_dir"
+  echo "  - Deployment directory: $deploy_dir"
+  echo "  - Shell access: $([ "$allow_shell" -eq 1 ] && echo "Enabled" || echo "Disabled")"
+
+  # Create ssh directory for key-based auth if password is skipped
+  if [ "$set_password" -eq 0 ]; then
+    echo ""
+    echo "Next steps for setting up SSH key authentication:"
+    echo "1. Create .ssh directory:"
+    echo "   sudo mkdir -p ${home_dir}/.ssh"
+    echo ""
+    echo "2. Add your public key to authorized_keys:"
+    echo "   sudo nano ${home_dir}/.ssh/authorized_keys"
+    echo ""
+    echo "3. Set correct permissions:"
+    echo "   sudo chown -R ${username}:${group_name} ${home_dir}/.ssh"
+    echo "   sudo chmod 700 ${home_dir}/.ssh"
+    echo "   sudo chmod 600 ${home_dir}/.ssh/authorized_keys"
+  fi
+}' #}' # Create a deployment user with proper permissions
 
 
 # Help function for server aliases
@@ -940,7 +1056,7 @@ alias srv-help='() {
   echo ""
   echo "  System information and monitoring:"
   echo "  srv-overview      - Show system overview"
-  echo "  srv-list-users    - List all users on the system"
+  echo "  srv-create-deploy - Create a deployment user with proper permissions"
   echo ""
   echo "  System tool management:"
   echo "  srv-frpc          - Install and configure frp client"

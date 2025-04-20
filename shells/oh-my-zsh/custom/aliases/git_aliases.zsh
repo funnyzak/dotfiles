@@ -669,15 +669,71 @@ alias gclone='() {
   fi
 
   if [ $# -eq 0 ]; then
-    echo "Clone repository.\nUsage:\n gclone <repo_url> [folder:auto-name]"
+    echo "Clone repository.\nUsage:\n gclone <repo_url> [folder:auto-name] [-b branch] [--additional-params]"
+    echo "Example:\n gclone <repo_url> [folder_name] -b branch_name"
     return 1
   fi
 
   repo_url=$1
-  folder=${2:-$(basename $1 .git)}
+  shift
+
+  # Default folder name from repo URL
+  folder=""
+  branch=""
+  extra_args=""
+
+  # Parse arguments
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -b|--branch)
+        branch="$2"
+        shift 2
+        ;;
+      -b=*|--branch=*)
+        branch="${1#*=}"
+        shift
+        ;;
+      -*)
+        # Collect other git clone arguments
+        extra_args="$extra_args $1"
+        shift
+        ;;
+      *)
+        # First non-option argument is the folder
+        if [ -z "$folder" ]; then
+          folder="$1"
+        else
+          # Add to extra args if more arguments
+          extra_args="$extra_args $1"
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # If no folder specified, extract from repo URL
+  if [ -z "$folder" ]; then
+    folder=$(basename "$repo_url" .git)
+  fi
+
+  # Build the command
+  clone_cmd="git clone"
+
+  if [ -n "$branch" ]; then
+    clone_cmd="$clone_cmd -b $branch"
+  fi
+
+  if [ -n "$extra_args" ]; then
+    clone_cmd="$clone_cmd $extra_args"
+  fi
 
   echo "Cloning $repo_url into $folder"
-  git clone "$repo_url" "$folder" &&
+  if [ -n "$branch" ]; then
+    echo "Using branch: $branch"
+  fi
+
+  # Execute the clone command
+  eval "$clone_cmd \"$repo_url\" \"$folder\"" &&
   cd "$folder" && echo "Clone completed, changed directory to $folder"
 }'
 
