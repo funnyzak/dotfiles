@@ -323,7 +323,7 @@ alias sys-info='() {
     # For macOS
     echo "Memory stats:"
     vm_stat
-    echo "Total memory: $(sysctl -n hw.memsize 2>/dev/null | awk '{print $0/1024/1024/1024 " GB"}')"
+    echo "Total memory: $(sysctl -n hw.memsize 2>/dev/null | awk \"{print $0/1024/1024/1024 \" GB\"}\")"
   fi
 
   # Disk info
