@@ -220,7 +220,7 @@ _zsh_load_plugins() {
         echo -e "${RED}Failed to download $plugin, please check your network or install manually${NC}"
       fi
     else
-      echo -e "${YELLOW}Plugin $plugin not found. Use \"zsh-plugins-load -f\" to download.${NC}"
+      echo -e "${YELLOW}Plugin $plugin not found. Use \"zsh-load-plugins\" to download.${NC}"
     fi
   done
 
