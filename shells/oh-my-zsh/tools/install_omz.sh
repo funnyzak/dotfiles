@@ -133,7 +133,9 @@ show_help() {
 TMP_PATH="$(mktemp -d /tmp/ohmyzsh.XXXXXX)"
 
 # Installation directory (default: ~/.oh-my-zsh)
-OMZ_INSTALL_DIR="${OMZ_INSTALL_DIR:-$HOME/.oh-my-zsh}"
+# Use default if HOME is not set or empty
+[ -z "$HOME" ] && HOME=$(cd ~ && pwd 2>/dev/null || echo "/root")
+OMZ_INSTALL_DIR="${OMZ_INSTALL_DIR:-${HOME}/.oh-my-zsh}"
 
 # zshrc configuration URL
 OMZ_ZSHRC_BRANCH=${OMZ_ZSHRC_BRANCH:-main}

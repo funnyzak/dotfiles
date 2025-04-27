@@ -98,7 +98,8 @@ The `tools/install_omz.sh` script is a versatile tool for installing, updating, 
 **Remote Execution**:
 ```bash
 # Basic remote installation
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash -- --force
+curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh -o _install_omz.sh && chmod +x _install_omz.sh && ./_install_omz.sh --force
+
 ```
 
 **Environment Variables**:
