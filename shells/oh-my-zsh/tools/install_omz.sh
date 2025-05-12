@@ -134,6 +134,7 @@ TMP_PATH="$(mktemp -d /tmp/ohmyzsh.XXXXXX)"
 
 # Installation directory (default: ~/.oh-my-zsh)
 # Use default if HOME is not set or empty
+HOME="${HOME:-}"  # Initialize HOME as empty string if unset
 [ -z "$HOME" ] && HOME=$(cd ~ && pwd 2>/dev/null || echo "/root")
 OMZ_INSTALL_DIR="${OMZ_INSTALL_DIR:-${HOME}/.oh-my-zsh}"
 
