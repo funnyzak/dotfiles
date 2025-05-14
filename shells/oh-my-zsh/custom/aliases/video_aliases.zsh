@@ -78,6 +78,133 @@ alias vdo-merge='() {
   rm "$temp_list"
 }' # Merge multiple videos into one file
 
+alias vdo-merge-audio='() {
+  echo -e "Merge video and audio files into one MP4 file.\nUsage:\n  vdo-merge-audio <video_file_path> [audio_file_path]\n\nExamples:\n  vdo-merge-audio video.mp4 audio.mp3\n  vdo-merge-audio video.mp4  # Automatically finds matching audio file"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  local video_file="$1"
+  local audio_file="$2"
+  local video_basename
+  local video_dir
+  local output_file
+
+  _vdo_validate_file "$video_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Extract video basename and directory
+  video_basename=$(basename "$video_file")
+  video_name="${video_basename%.*}"
+  video_dir=$(dirname "$video_file")
+
+  # If audio file not specified, try to find matching audio file
+  if [ -z "$audio_file" ]; then
+    echo "No audio file specified, searching for matching audio files..."
+
+    # Try to find audio files with same name but different extension
+    for ext in mp3 wav aac m4a ogg flac; do
+      potential_audio="$video_dir/$video_name.$ext"
+      if [ -f "$potential_audio" ]; then
+        audio_file="$potential_audio"
+        echo "Found matching audio file: $audio_file"
+        break
+      fi
+    done
+
+    if [ -z "$audio_file" ]; then
+      echo "Error: No matching audio file found for $video_file" >&2
+      echo "Please specify an audio file or ensure a matching one exists in the same directory" >&2
+      return 1
+    fi
+  else
+    _vdo_validate_file "$audio_file" || return 1
+  fi
+
+  # Create output filename
+  output_file="${video_dir}/${video_name}_merged.mp4"
+
+  echo "Merging video $video_file with audio $audio_file..."
+
+  if ffmpeg -i "$video_file" -i "$audio_file" -c:v copy -c:a aac -b:a 192k -map 0:v:0 -map 1:a:0 "$output_file"; then
+    echo "Audio-video merge complete, exported to $output_file"
+  else
+    echo "Error: Audio-video merge failed" >&2
+    return 1
+  fi
+}' # Merge a video with an audio file
+
+alias vdo-batch-merge-audio='() {
+  echo -e "Batch merge video and audio files from directories.\nUsage:\n  vdo-batch-merge-audio <video_directory> [audio_directory] [video_extension:mp4] [audio_extension:mp3]\n\nExamples:\n  vdo-batch-merge-audio videos/ audios/ mp4 wav\n  vdo-batch-merge-audio videos/ # Uses same dir for audio files, defaults to mp4+mp3"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  local video_dir="$1"
+  local audio_dir="${2:-$video_dir}"
+  local video_ext="${3:-mp4}"
+  local audio_ext="${4:-mp3}"
+
+  _vdo_validate_dir "$video_dir" || return 1
+  _vdo_validate_dir "$audio_dir" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Check if video files exist
+  local file_count=$(find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${video_ext} files found in $video_dir" >&2
+    return 1
+  fi
+
+  # Create output directory
+  local output_dir="${video_dir}/merged"
+  mkdir -p "$output_dir"
+
+  local success_count=0
+  local error_count=0
+  local skipped_count=0
+
+  # Process each video file
+  find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | while read -r video_file; do
+    local base_name=$(basename "$video_file" .${video_ext})
+    local audio_file="${audio_dir}/${base_name}.${audio_ext}"
+    local output_file="${output_dir}/${base_name}_merged.mp4"
+
+    # Check if audio file exists
+    if [ ! -f "$audio_file" ]; then
+      echo "Warning: No matching audio file found for $video_file, skipping..." >&2
+      ((skipped_count++))
+      continue
+    fi
+
+    echo "Merging video $video_file with audio $audio_file..."
+
+    if ffmpeg -i "$video_file" -i "$audio_file" -c:v copy -c:a aac -b:a 192k -map 0:v:0 -map 1:a:0 -y "$output_file"; then
+      echo "Merge complete for $base_name"
+      ((success_count++))
+    else
+      echo "Error: Failed to merge $base_name" >&2
+      ((error_count++))
+    fi
+  done
+
+  # Print summary
+  echo "Batch merge summary:"
+  echo "  Successfully merged: $success_count files"
+  echo "  Failed to merge: $error_count files"
+  echo "  Skipped (no audio): $skipped_count files"
+  echo "Output files saved to: $output_dir"
+
+  # Return error if any errors occurred
+  if [ "$error_count" -gt 0 ]; then
+    return 1
+  fi
+
+  return 0
+}' # Batch merge videos with audio files from directories
+
 #------------------------------------------------------------------------------
 # Video Format Conversion
 #------------------------------------------------------------------------------
@@ -1217,6 +1344,8 @@ alias vdo-help='() {
   echo "  vdo-adjust-volume <file> <factor>    - Adjust audio volume in video"
   echo "  vdo-extract-mp3 <file>               - Extract audio to MP3 format"
   echo "  vdo-extract-dir-mp3 <dir>            - Extract audio from videos in directory to MP3"
+  echo "  vdo-merge-audio <video> [audio]      - Merge video and audio into a single file"
+  echo "  vdo-batch-merge-audio <vdir> [adir] [vext] [aext] - Batch merge videos with audio files"
   echo ""
   echo "Compression & Conversion:"
   echo "  vdo-compress <file> <quality>        - Compress video with specified quality"
