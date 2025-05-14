@@ -1,6 +1,6 @@
 ---
 description:
-globs:
+globs: shells/oh-my-zsh/custom/aliases/*.zsh
 alwaysApply: false
 ---
 

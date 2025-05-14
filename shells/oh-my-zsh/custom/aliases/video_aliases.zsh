@@ -5,31 +5,31 @@
 #------------------------------------------------------------------------------
 
 # Helper function to validate file existence
-_vdo_validate_file='() {
+_vdo_validate_file() {
   if [[ ! -f "$1" ]]; then
     echo "Error: File \"$1\" does not exist" >&2
     return 1
   fi
   return 0
-}'
+}
 
 # Helper function to validate directory existence
-_vdo_validate_dir='() {
+_vdo_validate_dir() {
   if [[ ! -d "$1" ]]; then
     echo "Error: Directory \"$1\" does not exist" >&2
     return 1
   fi
   return 0
-}'
+}
 
 # Helper function to check if ffmpeg is installed
-_vdo_check_ffmpeg='() {
+_vdo_check_ffmpeg() {
   if ! command -v ffmpeg &> /dev/null; then
     echo "Error: ffmpeg is not installed or not in PATH" >&2
     return 1
   fi
   return 0
-}'
+}
 
 #------------------------------------------------------------------------------
 # Video File Merging
@@ -77,6 +77,187 @@ alias vdo-merge='() {
   # Clean up temporary file
   rm "$temp_list"
 }' # Merge multiple videos into one file
+
+alias vdo-merge-audio='() {
+  echo -e "Merge video and audio files into one MP4 file.\nUsage:\n  vdo-merge-audio <video_file_path> [audio_file_path]\n\nExamples:\n  vdo-merge-audio video.mp4 audio.mp3\n  vdo-merge-audio video.mp4  # Automatically finds matching audio file"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  local video_file="$1"
+  local audio_file="$2"
+  local video_basename
+  local video_dir
+  local output_file
+
+  _vdo_validate_file "$video_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Extract video basename and directory
+  video_basename=$(basename "$video_file")
+  video_name="${video_basename%.*}"
+  video_dir=$(dirname "$video_file")
+
+  # If audio file not specified, try to find matching audio file
+  if [ -z "$audio_file" ]; then
+    echo "No audio file specified, searching for matching audio files..."
+
+    # Try to find audio files with same name but different extension
+    for ext in mp3 wav aac m4a ogg flac; do
+      potential_audio="$video_dir/$video_name.$ext"
+      if [ -f "$potential_audio" ]; then
+        audio_file="$potential_audio"
+        echo "Found matching audio file: $audio_file"
+        break
+      fi
+    done
+
+    if [ -z "$audio_file" ]; then
+      echo "Error: No matching audio file found for $video_file" >&2
+      echo "Please specify an audio file or ensure a matching one exists in the same directory" >&2
+      return 1
+    fi
+  else
+    _vdo_validate_file "$audio_file" || return 1
+  fi
+
+  # Create output filename
+  output_file="${video_dir}/${video_name}_merged.mp4"
+
+  echo "Merging video $video_file with audio $audio_file..."
+
+  if ffmpeg -i "$video_file" -i "$audio_file" -c:v copy -c:a aac -b:a 192k -map 0:v:0 -map 1:a:0 "$output_file"; then
+    echo "Audio-video merge complete, exported to $output_file"
+  else
+    echo "Error: Audio-video merge failed" >&2
+    return 1
+  fi
+}' # Merge a video with an audio file
+
+alias vdo-batch-merge-audio='() {
+  echo -e "Batch merge video and audio files from directories.\nUsage:\n  vdo-batch-merge-audio <video_directory> [options]\n\nOptions:\n  -ad, --audio_dir DIR    : Directory containing audio files (default: same as video dir)\n  -ve, --video_ext EXT    : Video file extension (default: mp4)\n  -ae, --audio_ext EXT    : Audio file extension (default: mp3)\n  -q,  --quality VALUE    : Audio quality in kbps (default: 192)\n  -o,  --output_dir DIR   : Output directory (default: video_dir/merged)\n  -h,  --help             : Show this help message\n\nExamples:\n  vdo-batch-merge-audio videos/ --audio_dir audios/ --video_ext mp4 --audio_ext wav\n  vdo-batch-merge-audio videos/ -ad audios/ -ve mp4 -ae wav"
+
+  # Variables with default values
+  local video_dir=""
+  local audio_dir=""
+  local video_ext="mp4"
+  local audio_ext="mp3"
+  local audio_quality="192"
+  local output_dir=""
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -ad|--audio_dir)
+        audio_dir="$2"
+        shift 2
+        ;;
+      -ve|--video_ext)
+        video_ext="$2"
+        shift 2
+        ;;
+      -ae|--audio_ext)
+        audio_ext="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        audio_quality="$2"
+        shift 2
+        ;;
+      -o|--output_dir)
+        output_dir="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the video directory
+        if [ -z "$video_dir" ]; then
+          video_dir="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no video_dir provided
+  if $show_help || [ -z "$video_dir" ]; then
+    return 1
+  fi
+
+  # Use video_dir as audio_dir if not specified
+  if [ -z "$audio_dir" ]; then
+    audio_dir="$video_dir"
+  fi
+
+  # Set default output_dir if not specified
+  if [ -z "$output_dir" ]; then
+    output_dir="${video_dir}/merged"
+  fi
+
+  _vdo_validate_dir "$video_dir" || return 1
+  _vdo_validate_dir "$audio_dir" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Check if video files exist
+  local file_count=$(find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${video_ext} files found in $video_dir" >&2
+    return 1
+  fi
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  local success_count=0
+  local error_count=0
+  local skipped_count=0
+
+  # Process each video file
+  find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | while read -r video_file; do
+    local base_name=$(basename "$video_file" .${video_ext})
+    local audio_file="${audio_dir}/${base_name}.${audio_ext}"
+    local output_file="${output_dir}/${base_name}_merged.mp4"
+
+    # Check if audio file exists
+    if [ ! -f "$audio_file" ]; then
+      echo "Warning: No matching audio file found for $video_file, skipping..." >&2
+      ((skipped_count++))
+      continue
+    fi
+
+    echo "Merging video $video_file with audio $audio_file..."
+
+    if ffmpeg -i "$video_file" -i "$audio_file" -c:v copy -c:a aac -b:a "${audio_quality}k" -map 0:v:0 -map 1:a:0 -y "$output_file"; then
+      echo "Merge complete for $base_name"
+      ((success_count++))
+    else
+      echo "Error: Failed to merge $base_name" >&2
+      ((error_count++))
+    fi
+  done
+
+  # Print summary
+  echo "Batch merge summary:"
+  echo "  Successfully merged: $success_count files"
+  echo "  Failed to merge: $error_count files"
+  echo "  Skipped (no audio): $skipped_count files"
+  echo "Output files saved to: $output_dir"
+
+  # Return error if any errors occurred
+  if [ "$error_count" -gt 0 ]; then
+    return 1
+  fi
+
+  return 0
+}' # Batch merge videos with audio files from directories
 
 #------------------------------------------------------------------------------
 # Video Format Conversion
@@ -1183,6 +1364,350 @@ alias vdo-create-preview-grid='() {
 }' # Create a grid of screenshots from the video
 
 #------------------------------------------------------------------------------
+# Video Screenshot Functions
+#------------------------------------------------------------------------------
+
+alias vdo-screenshot='() {
+  echo -e "Capture screenshots from a video.\nUsage:\n  vdo-screenshot <video_file_path> [options]\n\nOptions:\n  -m, --mode MODE        : Capture mode: \"time\" or \"count\" (default: time)\n  -t, --timestamps LIST  : Comma-separated list of timestamps (default: 00:00:01)\n                           Format: HH:MM:SS or MM:SS or SS\n  -c, --count NUMBER     : Number of screenshots to capture (default: 3)\n  -w, --width WIDTH      : Width of screenshots (default: 1280, aspect ratio preserved)\n  -q, --quality VALUE    : JPEG quality (1-31, lower is better quality, default: 2)\n  -o, --output_dir DIR   : Output directory (default: video_name_screenshots)\n  -f, --filename FORMAT  : Output filename format (default: \"screenshot_%03d\")\n  -h, --help             : Show this help message\n\nExamples:\n  vdo-screenshot video.mp4 --mode time --timestamps 00:05:00,00:10:00,00:15:00\n  vdo-screenshot video.mp4 -m count -c 5 -w 800 -o ./screenshots"
+
+  # Variables with default values
+  local input_file=""
+  local mode="time"
+  local timestamps="00:00:01"
+  local count=3
+  local width=1280
+  local quality=2
+  local output_dir=""
+  local filename_format="screenshot_%03d"
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -m|--mode)
+        mode="$2"
+        shift 2
+        ;;
+      -t|--timestamps)
+        timestamps="$2"
+        shift 2
+        ;;
+      -c|--count)
+        count="$2"
+        shift 2
+        ;;
+      -w|--width)
+        width="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -o|--output_dir)
+        output_dir="$2"
+        shift 2
+        ;;
+      -f|--filename)
+        filename_format="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the input file
+        if [ -z "$input_file" ]; then
+          input_file="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no input_file provided
+  if $show_help || [ -z "$input_file" ]; then
+    return 1
+  fi
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate mode parameter
+  if [[ "$mode" != "time" && "$mode" != "count" ]]; then
+    echo "Error: Mode must be either \"time\" or \"count\"" >&2
+    return 1
+  fi
+
+  # Set default output_dir if not specified
+  if [ -z "$output_dir" ]; then
+    output_dir="${input_file%.*}_screenshots"
+  fi
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  # Get video duration
+  local duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$input_file")
+  duration=${duration%.*} # Remove decimal part
+
+  # Process based on mode
+  if [ "$mode" = "time" ]; then
+    echo "Capturing screenshots from $input_file at specified timestamps..."
+
+    # Split timestamps by comma (zsh-compatible way)
+    local timestamp_array=("${(@s/,/)timestamps}")
+    local i=1
+
+    for ts in "${timestamp_array[@]}"; do
+      # Validate timestamp is not empty
+      if [[ -z "$ts" ]]; then
+        echo "Error: Empty timestamp detected" >&2
+        continue
+      fi
+
+      local output_file="${output_dir}/${filename_format}.jpg"
+      output_file=$(printf "$output_file" $i)
+
+      echo "Taking screenshot at $ts -> $output_file"
+
+      if ! ffmpeg -ss "$ts" -i "$input_file" -vframes 1 -q:v "$quality" -vf "scale=$width:-1" "$output_file"; then
+        echo "Error: Failed to capture screenshot at $ts" >&2
+        return 1
+      fi
+
+      ((i++))
+    done
+
+    echo "Captured ${#timestamp_array[@]} screenshots from $input_file"
+  else
+    # Count mode - captures evenly spaced screenshots
+    echo "Capturing $count evenly spaced screenshots from $input_file..."
+
+    if (( count <= 0 )); then
+      echo "Error: Count must be greater than 0" >&2
+      return 1
+    fi
+
+    # Calculate interval based on duration and count
+    local interval=$(( duration / (count + 1) ))
+
+    for ((i=1; i<=count; i++)); do
+      local time_pos=$((interval * i))
+      # Format timestamp in HH:MM:SS format (cross-platform compatible)
+      local hours=$((time_pos/3600))
+      local minutes=$(((time_pos%3600)/60))
+      local seconds=$((time_pos%60))
+      local timestamp=$(printf "%02d:%02d:%02d" $hours $minutes $seconds)
+
+      local output_file="${output_dir}/${filename_format}.jpg"
+      output_file=$(printf "$output_file" $i)
+
+      echo "Taking screenshot at $timestamp -> $output_file"
+
+      if ! ffmpeg -ss "$timestamp" -i "$input_file" -vframes 1 -q:v "$quality" -vf "scale=$width:-1" "$output_file"; then
+        echo "Error: Failed to capture screenshot at $timestamp" >&2
+        return 1
+      fi
+    done
+
+    echo "Captured $count screenshots from $input_file"
+  fi
+
+  echo "Screenshots saved to $output_dir"
+  return 0
+}' # Capture screenshots from a video
+
+alias vdo-batch-screenshot='() {
+  echo -e "Capture screenshots from videos in a directory.\nUsage:\n  vdo-batch-screenshot <video_directory> [options]\n\nOptions:\n  -m, --mode MODE        : Capture mode: \"time\" or \"count\" (default: time)\n  -t, --timestamps LIST  : Comma-separated list of timestamps (default: 00:00:01)\n                           Format: HH:MM:SS or MM:SS or SS\n  -c, --count NUMBER     : Number of screenshots to capture (default: 3)\n  -w, --width WIDTH      : Width of screenshots (default: 1280, aspect ratio preserved)\n  -q, --quality VALUE    : JPEG quality (1-31, lower is better quality, default: 2)\n  -o, --output_dir DIR   : Output directory (default: video_dir/screenshots)\n  -e, --extension EXT    : Video file extension to process (default: mp4)\n  -f, --filename FORMAT  : Output filename format (default: \"%s_screenshot_%03d\")\n  -h, --help             : Show this help message\n\nExamples:\n  vdo-batch-screenshot videos/ --mode time --timestamps 00:05:00,00:10:00\n  vdo-batch-screenshot videos/ -m count -c 5 -e mkv -o ./screenshots"
+
+  # Variables with default values
+  local video_dir=""
+  local mode="time"
+  local timestamps="00:00:01"
+  local count=3
+  local width=1280
+  local quality=2
+  local output_dir=""
+  local video_ext="mp4"
+  local filename_format="%s_screenshot_%03d"
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -m|--mode)
+        mode="$2"
+        shift 2
+        ;;
+      -t|--timestamps)
+        timestamps="$2"
+        shift 2
+        ;;
+      -c|--count)
+        count="$2"
+        shift 2
+        ;;
+      -w|--width)
+        width="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -o|--output_dir)
+        output_dir="$2"
+        shift 2
+        ;;
+      -e|--extension)
+        video_ext="$2"
+        shift 2
+        ;;
+      -f|--filename)
+        filename_format="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the video directory
+        if [ -z "$video_dir" ]; then
+          video_dir="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no video_dir provided
+  if $show_help || [ -z "$video_dir" ]; then
+    return 1
+  fi
+
+  _vdo_validate_dir "$video_dir" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate mode parameter
+  if [[ "$mode" != "time" && "$mode" != "count" ]]; then
+    echo "Error: Mode must be either \"time\" or \"count\"" >&2
+    return 1
+  fi
+
+  # Set default output_dir if not specified
+  if [ -z "$output_dir" ]; then
+    output_dir="${video_dir}/screenshots"
+  fi
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  # Check if video files exist
+  local file_count=$(find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${video_ext} files found in $video_dir" >&2
+    return 1
+  fi
+
+  local success_count=0
+  local error_count=0
+  local processed_videos=0
+
+  # Process each video file
+  find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | while read -r video_file; do
+    local base_name=$(basename "$video_file" .${video_ext})
+    echo "Processing $video_file..."
+    ((processed_videos++))
+
+    # Get video duration
+    local duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$video_file")
+    duration=${duration%.*} # Remove decimal part
+
+    # Process based on mode
+    if [ "$mode" = "time" ]; then
+      # Split timestamps by comma (zsh-compatible way)
+      local timestamp_array=("${(@s/,/)timestamps}")
+      local i=1
+
+      for ts in "${timestamp_array[@]}"; do
+        # Validate timestamp is not empty
+        if [[ -z "$ts" ]]; then
+          echo "Error: Empty timestamp detected" >&2
+          continue
+        fi
+
+        local actual_filename=$(printf "$filename_format" "$base_name" $i)
+        local output_file="${output_dir}/${actual_filename}.jpg"
+
+        echo "  Taking screenshot at $ts -> $output_file"
+
+        if ffmpeg -ss "$ts" -i "$video_file" -vframes 1 -q:v "$quality" -vf "scale=$width:-1" "$output_file"; then
+          ((success_count++))
+        else
+          echo "  Error: Failed to capture screenshot at $ts from $video_file" >&2
+          ((error_count++))
+        fi
+
+        ((i++))
+      done
+    else
+      # Count mode - captures evenly spaced screenshots
+      if (( count <= 0 )); then
+        echo "Error: Count must be greater than 0" >&2
+        return 1
+      fi
+
+      # Calculate interval based on duration and count
+      local interval=$(( duration / (count + 1) ))
+
+      for ((i=1; i<=count; i++)); do
+        local time_pos=$((interval * i))
+        # Format timestamp in HH:MM:SS format (cross-platform compatible)
+        local hours=$((time_pos/3600))
+        local minutes=$(((time_pos%3600)/60))
+        local seconds=$((time_pos%60))
+        local timestamp=$(printf "%02d:%02d:%02d" $hours $minutes $seconds)
+
+        local actual_filename=$(printf "$filename_format" "$base_name" $i)
+        local output_file="${output_dir}/${actual_filename}.jpg"
+
+        echo "  Taking screenshot at $timestamp -> $output_file"
+
+        if ffmpeg -ss "$timestamp" -i "$video_file" -vframes 1 -q:v "$quality" -vf "scale=$width:-1" "$output_file"; then
+          ((success_count++))
+        else
+          echo "  Error: Failed to capture screenshot at $timestamp from $video_file" >&2
+          ((error_count++))
+        fi
+      done
+    fi
+  done
+
+  # Print summary
+  echo "Batch screenshot summary:"
+  echo "  Processed: $processed_videos videos"
+  echo "  Successfully captured: $success_count screenshots"
+  echo "  Failed: $error_count screenshots"
+  echo "Screenshots saved to $output_dir"
+
+  # Return error if any errors occurred
+  if [ "$error_count" -gt 0 ]; then
+    return 1
+  fi
+
+  return 0
+}' # Capture screenshots from videos in a directory
+
+#------------------------------------------------------------------------------
 # Video Help Function
 #------------------------------------------------------------------------------
 
@@ -1217,6 +1742,8 @@ alias vdo-help='() {
   echo "  vdo-adjust-volume <file> <factor>    - Adjust audio volume in video"
   echo "  vdo-extract-mp3 <file>               - Extract audio to MP3 format"
   echo "  vdo-extract-dir-mp3 <dir>            - Extract audio from videos in directory to MP3"
+  echo "  vdo-merge-audio <video> [audio]      - Merge video and audio into a single file"
+  echo "  vdo-batch-merge-audio <vdir> [adir] [vext] [aext] - Batch merge videos with audio files"
   echo ""
   echo "Compression & Conversion:"
   echo "  vdo-compress <file> <quality>        - Compress video with specified quality"
@@ -1237,6 +1764,8 @@ alias vdo-help='() {
   echo "Screenshot Series:"
   echo "  vdo-create-thumbnails <file> <interval> - Create thumbnails at regular intervals"
   echo "  vdo-create-preview-grid <file> <cols>   - Create a grid of screenshots"
+  echo "  vdo-screenshot <file> [options]         - Capture screenshots from a video"
+  echo "  vdo-batch-screenshot <dir> [options]    - Capture screenshots from videos in a directory"
   echo ""
   echo "YouTube Downloads:"
   echo "  vdo-youtube-best <url>               - Download best quality YouTube video"
