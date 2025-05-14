@@ -5,31 +5,31 @@
 #------------------------------------------------------------------------------
 
 # Helper function to validate file existence
-_vdo_validate_file='() {
+_vdo_validate_file() {
   if [[ ! -f "$1" ]]; then
     echo "Error: File \"$1\" does not exist" >&2
     return 1
   fi
   return 0
-}'
+}
 
 # Helper function to validate directory existence
-_vdo_validate_dir='() {
+_vdo_validate_dir() {
   if [[ ! -d "$1" ]]; then
     echo "Error: Directory \"$1\" does not exist" >&2
     return 1
   fi
   return 0
-}'
+}
 
 # Helper function to check if ffmpeg is installed
-_vdo_check_ffmpeg='() {
+_vdo_check_ffmpeg() {
   if ! command -v ffmpeg &> /dev/null; then
     echo "Error: ffmpeg is not installed or not in PATH" >&2
     return 1
   fi
   return 0
-}'
+}
 
 #------------------------------------------------------------------------------
 # Video File Merging
