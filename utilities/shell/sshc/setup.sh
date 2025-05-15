@@ -169,7 +169,7 @@ check_file_exists() {
 # Download configuration files
 download_templates() {
   local github_base_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/utilities/shell/sshc"
-  local gitcode_base_url="https://gitee.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/utilities/shell/sshc"
+  local gitee_base_url="https://gitee.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/utilities/shell/sshc"
   local ssh_connect_file="$HOME/.ssh/ssh_connect.exp"
   local servers_conf_file="$HOME/.ssh/servers.conf"
   local download_source="GitHub"
@@ -191,20 +191,20 @@ download_templates() {
     download_success=false
   fi
 
-  # If downloads from GitHub fail, try GitCode
+  # If downloads from GitHub fail, try Gitee
   if [ "$download_success" = false ]; then
-    warning "Failed to download files from GitHub, trying GitCode..."
-    download_source="GitCode"
+    warning "Failed to download files from GitHub, trying Gitee..."
+    download_source="Gitee"
 
-    # Try downloading ssh_connect.exp from GitCode
-    if ! download_file "$gitcode_base_url/ssh_connect.exp" "$ssh_connect_file"; then
-      error "Failed to download ssh_connect.exp from GitCode. Please check your network connection or try again later."
+    # Try downloading ssh_connect.exp from Gitee
+    if ! download_file "$gitee_base_url/ssh_connect.exp" "$ssh_connect_file"; then
+      error "Failed to download ssh_connect.exp from Gitee. Please check your network connection or try again later."
       exit 1
     fi
 
-    # Try downloading servers.conf.example from GitCode
-    if ! download_file "$gitcode_base_url/servers.conf.example" "$servers_conf_file"; then
-      error "Failed to download servers.conf.example from GitCode. Please check your network connection or try again later."
+    # Try downloading servers.conf.example from Gitee
+    if ! download_file "$gitee_base_url/servers.conf.example" "$servers_conf_file"; then
+      error "Failed to download servers.conf.example from Gitee. Please check your network connection or try again later."
       exit 1
     fi
   fi
