@@ -1605,6 +1605,312 @@ alias vdo-batch-screenshot='() {
 }' # Capture screenshots from videos in a directory
 
 #------------------------------------------------------------------------------
+# Video Cropping
+#------------------------------------------------------------------------------
+
+# Helper function to get video dimensions
+_vdo_get_dimensions() {
+  local input_file="$1"
+  local width=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of default=noprint_wrappers=1:nokey=1 "$input_file")
+  local height=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 "$input_file")
+  echo "$width $height"
+}
+
+# Helper function to calculate crop parameters
+_vdo_calculate_crop_params() {
+  local input_file="$1"
+  local position="$2"
+  local size="$3"
+
+  # Get video dimensions
+  local dimensions=$(_vdo_get_dimensions "$input_file")
+  local video_width=$(echo "$dimensions" | awk '{print $1}')
+  local video_height=$(echo "$dimensions" | awk '{print $2}')
+
+  local pos_x=0
+  local pos_y=0
+  local crop_width="$video_width"
+  local crop_height="$video_height"
+
+  # Parse position
+  if [ -n "$position" ]; then
+    local pos_x_val=$(echo "$position" | cut -d',' -f1)
+    local pos_y_val=$(echo "$position" | cut -d',' -f2)
+
+    # Check if percentage or absolute value
+    if [[ "$position" == *"%"* ]]; then
+      # Position in percentage
+      pos_x_val=$(echo "$pos_x_val" | tr -d '%')
+      pos_y_val=$(echo "$pos_y_val" | tr -d '%')
+      pos_x=$(echo "scale=0; $video_width * $pos_x_val / 100" | bc)
+      pos_y=$(echo "scale=0; $video_height * $pos_y_val / 100" | bc)
+    else
+      # Position in absolute pixels
+      pos_x="$pos_x_val"
+      pos_y="$pos_y_val"
+    fi
+  fi
+
+  # Parse size
+  if [ -n "$size" ]; then
+    local size_width=$(echo "$size" | cut -d',' -f1)
+    local size_height=$(echo "$size" | cut -d',' -f2)
+
+    # Check if percentage or absolute value
+    if [[ "$size" == *"%"* ]]; then
+      # Size in percentage
+      size_width=$(echo "$size_width" | tr -d '%')
+      size_height=$(echo "$size_height" | tr -d '%')
+      crop_width=$(echo "scale=0; $video_width * $size_width / 100" | bc)
+      crop_height=$(echo "scale=0; $video_height * $size_height / 100" | bc)
+    else
+      # Size in absolute pixels
+      crop_width="$size_width"
+      crop_height="$size_height"
+    fi
+  else
+    # If size not specified, crop from position to end of video
+    crop_width=$((video_width - pos_x))
+    crop_height=$((video_height - pos_y))
+  fi
+
+  # Ensure we don't crop outside video bounds
+  if (( pos_x + crop_width > video_width )); then
+    crop_width=$((video_width - pos_x))
+  fi
+
+  if (( pos_y + crop_height > video_height )); then
+    crop_height=$((video_height - pos_y))
+  fi
+
+  printf "%s %s %s %s" "$crop_width" "$crop_height" "$pos_x" "$pos_y"
+}
+
+alias vdo-crop='() {
+  echo -e "Crop a video file by position and size.\nUsage:\n  vdo-crop <video_file_path> [options]\n\nOptions:\n  -p, --position POS     : Start position for cropping, format: \"x,y\" or \"x%,y%\"\n                           (default: 0,0)\n  -s, --size SIZE        : Size of the cropped area, format: \"width,height\" or \"width%,height%\"\n                           (default: full width/height from position)\n  -o, --output PATH      : Output file path (default: input_cropped.mp4)\n  -q, --quality VALUE    : Output quality (0-51, lower is better, default: 23)\n  -h, --help             : Show this help message\n\nExamples:\n  vdo-crop video.mp4 -p 100,200 -s 500,400\n  -> Crop from position x=100,y=200 with width=500,height=400\n  vdo-crop video.mp4 -p 10%,20% -s 60%,50%\n  -> Crop from 10% width and 20% height, with size 60% of width and 50% of height"
+
+  # Variables with default values
+  local input_file=""
+  local position="0,0"
+  local size=""
+  local output_file=""
+  local quality=23
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -p|--position)
+        position="$2"
+        shift 2
+        ;;
+      -s|--size)
+        size="$2"
+        shift 2
+        ;;
+      -o|--output)
+        output_file="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the input file
+        if [ -z "$input_file" ]; then
+          input_file="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no input_file provided
+  if $show_help || [ -z "$input_file" ]; then
+    return 1
+  fi
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate position format
+  if ! [[ "$position" =~ ^[0-9%]+,[0-9%]+$ ]]; then
+    echo "Error: Position must be in format \"x,y\" or \"x%,y%\"" >&2
+    return 1
+  fi
+
+  # Validate size format if provided
+  if [ -n "$size" ] && ! [[ "$size" =~ ^[0-9%]+,[0-9%]+$ ]]; then
+    echo "Error: Size must be in format \"width,height\" or \"width%,height%\"" >&2
+    return 1
+  fi
+
+  # Set default output file if not specified
+  if [ -z "$output_file" ]; then
+    output_file="${input_file%.*}_cropped.mp4"
+  fi
+
+  # Calculate crop parameters
+  local crop_params=$(_vdo_calculate_crop_params "$input_file" "$position" "$size")
+  read -r crop_width crop_height crop_x crop_y <<< "$crop_params"
+
+  echo "Cropping $input_file..."
+  echo "  From position: x=$crop_x, y=$crop_y"
+  echo "  With size: width=$crop_width, height=$crop_height"
+  echo "  Output: $output_file"
+
+  # Apply the crop
+  if ffmpeg -i "$input_file" -vf "crop=$crop_width:$crop_height:$crop_x:$crop_y" -c:v libx264 -crf "$quality" -c:a copy "$output_file"; then
+    echo "Video cropping complete, saved to $output_file"
+  else
+    echo "Error: Video cropping failed" >&2
+    return 1
+  fi
+
+  return 0
+}' # Crop a video file by position and size
+
+alias vdo-batch-crop='() {
+  echo -e "Crop multiple video files in a directory by position and size.\nUsage:\n  vdo-batch-crop <video_directory> [options]\n\nOptions:\n  -p, --position POS     : Start position for cropping, format: \"x,y\" or \"x%,y%\"\n                           (default: 0,0)\n  -s, --size SIZE        : Size of the cropped area, format: \"width,height\" or \"width%,height%\"\n                           (default: full width/height from position)\n  -o, --output-dir DIR   : Output directory (default: video_dir/cropped)\n  -e, --extension EXT    : Video file extension to process (default: mp4)\n  -q, --quality VALUE    : Output quality (0-51, lower is better, default: 23)\n  -h, --help             : Show this help message\n\nExamples:\n  vdo-batch-crop videos/ -p 100,200 -s 500,400\n  -> Crop all videos from x=100,y=200 with width=500,height=400\n  vdo-batch-crop videos/ -p 10%,20% -s 60%,50% -e mkv -o ./cropped_videos\n  -> Crop all mkv videos from 10% width and 20% height, with size 60% of width and 50% of height"
+
+  # Variables with default values
+  local video_dir=""
+  local position="0,0"
+  local size=""
+  local output_dir=""
+  local video_ext="mp4"
+  local quality=23
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -p|--position)
+        position="$2"
+        shift 2
+        ;;
+      -s|--size)
+        size="$2"
+        shift 2
+        ;;
+      -o|--output-dir)
+        output_dir="$2"
+        shift 2
+        ;;
+      -e|--extension)
+        video_ext="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the video directory
+        if [ -z "$video_dir" ]; then
+          video_dir="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no video_dir provided
+  if $show_help || [ -z "$video_dir" ]; then
+    return 1
+  fi
+
+  _vdo_validate_dir "$video_dir" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate position format
+  if ! [[ "$position" =~ ^[0-9%]+,[0-9%]+$ ]]; then
+    echo "Error: Position must be in format \"x,y\" or \"x%,y%\"" >&2
+    return 1
+  fi
+
+  # Validate size format if provided
+  if [ -n "$size" ] && ! [[ "$size" =~ ^[0-9%]+,[0-9%]+$ ]]; then
+    echo "Error: Size must be in format \"width,height\" or \"width%,height%\"" >&2
+    return 1
+  fi
+
+  # Set default output_dir if not specified
+  if [ -z "$output_dir" ]; then
+    output_dir="${video_dir}/cropped"
+  fi
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  # Check if video files exist
+  local file_count=$(find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${video_ext} files found in $video_dir" >&2
+    return 1
+  fi
+
+  local success_count=0
+  local error_count=0
+  local processed_videos=0
+
+  # Process each video file
+  find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | while read -r video_file; do
+    local base_name=$(basename "$video_file" .${video_ext})
+    local output_file="$output_dir/${base_name}_cropped.mp4"
+
+    echo "Processing $video_file..."
+    ((processed_videos++))
+
+    # Calculate crop parameters for this video
+    local crop_params=$(_vdo_calculate_crop_params "$video_file" "$position" "$size")
+    read -r crop_width crop_height crop_x crop_y <<< "$crop_params"
+
+    echo "  Cropping from position: x=$crop_x, y=$crop_y"
+    echo "  With size: width=$crop_width, height=$crop_height"
+    echo "  Output: $output_file"
+
+    # Apply the crop
+    if ffmpeg -i "$video_file" -vf "crop=$crop_width:$crop_height:$crop_x:$crop_y" -c:v libx264 -crf "$quality" -c:a copy "$output_file"; then
+      echo "  Cropping complete"
+      ((success_count++))
+    else
+      echo "  Error: Cropping failed" >&2
+      ((error_count++))
+    fi
+  done
+
+  # Print summary
+  echo "Batch cropping summary:"
+  echo "  Processed: $processed_videos videos"
+  echo "  Successfully cropped: $success_count videos"
+  echo "  Failed: $error_count videos"
+  echo "Output files saved to: $output_dir"
+
+  # Return error if any errors occurred
+  if [ "$error_count" -gt 0 ]; then
+    return 1
+  fi
+
+  return 0
+}' # Crop multiple video files in a directory
+
+#------------------------------------------------------------------------------
 # Video Help Function
 #------------------------------------------------------------------------------
 
@@ -1624,6 +1930,10 @@ alias vdo-help='() {
   echo "  vdo-extract-frame <file> <time>      - Extract a single frame at specified time"
   echo "  vdo-extract-frames <file> <interval> - Extract frames at regular intervals"
   echo "  vdo-batch-extract-frame <time> <dir> <ext> - Extract a frame at same time from multiple videos"
+  echo ""
+  echo "Cropping:"
+  echo "  vdo-crop <file> [options]            - Crop a video by position and size"
+  echo "  vdo-batch-crop <dir> [options]       - Crop multiple videos in a directory"
   echo ""
   echo "Speed Modification:"
   echo "  vdo-speed-up <file> <factor>   - Speed up video playback"
