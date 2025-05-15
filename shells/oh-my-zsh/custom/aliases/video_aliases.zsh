@@ -1,4 +1,4 @@
-# Description: Video processing aliases for conversion, compression, merging, and format transformation using ffmpeg and youtube-dl.
+# Description: Video processing aliases for conversion, compression, merging, and format transformation using ffmpeg.
 
 #------------------------------------------------------------------------------
 # Helper Functions
@@ -697,109 +697,6 @@ alias vdo-convert-m3u8-to-mp4='() {
     return 1
   fi
 }' # Convert M3U8 stream to MP4 video
-
-#------------------------------------------------------------------------------
-# YouTube Downloads
-#------------------------------------------------------------------------------
-
-_vdo_check_youtube_dl='() {
-  if ! command -v youtube-dl &> /dev/null; then
-    echo "Error: youtube-dl is not installed or not in PATH" >&2
-    return 1
-  fi
-  return 0
-}'
-
-alias vdo-youtube-best='() {
-  echo "Download best quality YouTube video."
-  echo "Usage:"
-  echo "  vdo-youtube-best <youtube_url>"
-
-  if [ $# -eq 0 ]; then
-    return 1
-  fi
-
-  _vdo_check_youtube_dl || return 1
-  youtube-dl -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio" --merge-output-format mp4 "$@"
-}' # Download best quality YouTube video
-
-alias vdo-youtube-complete='() {
-  echo "Download YouTube video with subtitles and thumbnail."
-  echo "Usage:"
-  echo "  vdo-youtube-complete <youtube_url>"
-
-  if [ $# -eq 0 ]; then
-    return 1
-  fi
-
-  _vdo_check_youtube_dl || return 1
-  youtube-dl -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio" --merge-output-format mp4 --all-subs --embed-subs --embed-thumbnail -o "%(title)s.%(ext)s" "$@"
-}' # Download YouTube video with subtitles and thumbnail
-
-alias vdo-youtube-720p='() {
-  echo "Download 720p YouTube video."
-  echo "Usage:"
-  echo "  vdo-youtube-720p <youtube_url>"
-
-  if [ $# -eq 0 ]; then
-    return 1
-  fi
-
-  _vdo_check_youtube_dl || return 1
-  youtube-dl -f "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio" --merge-output-format mp4 "$@"
-}' # Download 720p YouTube video
-
-alias vdo-youtube-1080p='() {
-  echo "Download 1080p YouTube video."
-  echo "Usage:"
-  echo "  vdo-youtube-1080p <youtube_url>"
-
-  if [ $# -eq 0 ]; then
-    return 1
-  fi
-
-  _vdo_check_youtube_dl || return 1
-  youtube-dl -f "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio" --merge-output-format mp4 "$@"
-}' # Download 1080p YouTube video
-
-alias vdo-youtube-mp3='() {
-  echo "Download YouTube audio as MP3."
-  echo "Usage:"
-  echo "  vdo-youtube-mp3 <youtube_url>"
-
-  if [ $# -eq 0 ]; then
-    return 1
-  fi
-
-  _vdo_check_youtube_dl || return 1
-  youtube-dl -f bestaudio --extract-audio --audio-format mp3 "$@"
-}' # Download YouTube audio as MP3
-
-alias vdo-youtube-mp3-128='() {
-  echo "Download YouTube audio as MP3 with 128K quality."
-  echo "Usage:"
-  echo "  vdo-youtube-mp3-128 <youtube_url>"
-
-  if [ $# -eq 0 ]; then
-    return 1
-  fi
-
-  _vdo_check_youtube_dl || return 1
-  youtube-dl -f bestaudio --extract-audio --audio-format mp3 --audio-quality 128K "$@"
-}' # Download YouTube audio as MP3 with 128K quality
-
-alias vdo-youtube-mp3-320='() {
-  echo "Download YouTube audio as MP3 with 320K quality."
-  echo "Usage:"
-  echo "  vdo-youtube-mp3-320 <youtube_url>"
-
-  if [ $# -eq 0 ]; then
-    return 1
-  fi
-
-  _vdo_check_youtube_dl || return 1
-  youtube-dl -f bestaudio --extract-audio --audio-format mp3 --audio-quality 320K "$@"
-}' # Download YouTube audio as MP3 with 320K quality
 
 #------------------------------------------------------------------------------
 # Video Information & Metadata
@@ -1766,15 +1663,6 @@ alias vdo-help='() {
   echo "  vdo-create-preview-grid <file> <cols>   - Create a grid of screenshots"
   echo "  vdo-screenshot <file> [options]         - Capture screenshots from a video"
   echo "  vdo-batch-screenshot <dir> [options]    - Capture screenshots from videos in a directory"
-  echo ""
-  echo "YouTube Downloads:"
-  echo "  vdo-youtube-best <url>               - Download best quality YouTube video"
-  echo "  vdo-youtube-complete <url>           - Download YouTube video with subtitles and thumbnail"
-  echo "  vdo-youtube-720p <url>               - Download 720p YouTube video"
-  echo "  vdo-youtube-1080p <url>              - Download 1080p YouTube video"
-  echo "  vdo-youtube-mp3 <url>                - Download YouTube audio as MP3"
-  echo "  vdo-youtube-mp3-128 <url>            - Download YouTube audio as MP3 with 128K quality"
-  echo "  vdo-youtube-mp3-320 <url>            - Download YouTube audio as MP3 with 320K quality"
   echo ""
   echo "For more detailed help on any command, run the command without arguments"
 }' # Display help information about all video commands
