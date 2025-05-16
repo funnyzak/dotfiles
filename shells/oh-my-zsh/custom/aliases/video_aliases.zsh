@@ -224,7 +224,7 @@ alias vdo-batch-merge-audio='() {
   find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | while read -r video_file; do
     local base_name=$(basename "$video_file" .${video_ext})
     local audio_file="${audio_dir}/${base_name}.${audio_ext}"
-    local output_file="${output_dir}/${base_name}_merged.mp4"
+    local output_file="${output_dir}/${base_name}.mp4"
 
     # Check if audio file exists
     if [ ! -f "$audio_file" ]; then
@@ -1269,12 +1269,12 @@ alias vdo-create-preview-grid='() {
 #------------------------------------------------------------------------------
 
 alias vdo-screenshot='() {
-  echo -e "Capture screenshots from a video.\nUsage:\n  vdo-screenshot <video_file_path> [options]\n\nOptions:\n  -m, --mode MODE        : Capture mode: \"time\" or \"count\" (default: time)\n  -t, --timestamps LIST  : Comma-separated list of timestamps (default: 00:00:01)\n                           Format: HH:MM:SS or MM:SS or SS\n  -c, --count NUMBER     : Number of screenshots to capture (default: 3)\n  -w, --width WIDTH      : Width of screenshots (default: 1280, aspect ratio preserved)\n  -q, --quality VALUE    : JPEG quality (1-31, lower is better quality, default: 2)\n  -o, --output_dir DIR   : Output directory (default: video_name_screenshots)\n  -f, --filename FORMAT  : Output filename format (default: \"screenshot_%03d\")\n  -h, --help             : Show this help message\n\nExamples:\n  vdo-screenshot video.mp4 --mode time --timestamps 00:05:00,00:10:00,00:15:00\n  vdo-screenshot video.mp4 -m count -c 5 -w 800 -o ./screenshots"
+  echo -e "Capture screenshots from a video.\nUsage:\n  vdo-screenshot <video_file_path> [options]\n\nOptions:\n  -m, --mode MODE        : Capture mode: \"time\" or \"count\" (default: time)\n  -t, --timestamps LIST  : Comma-separated list of timestamps (default: 00:00:00)\n                           Format: HH:MM:SS or MM:SS or SS\n  -c, --count NUMBER     : Number of screenshots to capture (default: 3)\n  -w, --width WIDTH      : Width of screenshots (default: 1280, aspect ratio preserved)\n  -q, --quality VALUE    : JPEG quality (1-31, lower is better quality, default: 2)\n  -o, --output_dir DIR   : Output directory (default: video_name_screenshots)\n  -f, --filename FORMAT  : Output filename format (default: \"screenshot_%03d\")\n  -h, --help             : Show this help message\n\nExamples:\n  vdo-screenshot video.mp4 --mode time --timestamps 00:05:00,00:10:00,00:15:00\n  vdo-screenshot video.mp4 -m count -c 5 -w 800 -o ./screenshots"
 
   # Variables with default values
   local input_file=""
   local mode="time"
-  local timestamps="00:00:01"
+  local timestamps="00:00:00"
   local count=3
   local width=1280
   local quality=2
@@ -1424,12 +1424,12 @@ alias vdo-screenshot='() {
 }' # Capture screenshots from a video
 
 alias vdo-batch-screenshot='() {
-  echo -e "Capture screenshots from videos in a directory.\nUsage:\n  vdo-batch-screenshot <video_directory> [options]\n\nOptions:\n  -m, --mode MODE        : Capture mode: \"time\" or \"count\" (default: time)\n  -t, --timestamps LIST  : Comma-separated list of timestamps (default: 00:00:01)\n                           Format: HH:MM:SS or MM:SS or SS\n  -c, --count NUMBER     : Number of screenshots to capture (default: 3)\n  -w, --width WIDTH      : Width of screenshots (default: 1280, aspect ratio preserved)\n  -q, --quality VALUE    : JPEG quality (1-31, lower is better quality, default: 2)\n  -o, --output_dir DIR   : Output directory (default: video_dir/screenshots)\n  -e, --extension EXT    : Video file extension to process (default: mp4)\n  -f, --filename FORMAT  : Output filename format (default: \"%s_screenshot_%03d\")\n  -h, --help             : Show this help message\n\nExamples:\n  vdo-batch-screenshot videos/ --mode time --timestamps 00:05:00,00:10:00\n  vdo-batch-screenshot videos/ -m count -c 5 -e mkv -o ./screenshots"
+  echo -e "Capture screenshots from videos in a directory.\nUsage:\n  vdo-batch-screenshot <video_directory> [options]\n\nOptions:\n  -m, --mode MODE        : Capture mode: \"time\" or \"count\" (default: time)\n  -t, --timestamps LIST  : Comma-separated list of timestamps (default: 00:00:00)\n                           Format: HH:MM:SS or MM:SS or SS\n  -c, --count NUMBER     : Number of screenshots to capture (default: 3)\n  -w, --width WIDTH      : Width of screenshots (default: 1280, aspect ratio preserved)\n  -q, --quality VALUE    : JPEG quality (1-31, lower is better quality, default: 2)\n  -o, --output_dir DIR   : Output directory (default: video_dir/screenshots)\n  -e, --extension EXT    : Video file extension to process (default: mp4)\n  -f, --filename FORMAT  : Output filename format (default: \"%s_screenshot_%03d\")\n  -h, --help             : Show this help message\n\nExamples:\n  vdo-batch-screenshot videos/ --mode time --timestamps 00:05:00,00:10:00\n  vdo-batch-screenshot videos/ -m count -c 5 -e mkv -o ./screenshots"
 
   # Variables with default values
   local video_dir=""
   local mode="time"
-  local timestamps="00:00:01"
+  local timestamps="00:00:00"
   local count=3
   local width=1280
   local quality=2
