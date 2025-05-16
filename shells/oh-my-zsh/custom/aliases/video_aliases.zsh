@@ -267,23 +267,26 @@ alias vdo-to-mp4='() {
   if [ $# -eq 0 ]; then
     echo "Convert video to MP4 format."
     echo "Usage:"
-    echo "  vdo-to-mp4 <video_file_path>"
+    echo "  vdo-to-mp4 <video_file_path> [video_file_path2] [video_file_path3]..."
     return 1
   fi
 
-  input_file="$1"
-  _vdo_validate_file "$input_file" || return 1
   _vdo_check_ffmpeg || return 1
+  input_files=("$@")
 
-  output_file="${input_file%.*}.mp4"
-  echo "Converting $input_file to MP4 format..."
+  for input_file in "${input_files[@]}"; do
+    _vdo_validate_file "$input_file" || return 1
 
-  if ffmpeg -i "$input_file" -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 256k -ac 2 "$output_file"; then
-    echo "Conversion complete, exported to $output_file"
-  else
-    echo "Error: Video conversion failed" >&2
-    return 1
-  fi
+    output_file="${input_file%.*}.mp4"
+    echo "Converting $input_file to MP4 format..."
+
+    if ffmpeg -i "$input_file" -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 256k -ac 2 "$output_file"; then
+      echo "Conversion complete, exported to $output_file"
+    else
+      echo "Error: Video conversion failed" >&2
+      return 1
+    fi
+  done
 }' # Convert video to MP4 format
 
 alias vdo-batch-to-mp4='() {
@@ -640,35 +643,36 @@ alias vdo-optimize-for-mobile='() {
   if [ $# -eq 0 ]; then
     echo "Optimize video for mobile devices."
     echo "Usage:"
-    echo "  vdo-optimize-for-mobile <video_file_path>"
+    echo "  vdo-optimize-for-mobile <video_file_path> [video_file_path2] [video_file_path3]..."
     return 1
   fi
 
-  input_file="$1"
-  _vdo_validate_file "$input_file" || return 1
+  input_files=("$@")
   _vdo_check_ffmpeg || return 1
 
-  temp_file="${input_file%.*}_320p_temp.mp4"
-  output_file="${input_file%.*}_mobile.mp4"
+  for input_file in "${input_files[@]}"; do
+    _vdo_validate_file "${input_files[@]}" || return 1
+    temp_file="${input_file%.*}_320p_temp.mp4"
+    output_file="${input_file%.*}_mobile.mp4"
+    echo "Converting $input_file to mobile-optimized format..."
 
-  echo "Converting $input_file to mobile-optimized format..."
+    # First convert to 320p
+    if ! ffmpeg -i "$input_file" -vf "scale=-2:320" -c:a copy "$temp_file"; then
+      echo "Error: Failed to convert to 320p resolution" >&2
+      return 1
+    fi
 
-  # First convert to 320p
-  if ! ffmpeg -i "$input_file" -vf "scale=-2:320" -c:a copy "$temp_file"; then
-    echo "Error: Failed to convert to 320p resolution" >&2
-    return 1
-  fi
-
-  # Then compress
-  if ffmpeg -i "$temp_file" -c:v libx264 -tag:v avc1 -movflags faststart -crf 28 -preset superfast "$output_file"; then
-    echo "Mobile optimization complete, exported to $output_file"
-    # Delete intermediate file
-    rm "$temp_file"
-  else
-    echo "Error: Video compression failed" >&2
-    rm "$temp_file"
-    return 1
-  fi
+    # Then compress
+    if ffmpeg -i "$temp_file" -c:v libx264 -tag:v avc1 -movflags faststart -crf 28 -preset superfast "$output_file"; then
+      echo "Mobile optimization complete, exported to $output_file"
+      # Delete intermediate file
+      rm "$temp_file"
+    else
+      echo "Error: Video compression failed" >&2
+      rm "$temp_file"
+      return 1
+    fi
+  done
 }' # Optimize video for mobile devices
 
 #------------------------------------------------------------------------------
@@ -1955,9 +1959,9 @@ alias vdo-help='() {
   echo "Compression & Conversion:"
   echo "  vdo-compress <file> <quality>        - Compress video with specified quality"
   echo "  vdo-compress-dir <dir> <ext> <quality> - Compress videos in directory"
-  echo "  vdo-to-mp4 <file>                    - Convert video to MP4 format"
-  echo "  vdo-batch-to-mp4 <dir> <ext>         - Convert videos in directory to MP4 format"
-  echo "  vdo-optimize-for-mobile <file>       - Optimize video for mobile devices"
+  echo "  vdo-to-mp4 <file> [file2] [file3]...   - Convert video to MP4 format"
+  echo "  vdo-batch-to-mp4 <dir> <ext>          - Convert videos in directory to MP4 format"
+  echo "  vdo-optimize-for-mobile <file> [file2] [file3]... - Optimize video for mobile devices"
   echo "  vdo-convert-m3u8-to-mp4 <url>        - Convert M3U8 stream to MP4 video"
   echo ""
   echo "Resolution Conversion:"
