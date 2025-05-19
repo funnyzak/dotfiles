@@ -102,7 +102,7 @@ alias img-resize='() {
 
   _image_aliases_validate_file "$1" || return 1
   _image_resize "$1" "${2:-200x}" "${3:-80}"
-}'  # Resize image to specified dimensions
+}' # Resize image to specified dimensions
 
 alias img-resize-dir='() {
   if [ $# -lt 2 ]; then
@@ -133,7 +133,7 @@ alias img-resize-dir='() {
   done
 
   echo "Resize complete, exported $processed images to $output_dir"
-}'  # Batch resize images in directory
+}' # Batch resize images in directory
 
 # --------------------------------
 # Preset Image Sizes
@@ -152,7 +152,7 @@ alias img-resize-24='() {
     _image_resize "$img" "24x" "90"
   done
   return $result_status
-}'  # Resize image(s) to 24px width
+}' # Resize image(s) to 24px width
 
 alias img-resize-28='() {
   if [ $# -eq 0 ]; then
@@ -167,7 +167,7 @@ alias img-resize-28='() {
     _image_resize "$img" "28x" "90"
   done
   return $result_status
-}'  # Resize image(s) to 28px width
+}' # Resize image(s) to 28px width
 
 alias img-resize-50='() {
   if [ $# -eq 0 ]; then
@@ -182,7 +182,7 @@ alias img-resize-50='() {
     _image_resize "$img" "50x" "90"
   done
   return $result_status
-}'  # Resize image(s) to 50px width
+}' # Resize image(s) to 50px width
 
 alias img-resize-100='() {
   if [ $# -eq 0 ]; then
@@ -197,7 +197,7 @@ alias img-resize-100='() {
     _image_resize "$img" "100x" "90"
   done
   return $result_status
-}'  # Resize image(s) to 100px width
+}' # Resize image(s) to 100px width
 
 alias img-resize-200='() {
   if [ $# -eq 0 ]; then
@@ -212,7 +212,7 @@ alias img-resize-200='() {
     _image_resize "$img" "200x" "90"
   done
   return $result_status
-}'  # Resize image(s) to 200px width
+}' # Resize image(s) to 200px width
 
 alias img-resize-512='() {
   if [ $# -eq 0 ]; then
@@ -227,7 +227,7 @@ alias img-resize-512='() {
     _image_resize "$img" "512x" "90"
   done
   return $result_status
-}'  # Resize image(s) to 512px width
+}' # Resize image(s) to 512px width
 
 alias img-resize-1024='() {
   if [ $# -eq 0 ]; then
@@ -242,7 +242,7 @@ alias img-resize-1024='() {
     _image_resize "$img" "1024x" "85"
   done
   return $result_status
-}'  # Resize image(s) to 1024px width
+}' # Resize image(s) to 1024px width
 
 # --------------------------------
 # Format Conversion
@@ -309,7 +309,7 @@ alias img-convert-format='() {
 
   echo "Conversion complete: $count file(s) converted, $errors error(s)"
   [ $errors -eq 0 ] || return 1
-}'  # Convert image files to different format
+}' # Convert image files to different format
 
 # --------------------------------
 # Image Effects
@@ -334,7 +334,7 @@ alias img-opacity='() {
     echo "Error: Failed to adjust image opacity." >&2
     return 1
   fi
-}'  # Adjust image opacity
+}' # Adjust image opacity
 
 alias img-rotate='() {
   if [ $# -lt 2 ]; then
@@ -355,7 +355,7 @@ alias img-rotate='() {
     echo "Error: Failed to rotate image." >&2
     return 1
   fi
-}'  # Rotate image
+}' # Rotate image
 
 alias img-grayscale-binary='() {
   if [ $# -eq 0 ]; then
@@ -375,7 +375,7 @@ alias img-grayscale-binary='() {
     echo "Error: Failed to convert image." >&2
     return 1
   fi
-}'  # Convert image to grayscale and binarize
+}' # Convert image to grayscale and binarize
 
 alias img-grayscale='() {
   if [ $# -eq 0 ]; then
@@ -395,7 +395,7 @@ alias img-grayscale='() {
     echo "Error: Failed to convert image to grayscale." >&2
     return 1
   fi
-}'  # Convert image to grayscale
+}' # Convert image to grayscale
 
 # --------------------------------
 # Batch Processing
@@ -420,7 +420,7 @@ alias img-grayscale-binary-dir='() {
   else
     echo "Warning: Some images may not have been processed correctly." >&2
   fi
-}'  # Convert directory of images to grayscale and binarize
+}' # Convert directory of images to grayscale and binarize
 
 alias img-grayscale-dir='() {
   if [ $# -eq 0 ]; then
@@ -441,7 +441,7 @@ alias img-grayscale-dir='() {
   else
     echo "Warning: Some images may not have been processed correctly." >&2
   fi
-}'  # Convert directory of images to grayscale
+}' # Convert directory of images to grayscale
 
 # --------------------------------
 # Image Splitting
@@ -450,44 +450,46 @@ alias img-grayscale-dir='() {
 alias img-split-horizontal='() {
   if [ $# -eq 0 ]; then
     echo "Split image into left and right halves."
-    echo "Usage: img-split-horizontal <source_image>"
+    echo "Usage: img-split-horizontal <source_image> [source_image2] [source_image3]..."
     return 0
   fi
 
-  _image_aliases_validate_file "$1" || return 1
+  for img in "$@"; do
+    _image_aliases_validate_file "$img" || return 1
+    local source_path="$img"
+    local base_name="${source_path%.*}"
+    local ext="${source_path##*.}"
 
-  local source_path="$1"
-  local base_name="${source_path%.*}"
-  local ext="${source_path##*.}"
-
-  if magick convert "$source_path" -crop 50%x100% +repage "${base_name}_%d.${ext}"; then
-    echo "Split image into left and right halves complete, exported to ${base_name}_0.${ext} and ${base_name}_1.${ext}"
-  else
-    echo "Error: Failed to split image." >&2
-    return 1
-  fi
-}'  # Split image into left and right halves
+    if magick convert "$source_path" -crop 50%x100% +repage "${base_name}_%d.${ext}"; then
+      echo "Split image into left and right halves complete, exported to ${base_name}_0.${ext} and ${base_name}_1.${ext}"
+    else
+      echo "Error: Failed to split image." >&2
+      return 1
+    fi
+  done
+}' # Split image into left and right halves
 
 alias img-split-vertical='() {
   if [ $# -eq 0 ]; then
     echo "Split image into top and bottom halves."
-    echo "Usage: img-split-vertical <source_image>"
+    echo "Usage: img-split-vertical <source_image> [source_image2] [source_image3]..."
     return 0
   fi
 
-  _image_aliases_validate_file "$1" || return 1
+  for img in "$@"; do
+    _image_aliases_validate_file "$img" || return 1
+    local source_path="$img"
+    local base_name="${source_path%.*}"
+    local ext="${source_path##*.}"
 
-  local source_path="$1"
-  local base_name="${source_path%.*}"
-  local ext="${source_path##*.}"
-
-  if magick convert "$source_path" -crop 100%x50% +repage "${base_name}_%d.${ext}"; then
-    echo "Split image into top and bottom halves complete, exported to ${base_name}_0.${ext} and ${base_name}_1.${ext}"
-  else
-    echo "Error: Failed to split image." >&2
-    return 1
-  fi
-}'  # Split image into top and bottom halves
+    if magick convert "$source_path" -crop 100%x50% +repage "${base_name}_%d.${ext}"; then
+      echo "Split image into top and bottom halves complete, exported to ${base_name}_0.${ext} and ${base_name}_1.${ext}"
+    else
+      echo "Error: Failed to split image." >&2
+      return 1
+    fi
+  done
+}' # Split image into top and bottom halves
 
 alias img-split-horizontal-dir='() {
   if [ $# -eq 0 ]; then
@@ -517,7 +519,7 @@ alias img-split-horizontal-dir='() {
 
   echo "Split directory of images into left and right halves complete, exported to $output_dir"
   [ $errors -eq 0 ] || return 1
-}'  # Split directory of images into left and right halves
+}' # Split directory of images into left and right halves
 
 alias img-split-vertical-dir='() {
   if [ $# -eq 0 ]; then
@@ -547,7 +549,7 @@ alias img-split-vertical-dir='() {
 
   echo "Split directory of images into top and bottom halves complete, exported to $output_dir"
   [ $errors -eq 0 ] || return 1
-}'  # Split directory of images into top and bottom halves
+}' # Split directory of images into top and bottom halves
 
 # --------------------------------
 # Image Merging
@@ -572,7 +574,7 @@ alias img-dir-to-pdf='() {
     echo "Error: Failed to merge images to PDF." >&2
     return 1
   fi
-}'  # Merge directory of images into PDF
+}' # Merge directory of images into PDF
 
 alias img-to-pdf='() {
   if [ $# -eq 0 ]; then
@@ -592,7 +594,7 @@ alias img-to-pdf='() {
     echo "Error: Failed to convert image to PDF." >&2
     return 1
   fi
-}'  # Convert single image to PDF
+}' # Convert single image to PDF
 
 # --------------------------------
 # Watermarking
@@ -619,7 +621,7 @@ alias img-watermark='() {
     echo "Error: Failed to add watermark." >&2
     return 1
   fi
-}'  # Add watermark to image
+}' # Add watermark to image
 
 alias img-watermark-dir='() {
   if [ $# -lt 2 ]; then
@@ -652,7 +654,7 @@ alias img-watermark-dir='() {
 
   echo "Batch watermarking complete, exported to $output_dir"
   [ $errors -eq 0 ] || return 1
-}'  # Batch add watermark to images
+}' # Batch add watermark to images
 
 # --------------------------------
 # Image Optimization
@@ -686,7 +688,7 @@ alias img-optimize-batch='() {
 
   echo "Batch image optimization complete: $processed files processed, $errors errors"
   [ $errors -eq 0 ] || return 1
-}'  # Batch optimize images by size
+}' # Batch optimize images by size
 
 # --------------------------------
 # New Image Information Functions
@@ -716,7 +718,7 @@ alias img-info='() {
   done
 
   return $result_status
-}'  # Display basic information about image files
+}' # Display basic information about image files
 
 alias img-metadata='() {
   echo "Extract EXIF metadata from image files."
@@ -746,7 +748,7 @@ alias img-metadata='() {
   done
 
   return $result_status
-}'  # Extract EXIF metadata from image files
+}' # Extract EXIF metadata from image files
 
 # --------------------------------
 # Image Cropping Functions
@@ -776,7 +778,7 @@ alias img-crop='() {
     echo "Error: Failed to crop image." >&2
     return 1
   fi
-}'  # Crop an image to specified dimensions
+}' # Crop an image to specified dimensions
 
 alias img-crop-center='() {
   echo "Crop an image from the center."
@@ -802,7 +804,7 @@ alias img-crop-center='() {
     echo "Error: Failed to crop image from center." >&2
     return 1
   fi
-}'  # Crop an image from the center
+}' # Crop an image from the center
 
 # --------------------------------
 # Image Compression Functions
@@ -840,7 +842,7 @@ alias img-compress='() {
   done
 
   return $result_status
-}'  # Compress an image while preserving dimensions
+}' # Compress an image while preserving dimensions
 
 alias img-compress-dir='() {
   echo "Batch compress all images in a directory."
@@ -868,7 +870,7 @@ alias img-compress-dir='() {
 
   echo "Batch compression complete, files saved to $output_dir"
   [ $errors -eq 0 ] || return 1
-}'  # Batch compress all images in a directory
+}' # Batch compress all images in a directory
 
 # --------------------------------
 # Image Joining Functions
@@ -907,7 +909,7 @@ alias img-join-horizontal='() {
     echo "Error: Failed to join images horizontally." >&2
     return 1
   fi
-}'  # Join multiple images horizontally
+}' # Join multiple images horizontally
 
 alias img-join-vertical='() {
   echo "Join multiple images vertically."
@@ -942,7 +944,7 @@ alias img-join-vertical='() {
     echo "Error: Failed to join images vertically." >&2
     return 1
   fi
-}'  # Join multiple images vertically
+}' # Join multiple images vertically
 
 # --------------------------------
 # Image Special Effects
@@ -973,7 +975,7 @@ alias img-sepia='() {
   done
 
   return $result_status
-}'  # Apply sepia tone effect to an image
+}' # Apply sepia tone effect to an image
 
 alias img-blur='() {
   echo "Apply blur effect to an image."
@@ -1013,7 +1015,7 @@ alias img-blur='() {
   done
 
   return $result_status
-}'  # Apply blur effect to an image
+}' # Apply blur effect to an image
 
 # --------------------------------
 # Image Background Functions
@@ -1206,7 +1208,7 @@ alias img-rename-sequential='() {
 
   echo "Renamed $((count-1-errors)) files with prefix '$prefix'"
   [ $errors -eq 0 ] || return 1
-}'  # Rename images in a directory with sequential numbering
+}' # Rename images in a directory with sequential numbering
 
 alias image-help='() {
   echo "Image Processing Aliases Help"
@@ -1278,12 +1280,12 @@ alias image-help='() {
   echo "  img-rename-sequential - Rename images in a directory with sequential numbering"
   echo
   echo "For more details about a specific command, just run the command without arguments."
-}'  # Help function showing all available image processing aliases
+}' # Help function showing all available image processing aliases
 
 alias img-help='() {
   image-help
-}'  # Alias to call the help function
+}' # Alias to call the help function
 
 alias img-aliases='() {
   image-help
-}'  # Alias to call the help function
+}' # Alias to call the help function
