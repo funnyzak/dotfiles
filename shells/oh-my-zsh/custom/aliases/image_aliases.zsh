@@ -447,109 +447,229 @@ alias img-grayscale-dir='() {
 # Image Splitting
 # --------------------------------
 
-alias img-split-horizontal='() {
+alias img-split='() {
+  echo "Split image into multiple parts based on grid dimensions."
+  echo "Usage: img-split <image_file> [grid_dimensions:2x1] [output_format] [more_files...]"
+  echo "Options:"
+  echo "  -o, --output <dir>    Output directory (default: same as input)"
+  echo "  -f, --format <ext>    Output format (default: same as input)"
+  echo "  -g, --grid <dim>      Grid dimensions (default: 2x1)"
+  echo "Examples:"
+  echo "  img-split image.jpg"
+  echo "  img-split image.jpg 3x2"
+  echo "  img-split image.jpg -g 3x2 -f png"
+  echo "  img-split image1.jpg image2.jpg -g 2x2 -o ./output"
+
   if [ $# -eq 0 ]; then
-    echo "Split image into left and right halves."
-    echo "Usage: img-split-horizontal <source_image> [source_image2] [source_image3]..."
     return 0
   fi
 
-  for img in "$@"; do
-    _image_aliases_validate_file "$img" || return 1
-    local source_path="$img"
-    local base_name="${source_path%.*}"
-    local ext="${source_path##*.}"
+  _image_aliases_check_imagemagick || return 1
+  local magick_cmd=$(_image_aliases_magick_cmd)
 
-    if magick convert "$source_path" -crop 50%x100% +repage "${base_name}_%d.${ext}"; then
-      echo "Split image into left and right halves complete, exported to ${base_name}_0.${ext} and ${base_name}_1.${ext}"
+  # Default values
+  local grid_dim="2x1"
+  local output_format=""
+  local output_dir=""
+  local files=()
+  local result_status=0
+
+  # Parse arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -o|--output)
+        output_dir="$2"
+        shift 2
+        ;;
+      -f|--format)
+        output_format="$2"
+        shift 2
+        ;;
+      -g|--grid)
+        grid_dim="$2"
+        shift 2
+        ;;
+      *)
+        files+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  # Validate grid dimensions
+  if ! echo "$grid_dim" | grep -qE "^[0-9]+x[0-9]+$"; then
+    echo "Error: Invalid grid dimensions format. Use format: NxM (e.g., 2x1)" >&2
+    return 1
+  fi
+
+  # Process each file
+  for img in "${files[@]}"; do
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
+
+    # Get image dimensions
+    local dimensions=$($magick_cmd identify -format "%wx%h" "$img" 2>/dev/null)
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to get dimensions of $img" >&2
+      result_status=1
+      continue
+    fi
+
+    # Calculate tile dimensions
+    local width=$(echo "$dimensions" | cut -d'x' -f1)
+    local height=$(echo "$dimensions" | cut -d'x' -f2)
+    local grid_x=$(echo "$grid_dim" | cut -d'x' -f1)
+    local grid_y=$(echo "$grid_dim" | cut -d'x' -f2)
+    local tile_width=$((width / grid_x))
+    local tile_height=$((height / grid_y))
+
+    # Set output directory
+    local img_output_dir="${output_dir:-$(dirname "$img")/split-$(basename "$img" ".${img##*.}")}"
+    mkdir -p "$img_output_dir"
+
+    # Set output format
+    local img_output_format="${output_format:-${img##*.}}"
+    img_output_format="${img_output_format#.}"
+
+    # Get base filename without extension
+    local base_name=$(basename "$img" ".${img##*.}")
+
+    # Split image
+    if $magick_cmd "$img" -crop "${tile_width}x${tile_height}" \
+       -set filename:tile "%[fx:page.x/${tile_width}+1]_%[fx:page.y/${tile_height}+1]" \
+       "$img_output_dir/${base_name}_%[filename:tile].$img_output_format"; then
+      echo "Split $img into ${grid_x}x${grid_y} parts, saved to $img_output_dir"
     else
-      echo "Error: Failed to split image." >&2
-      return 1
+      echo "Error: Failed to split $img" >&2
+      result_status=1
     fi
   done
-}' # Split image into left and right halves
 
-alias img-split-vertical='() {
+  return $result_status
+}' # Split image into multiple parts based on grid dimensions
+
+alias img-split-dir='() {
+  echo "Split multiple images in a directory into parts based on grid dimensions."
+  echo "Usage: img-split-dir <source_dir> [grid_dimensions:2x1]"
+  echo "Options:"
+  echo "  -o, --output <dir>    Output directory (default: split_output)"
+  echo "  -f, --format <ext>    Output format (default: same as input)"
+  echo "  -g, --grid <dim>      Grid dimensions (default: 2x1)"
+  echo "  -p, --pattern <ext>   File pattern (default: jpg|jpeg|png|gif|bmp|webp)"
+  echo "  -r, --recursive       Search subdirectories"
+  echo "Examples:"
+  echo "  img-split-dir ./images"
+  echo "  img-split-dir ./images -g 3x2 -f png"
+  echo "  img-split-dir ./images -p \"jpg|png\" -r"
+
   if [ $# -eq 0 ]; then
-    echo "Split image into top and bottom halves."
-    echo "Usage: img-split-vertical <source_image> [source_image2] [source_image3]..."
     return 0
   fi
 
-  for img in "$@"; do
-    _image_aliases_validate_file "$img" || return 1
-    local source_path="$img"
-    local base_name="${source_path%.*}"
-    local ext="${source_path##*.}"
+  _image_aliases_check_imagemagick || return 1
+  local magick_cmd=$(_image_aliases_magick_cmd)
 
-    if magick convert "$source_path" -crop 100%x50% +repage "${base_name}_%d.${ext}"; then
-      echo "Split image into top and bottom halves complete, exported to ${base_name}_0.${ext} and ${base_name}_1.${ext}"
-    else
-      echo "Error: Failed to split image." >&2
-      return 1
-    fi
-  done
-}' # Split image into top and bottom halves
-
-alias img-split-horizontal-dir='() {
-  if [ $# -eq 0 ]; then
-    echo "Split directory of images into left and right halves."
-    echo "Usage: img-split-horizontal-dir <source_dir>"
-    return 0
-  fi
-
-  _image_aliases_validate_dir "$1" || return 1
-
+  # Default values
   local source_dir="$1"
-  local output_dir="$source_dir/horizontal_split"
+  local grid_dim="2x1"
+  local output_format=""
+  local output_dir="split_output"
+  local pattern="jpg|jpeg|png|gif|bmp|webp"
+  local recursive=false
+  shift
 
+  # Parse arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -o|--output)
+        output_dir="$2"
+        shift 2
+        ;;
+      -f|--format)
+        output_format="$2"
+        shift 2
+        ;;
+      -g|--grid)
+        grid_dim="$2"
+        shift 2
+        ;;
+      -p|--pattern)
+        pattern="$2"
+        shift 2
+        ;;
+      -r|--recursive)
+        recursive=true
+        shift
+        ;;
+      *)
+        echo "Error: Unknown option $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  # Validate source directory
+  _image_aliases_validate_dir "$source_dir" || return 1
+
+  # Validate grid dimensions
+  if ! echo "$grid_dim" | grep -qE "^[0-9]+x[0-9]+$"; then
+    echo "Error: Invalid grid dimensions format. Use format: NxM (e.g., 2x1)" >&2
+    return 1
+  fi
+
+  # Create output directory
   mkdir -p "$output_dir"
+
+  # Find all image files
+  local find_cmd="find \"$source_dir\""
+  if [ "$recursive" = false ]; then
+    find_cmd="$find_cmd -maxdepth 1"
+  fi
+  find_cmd="$find_cmd -type f -regex \".*\\.($pattern)$\""
+
+  local processed=0
   local errors=0
 
-  for img in "$source_dir"/*.(jpg|png|jpeg|bmp|heic); do
-    if [ -f "$img" ]; then
-      local base_name="$(basename "${img%.*}")"
-      local ext="${img##*.}"
-      if ! magick convert "$img" -crop 50%x100% +repage "$output_dir/${base_name}_%d.${ext}"; then
-        echo "Error: Failed to split $img" >&2
-        errors=$((errors+1))
-      fi
+  # Process each file
+  while IFS= read -r img; do
+    # Get image dimensions
+    local dimensions=$($magick_cmd identify -format "%wx%h" "$img" 2>/dev/null)
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to get dimensions of $img" >&2
+      errors=$((errors+1))
+      continue
     fi
-  done
 
-  echo "Split directory of images into left and right halves complete, exported to $output_dir"
-  [ $errors -eq 0 ] || return 1
-}' # Split directory of images into left and right halves
+    # Calculate tile dimensions
+    local width=$(echo "$dimensions" | cut -d'x' -f1)
+    local height=$(echo "$dimensions" | cut -d'x' -f2)
+    local grid_x=$(echo "$grid_dim" | cut -d'x' -f1)
+    local grid_y=$(echo "$grid_dim" | cut -d'x' -f2)
+    local tile_width=$((width / grid_x))
+    local tile_height=$((height / grid_y))
 
-alias img-split-vertical-dir='() {
-  if [ $# -eq 0 ]; then
-    echo "Split directory of images into top and bottom halves."
-    echo "Usage: img-split-vertical-dir <source_dir>"
-    return 0
-  fi
+    # Set output format
+    local img_output_format="${output_format:-${img##*.}}"
+    img_output_format="${img_output_format#.}"
 
-  _image_aliases_validate_dir "$1" || return 1
+    # Get base filename without extension
+    local base_name=$(basename "$img" ".${img##*.}")
 
-  local source_dir="$1"
-  local output_dir="$source_dir/vertical_split"
-
-  mkdir -p "$output_dir"
-  local errors=0
-
-  for img in "$source_dir"/*.(jpg|png|jpeg|bmp|heic); do
-    if [ -f "$img" ]; then
-      local base_name="$(basename "${img%.*}")"
-      local ext="${img##*.}"
-      if ! magick convert "$img" -crop 100%x50% +repage "$output_dir/${base_name}_%d.${ext}"; then
-        echo "Error: Failed to split $img" >&2
-        errors=$((errors+1))
-      fi
+    # Split image
+    if $magick_cmd "$img" -crop "${tile_width}x${tile_height}" \
+       -set filename:tile "%[fx:page.x/${tile_width}+1]_%[fx:page.y/${tile_height}+1]" \
+       "$output_dir/${base_name}_%[filename:tile].$img_output_format"; then
+      echo "Split $img into ${grid_x}x${grid_y} parts"
+      processed=$((processed+1))
+    else
+      echo "Error: Failed to split $img" >&2
+      errors=$((errors+1))
     fi
-  done
+  done < <(eval "$find_cmd")
 
-  echo "Split directory of images into top and bottom halves complete, exported to $output_dir"
+  echo "Processing complete: $processed files processed, $errors errors"
+  echo "Output saved to: $output_dir"
   [ $errors -eq 0 ] || return 1
-}' # Split directory of images into top and bottom halves
+}' # Split multiple images in a directory into parts based on grid dimensions
 
 # --------------------------------
 # Image Merging
@@ -1256,10 +1376,8 @@ alias image-help='() {
   echo "  img-compress-dir     - Batch compress all images in a directory"
   echo
   echo "Image Splitting:"
-  echo "  img-split-horizontal - Split image into left and right halves"
-  echo "  img-split-vertical   - Split image into top and bottom halves"
-  echo "  img-split-horizontal-dir - Split directory of images into left and right halves"
-  echo "  img-split-vertical-dir - Split directory of images into top and bottom halves"
+  echo "  img-split            - Split image into multiple parts based on grid dimensions"
+  echo "  img-split-dir        - Split multiple images in a directory into parts based on grid dimensions"
   echo
   echo "Image Joining:"
   echo "  img-join-horizontal  - Join multiple images horizontally"
