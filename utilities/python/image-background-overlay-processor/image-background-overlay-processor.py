@@ -416,10 +416,10 @@ class ImageBackdropProcessor:
                          max_workers: int = None,
                          show_progress: bool = True) -> Dict[str, bool]:
         """
-        Process all images in a directory.
+        Process all images in a directory or multiple directories.
 
         Args:
-            foreground_dir: Directory containing foreground images
+            foreground_dir: Directory or directories containing foreground images (separated by '|')
             background: Path or URL to the background image
             output_dir: Directory to save output images
             output_pattern: Pattern for output filenames
@@ -440,18 +440,31 @@ class ImageBackdropProcessor:
 
         foreground_sources = []
 
-        # Collect all image files in the directory
-        if recursive:
-            for root, _, files in os.walk(foreground_dir):
-                for file in files:
-                    if any(file.lower().endswith(ext) for ext in file_extensions):
-                        foreground_sources.append(os.path.join(root, file))
-        else:
-            for file in os.listdir(foreground_dir):
-                if any(file.lower().endswith(ext) for ext in file_extensions):
-                    foreground_sources.append(os.path.join(foreground_dir, file))
+        # Split directories if multiple are provided (separated by '|')
+        directories = [dir.strip() for dir in foreground_dir.split('|') if dir.strip()]
 
-        self.logger.info(f"Found {len(foreground_sources)} images to process in {foreground_dir}")
+        # Collect all image files from all specified directories
+        for directory in directories:
+            self.logger.info(f"Processing directory: {directory}")
+
+            # Collect all image files in the directory
+            if recursive:
+                for root, _, files in os.walk(directory):
+                    for file in files:
+                        if any(file.lower().endswith(ext) for ext in file_extensions):
+                            foreground_sources.append(os.path.join(root, file))
+            else:
+                # Only process files in the top-level directory
+                try:
+                    for file in os.listdir(directory):
+                        file_path = os.path.join(directory, file)
+                        if os.path.isfile(file_path) and any(file.lower().endswith(ext) for ext in file_extensions):
+                            foreground_sources.append(file_path)
+                except FileNotFoundError:
+                    self.logger.error(f"Directory not found: {directory}")
+                    continue
+
+        self.logger.info(f"Found {len(foreground_sources)} images to process in {len(directories)} directories")
 
         return self.batch_process(
             foreground_sources=foreground_sources,
