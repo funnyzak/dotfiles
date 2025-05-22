@@ -1206,7 +1206,7 @@ alias img-add-bg-dir='() {
   local errors=0
   local processed=0
 
-  find "$foreground_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" -o -iname "*.webp" \) | while IFS= read -r img; do
+  find "$foreground_dir" -maxdepth 5 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" -o -iname "*.webp" \) | while IFS= read -r img; do
     local base_name="$(basename "$img")"
     local output_path="$output_dir/$base_name"
 
