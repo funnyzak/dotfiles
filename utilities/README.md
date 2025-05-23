@@ -10,8 +10,10 @@ The utilities are organized into the following categories:
   - [Overview](#overview)
   - [Python Utilities](#python-utilities)
     - [Available Tools](#available-tools)
-  - [Shell Utilities](#shell-utilities)
+  - [Node.js Utilities](#nodejs-utilities)
     - [Available Tools](#available-tools-1)
+  - [Shell Utilities](#shell-utilities)
+    - [Available Tools](#available-tools-2)
   - [Usage](#usage)
 
 Each section provides a brief overview of the available tools. For detailed documentation, please refer to the README files in the respective subdirectories.
@@ -32,6 +34,17 @@ Python utilities provide automation scripts for various tasks. For detailed docu
   - Features batch processing and remote URL image fetching
   - Provides customizable output formats
 
+## Node.js Utilities
+
+Node.js utilities provide automation scripts for web development and data processing. For detailed documentation, see [Node.js Utilities Documentation](./nodejs/README.md).
+
+### Available Tools
+
+- **JSON to Files Generator** (`nodejs/json-to-files.js`): A versatile script for extracting data from JSON files and generating corresponding files.
+  - Supports flexible JSON extraction with customizable properties
+  - Features media resource downloading from HTML content
+  - Provides post-processing with custom command execution
+  - Includes both batch processing and parallel execution options
 
 ## Shell Utilities
 
