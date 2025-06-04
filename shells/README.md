@@ -79,6 +79,8 @@ The Oh My Zsh configuration provides a comprehensive setup for the Zsh shell wit
     ```bash
     # Basic remote installation
     curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash -- --force
+    # Or
+    curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh -o install_omz.sh && bash install_omz.sh --force
     ```
   - **Environment Variables**:
     ```bash
