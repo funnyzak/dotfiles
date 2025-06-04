@@ -11,7 +11,16 @@ __docker_compose_cmd() {
   if command -v docker-compose &> /dev/null; then
     echo "docker-compose"
   else
-    echo "docker compose"
+    echo "docker"
+  fi
+}
+
+# Docker Compose Command Arguments Function
+__docker_compose_args() {
+  if command -v docker-compose &> /dev/null; then
+    echo ""
+  else
+    echo "compose"
   fi
 }
 
@@ -242,9 +251,10 @@ alias dpl='() {
 alias dcupd='() {
   echo "Starts containers using Docker Compose.\nUsage:\n dcupd [service_name] [service2...]"
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    $compose_cmd up -d "$@"
+    $compose_cmd $compose_args up -d "$@"
     echo "Started Docker Compose service(s): ${@:-all}"
   else
     echo "Error: Docker Compose configuration file not found in the current directory"
@@ -255,9 +265,10 @@ alias dcupd='() {
 alias dcdown='() {
   echo "Stops containers using Docker Compose.\nUsage:\n dcdown [options]"
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    $compose_cmd down "$@"
+    $compose_cmd $compose_args down "$@"
     echo "Stopped Docker Compose service(s)"
   else
     echo "Error: Docker Compose configuration file not found in the current directory"
@@ -268,9 +279,10 @@ alias dcdown='() {
 alias dcrestart='() {
   echo "Restarts containers using Docker Compose.\nUsage:\n dcrestart [service_name] [service2...]"
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    $compose_cmd restart "$@"
+    $compose_cmd $compose_args restart "$@"
     echo "Restarted Docker Compose service(s): ${@:-all}"
   else
     echo "Error: Docker Compose configuration file not found in the current directory"
@@ -281,9 +293,10 @@ alias dcrestart='() {
 alias dcsrm='() {
   echo "Stops and removes containers using Docker Compose.\nUsage:\n dcsrm [service_name] [service2...]"
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    $compose_cmd stop "$@" && $compose_cmd rm -f "$@"
+    $compose_cmd $compose_args stop "$@" && $compose_cmd $compose_args rm -f "$@"
     echo "Stopped and removed Docker Compose service(s): ${@:-all}"
   else
     echo "Error: Docker Compose configuration file not found in the current directory"
@@ -294,9 +307,10 @@ alias dcsrm='() {
 alias dcps='() {
   echo "Displays Docker Compose container status.\nUsage:\n dcps [service_name]"
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    $compose_cmd ps "$@"
+    $compose_cmd $compose_args ps "$@"
   else
     echo "Error: Docker Compose configuration file not found in the current directory"
     return 1
@@ -311,9 +325,10 @@ alias dclogs='() {
   fi
 
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    $compose_cmd logs -f -t --tail ${2:-300} "$1"
+    $compose_cmd $compose_args logs -f -t --tail ${2:-300} "$1"
   else
     echo "Error: Docker Compose configuration file not found in the current directory"
     return 1
@@ -328,11 +343,12 @@ alias dcbash='() {
   fi
 
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    if $compose_cmd exec "$1" bash 2>/dev/null; then
+    if $compose_cmd $compose_args exec "$1" bash 2>/dev/null; then
       :
-    elif $compose_cmd exec "$1" sh; then
+    elif $compose_cmd $compose_args exec "$1" sh; then
       :
     else
       echo "Error: Unable to enter the terminal of service $1"
@@ -353,9 +369,10 @@ alias dce='() {
   fi
 
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    $compose_cmd exec "$@"
+    $compose_cmd $compose_args exec "$@"
   else
     echo "Error: Docker Compose configuration file not found in the current directory"
     return 1
@@ -370,9 +387,10 @@ alias dcr='() {
   fi
 
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    $compose_cmd run "$@"
+    $compose_cmd $compose_args run "$@"
   else
     echo "Error: Docker Compose configuration file not found in the current directory"
     return 1
@@ -382,9 +400,10 @@ alias dcr='() {
 alias dcpse='() {
   echo "Pauses Docker Compose service(s).\nUsage:\n dcpse [service_name] [service2...]"
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    $compose_cmd pause "$@"
+    $compose_cmd $compose_args pause "$@"
     echo "Paused service(s): ${@:-all}"
   else
     echo "Error: Docker Compose configuration file not found in the current directory"
@@ -395,9 +414,10 @@ alias dcpse='() {
 alias dcupse='() {
   echo "Unpauses Docker Compose service(s).\nUsage:\n dcupse [service_name] [service2...]"
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    $compose_cmd unpause "$@"
+    $compose_cmd $compose_args unpause "$@"
     echo "Unpaused service(s): ${@:-all}"
   else
     echo "Error: Docker Compose configuration file not found in the current directory"
@@ -408,9 +428,10 @@ alias dcupse='() {
 alias dctop='() {
   echo "Displays Docker Compose container resource usage.\nUsage:\n dctop [service_name] [service2...]"
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    $compose_cmd top "$@"
+    $compose_cmd $compose_args top "$@"
   else
     echo "Error: Docker Compose configuration file not found in the current directory"
     return 1
@@ -420,9 +441,10 @@ alias dctop='() {
 alias dcstop='() {
   echo "Stops Docker Compose service(s).\nUsage:\n dcstop [service_name] [service2...]"
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
 
   if [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] || [ -f "compose.yml" ] || [ -f "compose.yaml" ]; then
-    $compose_cmd stop "$@"
+    $compose_cmd $compose_args stop "$@"
     echo "Stopped service(s): ${@:-all}"
   else
     echo "Error: Docker Compose configuration file not found in the current directory"
@@ -1107,6 +1129,7 @@ alias dnetcreate='() {
 alias dcval='() {
   echo "Validates Docker Compose file.\nUsage:\n dcval [file_path=docker-compose.yml]"
   compose_cmd=$(__docker_compose_cmd)
+  compose_args=$(__docker_compose_args)
   file_path="${1:-docker-compose.yml}"
 
   if [ ! -f "$file_path" ]; then
@@ -1114,7 +1137,7 @@ alias dcval='() {
     return 1
   fi
 
-  $compose_cmd -f "$file_path" config
+  $compose_cmd $compose_args -f "$file_path" config
   if [ $? -eq 0 ]; then
     echo "Docker Compose file $file_path is valid"
   else
