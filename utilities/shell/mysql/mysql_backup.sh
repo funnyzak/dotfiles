@@ -10,7 +10,8 @@
 #
 # Author: funnyzak
 # Version: 1.0.0
-# Created: $(date '+%Y-%m-%d')
+# Created: 2025-06-08
+# Repository: https://gitee.com/funnyzak/dotfiles
 #
 # System Compatibility:
 #   - Ubuntu 18.04+
@@ -639,7 +640,7 @@ show_backup_statistics() {
 
 # Show help information
 show_help() {
-    cat << EOF
+    echo -e "
 ${WHITE}MySQL Database Backup Script v$SCRIPT_VERSION${NC}
 ${CYAN}Author: $SCRIPT_AUTHOR${NC}
 
@@ -699,8 +700,7 @@ ${YELLOW}Environment Variables:${NC}
 ${YELLOW}More Information:${NC}
   Project: https://gitee.com/funnyzak/dotfiles
   Script: $SCRIPT_URL
-
-EOF
+"
 }
 
 # Parse command line arguments

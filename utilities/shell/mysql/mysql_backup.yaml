@@ -21,7 +21,7 @@ backup:
   output_dir: "./"
   file_suffix: "sql"
   extra_options: "--ssl-mode=DISABLED --single-transaction --routines --triggers --events --flush-logs --hex-blob --complete-insert"
-  compress: false
+  compress: true
   parallel: 2
   # Backup retention days, 0 means skip backup file cleanup
   retention_days: 180
@@ -43,7 +43,7 @@ logging:
 # Notification configuration
 notifications:
   apprise:
-    # Apprise server URL, e.g.: "http://localhost:8000/notify"
+    # Apprise server URL, e.g.: "http://localhost:8000/notify/wgzryvfbmwoybymj"
     # Leave empty to disable Apprise notifications
     url: ""
     # Notification tags (default: "all")
