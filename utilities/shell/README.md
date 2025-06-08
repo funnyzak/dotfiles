@@ -4,6 +4,7 @@ This directory contains shell-related utility scripts to enhance your workflow.
 
 ## Contents
 - [ssh_connect.exp](#ssh_connectexp)
+- [alist_upload.sh](#alist_uploadsh)
 
 ## ssh_connect.exp
 
@@ -129,4 +130,126 @@ app1,App Server 1,192.168.1.30,2222,admin,key,/home/user/.ssh/app1.key
 - **Security**: Avoid storing sensitive passwords in plain text. Consider using SSH keys or a password manager.
 - **Permissions**: Ensure `ssh_connect.exp` is executable (`chmod +x`) and the configuration file is readable only by you (`chmod 600 ~/.servers.conf`).
 - **Troubleshooting**: If connections fail, check your SSH keys, network, and server availability.
+
+## alist_upload.sh
+
+`alist_upload.sh` is a comprehensive shell script for uploading files to AList storage via API. It features automatic authentication with token caching, command line parameter support, and comprehensive error handling.
+
+**Tips:** You can quickly execute the script remotely:
+
+```bash
+curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist-upload.sh | bash -s -- file1.txt
+```
+
+### Features
+- **API Authentication**: Automatic token management with 24-hour validity caching
+- **Command Line Support**: Full parameter support for all configuration options
+- **Environment Variables**: Configure via environment variables for automation
+- **Automatic Token Refresh**: Seamless token renewal when expired
+- **Custom Remote Paths**: Upload files to specific directories
+- **Comprehensive Logging**: Detailed error handling and verbose output options
+- **Remote Execution**: Support for direct remote execution from repository
+
+### Requirements
+- `curl` installed on your system
+- `jq` (optional, for better JSON parsing)
+- Valid AList server with API access
+
+### Usage
+
+#### Basic Usage
+Upload a file to the root directory:
+```bash
+./alist_upload.sh file1.txt
+```
+
+#### Specify Remote Path
+Upload to a specific remote directory:
+```bash
+./alist_upload.sh -r /documents file1.txt
+```
+
+#### Full Parameter Configuration
+Specify all parameters via command line:
+```bash
+./alist_upload.sh -a https://api.example.com -u username -p password -r /backup file1.txt
+```
+
+#### Using Environment Variables
+Configure via environment variables:
+```bash
+export ALIST_API_URL="https://api.example.com"
+export ALIST_USERNAME="myuser"
+export ALIST_PASSWORD="mypass"
+./alist_upload.sh file1.txt
+```
+
+#### Verbose Output
+Enable detailed logging:
+```bash
+./alist_upload.sh -v file1.txt
+```
+
+### Environment Variables
+- **`ALIST_API_URL`**: API base URL (e.g., http://prod-cn.your-api-server.com)
+- **`ALIST_USERNAME`**: Username for authentication
+- **`ALIST_PASSWORD`**: Password for authentication
+- **`ALIST_TOKEN`**: Pre-existing authentication token (optional)
+
+### Command Line Parameters
+- **`-a, --api-url`**: API base URL
+- **`-u, --username`**: Username for authentication
+- **`-p, --password`**: Password for authentication
+- **`-t, --token`**: Pre-existing authentication token
+- **`-r, --remote-path`**: Remote upload path (default: /)
+- **`-v, --verbose`**: Enable verbose output
+- **`-h, --help`**: Show help message
+
+### Remote Execution
+Execute directly from the repository without downloading:
+```bash
+# Direct remote execution
+curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist-upload.sh | bash -s -- file1.txt
+
+# With parameters
+curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist-upload.sh | bash -s -- -r /documents file1.txt
+```
+
+### Installation
+1. **Download the Script**:
+   ```bash
+   curl -fsSL -o alist_upload.sh https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist-upload.sh
+   chmod +x alist_upload.sh
+   ```
+
+2. **Set Up Environment Variables** (Optional):
+   Add to your shell configuration (e.g., `~/.zshrc` or `~/.bashrc`):
+   ```bash
+   export ALIST_API_URL="https://your-alist-server.com"
+   export ALIST_USERNAME="your-username"
+   export ALIST_PASSWORD="your-password"
+   ```
+
+3. **Create Alias** (Optional):
+   ```bash
+   alias alist-upload='/path/to/alist_upload.sh'
+   ```
+
+### Example Workflow
+1. Configure environment variables or prepare command line parameters
+2. Upload files:
+   ```bash
+   ./alist_upload.sh document.pdf                    # Upload to root
+   ./alist_upload.sh -r /backup important.zip        # Upload to /backup directory
+   ./alist_upload.sh -v -r /documents report.docx    # Upload with verbose output
+   ```
+
+### Token Caching
+The script automatically caches authentication tokens in `~/.cache/alist/token` with 24-hour validity. This improves performance by avoiding repeated authentication requests.
+
+### Notes
+- **Security**: Avoid storing passwords in plain text. Consider using environment variables or secure credential management.
+- **File Validation**: The script validates file existence and readability before upload.
+- **Error Handling**: Comprehensive error handling with automatic token refresh on expiration.
+- **Path Normalization**: Remote paths are automatically normalized (leading slash added, trailing slash removed).
 
