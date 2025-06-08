@@ -65,7 +65,7 @@ Shell utilities provide command-line tools and scripts for system operations. Fo
   - Provides remote execution capabilities, custom upload paths, and progress tracking
 
 - **MySQL Backup** (`shell/mysql/mysql_backup.sh`): A professional MySQL database backup script with enterprise-grade features.
-  - Multi-database parallel backup with configurable concurrency (max 4 jobs)
+  - Multi-database sequential backup for reliable data integrity
   - YAML configuration file support and comprehensive environment variable integration
   - Integrated notification system (Apprise and Bark) with backup status reporting
   - Automatic cleanup with configurable retention policies and optional compression

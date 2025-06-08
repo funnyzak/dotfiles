@@ -5,7 +5,7 @@
 # =============================================================================
 #
 # Description: Professional MySQL database backup script with support for
-#              multi-database parallel backup, configuration files, notification
+#              multi-database backup, configuration files, notification
 #              system, logging, automatic cleanup and more features
 #
 # Author: funnyzak
@@ -21,10 +21,10 @@
 #   - macOS 10.14+
 #
 # Dependencies:
-#   - mysqldump (auto-install)
-#   - tar, gzip (system built-in)
-#   - curl (for notifications)
-#   - yq (YAML parsing, optional)
+#   mysqldump (auto-install)
+#   tar, gzip (system built-in)
+#   curl (for notifications)
+#   yq (YAML parsing, optional)
 #
 # Remote execution examples:
 #   # Direct execution (using default configuration)
@@ -32,7 +32,7 @@
 #
 #   # Execution with parameters
 #   bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.sh) \
-#     -h localhost -u backup_user -p backup_pass -d "db1,db2" -o /backup -c -j 2
+#     -h localhost -u backup_user -p backup_pass -d "db1,db2" -o /backup -c
 #
 #   # Using remote configuration file
 #   curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.yaml > /tmp/backup.yaml
@@ -46,8 +46,8 @@
 #   # Backup specific databases to specific directory
 #   ./mysql_backup.sh -h 192.168.1.100 -u root -p mypass -d "wordpress,nextcloud" -o /backup/mysql
 #
-#   # Enable compression and parallel backup
-#   ./mysql_backup.sh -c -j 4 -r 30 -v
+#   # Enable compression and retention
+#   ./mysql_backup.sh -c -r 30 -v
 #
 #   # Using configuration file
 #   ./mysql_backup.sh -f ./mysql_backup.yaml
@@ -81,7 +81,6 @@ readonly DEFAULT_PASSWORD="root"
 readonly DEFAULT_OUTPUT_DIR="./"
 readonly DEFAULT_SUFFIX="sql"
 readonly DEFAULT_EXTRA_OPTS="--ssl-mode=DISABLED --single-transaction --routines --triggers --events --flush-logs --hex-blob --complete-insert"
-readonly DEFAULT_PARALLEL="1"
 readonly DEFAULT_RETENTION="0"
 readonly DEFAULT_CONFIG_FILE="./mysql_backup.yaml"
 readonly DEFAULT_APPRISE_TAGS="all"
@@ -111,7 +110,6 @@ EXTRA_OPTS="$DEFAULT_EXTRA_OPTS"
 PRE_CMD=""
 POST_CMD=""
 COMPRESS=false
-PARALLEL="$DEFAULT_PARALLEL"
 RETENTION="${BACKUP_RETENTION_DAYS:-$DEFAULT_RETENTION}"
 LOG_DIR=""
 VERBOSE=false
@@ -394,7 +392,6 @@ parse_yaml_config() {
                     "file_suffix") FILE_SUFFIX="$value" ;;
                     "extra_options") EXTRA_OPTS="$value" ;;
                     "compress") [[ "$value" == "true" ]] && COMPRESS=true ;;
-                    "parallel") PARALLEL="$value" ;;
                     "retention_days") RETENTION="$value" ;;
                     "pre_backup") PRE_CMD="$value" ;;
                     "post_backup") POST_CMD="$value" ;;
@@ -486,100 +483,65 @@ format_size() {
     fi
 }
 
-# Backup single database
-backup_database() {
-    local database="$1"
-    local timestamp
-    timestamp="$(date '+%Y-%m-%d_%H-%M-%S')"
-    local backup_file="$OUTPUT_DIR/${database}_${timestamp}.$FILE_SUFFIX"
-
-    log "INFO" "Starting backup for database: $database"
-    log "DEBUG" "Backup file path: $backup_file"
-
-    # Build mysqldump command
-    local dump_cmd="mysqldump -h$MYSQL_HOST -P$MYSQL_PORT -u$MYSQL_USER"
-    if [[ -n "$MYSQL_PASSWORD" ]]; then
-        dump_cmd="$dump_cmd -p$MYSQL_PASSWORD"
-    fi
-    dump_cmd="$dump_cmd $EXTRA_OPTS $database"
-
-    # Create safe debug output (mask password)
-    local debug_cmd="$dump_cmd"
-    if [[ -n "$MYSQL_PASSWORD" ]]; then
-        debug_cmd="${dump_cmd//-p$MYSQL_PASSWORD/-p***}"
-    fi
-    log "DEBUG" "Mysqldump command: $debug_cmd"
-
-    eval "$dump_cmd" > "$backup_file" 2>/dev/null
-
-    # check backup file exists
-    if [[ -f "$backup_file" ]]; then
-        # Set file permissions
-        chmod 640 "$backup_file"
-        log "DEBUG" "Backup file permissions set to 640"
-
-        # Compress file
-        if [[ "$COMPRESS" == "true" ]]; then
-            log "DEBUG" "Compressing backup file: $backup_file"
-            tar -czf "${backup_file}.tar.gz" -C "$(dirname "$backup_file")" "$(basename "$backup_file")" && rm "$backup_file"
-            backup_file="${backup_file}.tar.gz"
-            log "DEBUG" "Compression completed: $backup_file"
-        fi
-
-        local file_size
-        file_size="$(stat -c%s "$backup_file" 2>/dev/null || stat -f%z "$backup_file" 2>/dev/null || echo 0)"
-        TOTAL_SIZE=$((TOTAL_SIZE + file_size))
-
-        BACKUP_FILES+=("$backup_file")
-        SUCCESSFUL_BACKUPS=$((SUCCESSFUL_BACKUPS + 1))
-
-        log "INFO" "Database $database backup successful: $backup_file ($(format_size "$file_size"))"
-        log "DEBUG" "Total backups completed: $SUCCESSFUL_BACKUPS"
-        return 0
-    else
-        FAILED_BACKUPS=$((FAILED_BACKUPS + 1))
-        log "ERROR" "Database $database backup failed"
-        log "DEBUG" "Failed backups count: $FAILED_BACKUPS"
-        [[ -f "$backup_file" ]] && rm -f "$backup_file"
-        return 1
-    fi
-}
-
-# Parallel database backup
-backup_databases_parallel() {
+# Serial database backup
+backup_databases_serial() {
     local databases=("$@")
-    local pids=()
-    local active_jobs=0
 
-    log "DEBUG" "Starting parallel backup with $PARALLEL concurrent jobs"
+    log "DEBUG" "Starting serial backup"
 
     for database in "${databases[@]}"; do
-        # Control concurrency
-        while [[ "$active_jobs" -ge "$PARALLEL" ]]; do
-            for i in "${!pids[@]}"; do
-                if ! kill -0 "${pids[$i]}" 2>/dev/null; then
-                    wait "${pids[$i]}"
-                    unset "pids[$i]"
-                    active_jobs=$((active_jobs - 1))
-                    log "DEBUG" "Backup process completed, active jobs: $active_jobs"
-                fi
-            done
-            sleep 1
-        done
+        local timestamp
+        timestamp="$(date '+%Y-%m-%d_%H-%M-%S')"
+        local backup_file="$OUTPUT_DIR/${database}_${timestamp}.$FILE_SUFFIX"
 
-        # Start backup process
-        backup_database "$database" &
-        pids+=($!)
-        active_jobs=$((active_jobs + 1))
+        log "INFO" "Starting backup for database: $database"
+        log "DEBUG" "Backup file path: $backup_file"
 
-        log "DEBUG" "Started backup process (PID: $!) for database: $database, active jobs: $active_jobs"
-    done
+        # Build mysqldump command
+        local dump_cmd="mysqldump -h$MYSQL_HOST -P$MYSQL_PORT -u$MYSQL_USER"
+        if [[ -n "$MYSQL_PASSWORD" ]]; then
+            dump_cmd="$dump_cmd -p$MYSQL_PASSWORD"
+        fi
+        dump_cmd="$dump_cmd $EXTRA_OPTS $database"
 
-    # Wait for all processes to complete
-    log "DEBUG" "Waiting for all backup processes to complete..."
-    for pid in "${pids[@]}"; do
-        wait "$pid"
-        log "DEBUG" "Process $pid completed"
+        # Create safe debug output (mask password)
+        local debug_cmd="$dump_cmd"
+        if [[ -n "$MYSQL_PASSWORD" ]]; then
+            debug_cmd="${dump_cmd//-p$MYSQL_PASSWORD/-p***}"
+        fi
+        log "DEBUG" "Mysqldump command: $debug_cmd"
+
+        eval "$dump_cmd" > "$backup_file" 2>/dev/null
+
+        # check backup file exists
+        if [[ -f "$backup_file" ]]; then
+            # Set file permissions
+            chmod 640 "$backup_file"
+            log "DEBUG" "Backup file permissions set to 640"
+
+            # Compress file
+            if [[ "$COMPRESS" == "true" ]]; then
+                log "DEBUG" "Compressing backup file: $backup_file"
+                tar -czf "${backup_file}.tar.gz" -C "$(dirname "$backup_file")" "$(basename "$backup_file")" && rm "$backup_file"
+                backup_file="${backup_file}.tar.gz"
+                log "DEBUG" "Compression completed: $backup_file"
+            fi
+
+            local file_size
+            file_size="$(stat -c%s "$backup_file" 2>/dev/null || stat -f%z "$backup_file" 2>/dev/null || echo 0)"
+            TOTAL_SIZE=$((TOTAL_SIZE + file_size))
+
+            BACKUP_FILES+=("$backup_file")
+            SUCCESSFUL_BACKUPS=$((SUCCESSFUL_BACKUPS + 1))
+
+            log "INFO" "Database $database backup successful: $backup_file ($(format_size "$file_size"))"
+            log "DEBUG" "Total backups completed: $SUCCESSFUL_BACKUPS"
+        else
+            FAILED_BACKUPS=$((FAILED_BACKUPS + 1))
+            log "ERROR" "Database $database backup failed"
+            log "DEBUG" "Failed backups count: $FAILED_BACKUPS"
+            [[ -f "$backup_file" ]] && rm -f "$backup_file"
+        fi
     done
 }
 
@@ -646,7 +608,7 @@ ${CYAN}Author: $SCRIPT_AUTHOR${NC}
 
 ${YELLOW}Description:${NC}
   Professional MySQL database backup script with support for multi-database
-  parallel backup, configuration files, notification system, logging,
+  backup, configuration files, notification system, logging,
   automatic cleanup and more features.
 
 ${YELLOW}Usage:${NC}
@@ -665,7 +627,6 @@ ${YELLOW}Options:${NC}
   ${GREEN}    --pre-cmd${NC}       Command to execute before backup
   ${GREEN}    --post-cmd${NC}      Command to execute after backup
   ${GREEN}-c, --compress${NC}      Use tar compression for backup files (default: false)
-  ${GREEN}-j, --parallel${NC}      Number of parallel backup processes (default: $DEFAULT_PARALLEL, max: 4)
   ${GREEN}-r, --retention${NC}     Backup retention days (default: $DEFAULT_RETENTION, 0 means no cleanup)
   ${GREEN}-l, --log-dir${NC}       Log file directory (if not specified, no log file)
   ${GREEN}-v, --verbose${NC}       Enable verbose debug output (default: false)
@@ -683,8 +644,8 @@ ${YELLOW}Examples:${NC}
   # Backup specific databases
   $SCRIPT_NAME -h localhost -u root -p mypass -d "db1,db2" -o /backup
 
-  # Enable compression and parallel backup
-  $SCRIPT_NAME -c -j 4 -r 30 -v
+  # Enable compression and retention
+  $SCRIPT_NAME -c -r 30 -v
 
   # Use configuration file
   $SCRIPT_NAME -f ./mysql_backup.yaml
@@ -755,13 +716,6 @@ parse_arguments() {
                 COMPRESS=true
                 shift
                 ;;
-            -j|--parallel)
-                PARALLEL="$2"
-                if [[ "$PARALLEL" -gt 4 ]]; then
-                    PARALLEL=4
-                fi
-                shift 2
-                ;;
             -r|--retention)
                 RETENTION="$2"
                 shift 2
@@ -827,7 +781,7 @@ main() {
     log "INFO" "Script author: $SCRIPT_AUTHOR"
     log "INFO" "Instance name: $INSTANCE_NAME"
     log "DEBUG" "Configuration: Host=$MYSQL_HOST, Port=$MYSQL_PORT, User=$MYSQL_USER"
-    log "DEBUG" "Output directory: $OUTPUT_DIR, Parallel jobs: $PARALLEL"
+    log "DEBUG" "Output directory: $OUTPUT_DIR"
     log "DEBUG" "Notification config: Apprise URL=${APPRISE_URL:+configured}, Bark URL=${BARK_URL:+configured}, Bark Key=${BARK_KEY:+configured}"
 
     # Record start time
@@ -862,8 +816,8 @@ main() {
     log "DEBUG" "Database list: ${databases_array[*]}"
 
     # Start backup
-    log "INFO" "Starting database backup (parallelism: $PARALLEL)..."
-    backup_databases_parallel "${databases_array[@]}"
+    log "INFO" "Starting database backup..."
+    backup_databases_serial "${databases_array[@]}"
 
     # Record end time
     BACKUP_END_TIME="$(date +%s)"
@@ -882,11 +836,11 @@ main() {
 
     # Send notifications
     if [[ "$FAILED_BACKUPS" -eq 0 ]]; then
-        local notification_body="✅ MySQL backup completed successfully\\nInstance: $INSTANCE_NAME\\nDatabases: $SUCCESSFUL_BACKUPS\\nTotal size: $(format_size "$TOTAL_SIZE")\\nTime: $(date '+%Y-%m-%d %H:%M:%S')"
+        local notification_body="✅ MySQL backup completed successfully\\nInstance: $INSTANCE_NAME\\nDatabases: ${databases_array[*]}($SUCCESSFUL_BACKUPS)\nTotal size: $(format_size "$TOTAL_SIZE")\\nTime: $(date '+%Y-%m-%d %H:%M:%S')"
         send_notification "MySQL Backup Success" "$notification_body"
         log "INFO" "All database backups completed successfully"
     else
-        local notification_body="⚠️ MySQL backup partially failed\\nInstance: $INSTANCE_NAME\\nSuccessful: $SUCCESSFUL_BACKUPS\\nFailed: $FAILED_BACKUPS\\nTime: $(date '+%Y-%m-%d %H:%M:%S')"
+        local notification_body="⚠️ MySQL backup partially failed\\nInstance: $INSTANCE_NAME\\nDatabases: ${databases_array[*]}($SUCCESSFUL_BACKUPS)\nFailed: $FAILED_BACKUPS\\nTime: $(date '+%Y-%m-%d %H:%M:%S')"
         send_notification "MySQL Backup Warning" "$notification_body"
         log "WARN" "Some database backups failed"
         exit 1

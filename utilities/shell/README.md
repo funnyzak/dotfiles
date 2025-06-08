@@ -278,7 +278,7 @@ The script automatically caches authentication tokens in `~/.cache/alist/token` 
 
 ## mysql_backup.sh
 
-`mysql_backup.sh` is a professional MySQL database backup script with comprehensive features for enterprise-grade database backup operations. It supports multi-database parallel backup, configuration files, notification systems, logging, automatic cleanup, and more advanced features.
+`mysql_backup.sh` is a professional MySQL database backup script with comprehensive features for enterprise-grade database backup operations. It supports multi-database backup, configuration files, notification systems, logging, automatic cleanup, and more advanced features.
 
 **Tips:** You can quickly execute the script remotely:
 
@@ -288,7 +288,7 @@ bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/m
 
 ### Features
 - **Multi-Database Support**: Backup all databases or specific databases with comma-separated list
-- **Parallel Processing**: Concurrent backup operations with configurable parallelism (max 4 jobs)
+- **Sequential Processing**: Reliable sequential backup operations for data integrity
 - **Configuration Files**: YAML configuration file support for complex setups
 - **Notification System**: Integrated Apprise and Bark notification support for backup status
 - **Comprehensive Logging**: Detailed logging with multiple log levels and optional file output
@@ -321,10 +321,10 @@ Backup specific databases to a custom directory:
 ./mysql_backup.sh -h 192.168.1.100 -u root -p mypass -d "wordpress,nextcloud" -o /backup/mysql
 ```
 
-#### Enable Compression and Parallel Backup
-Use compression and parallel processing:
+#### Enable Compression and Retention
+Use compression and retention cleanup:
 ```bash
-./mysql_backup.sh -c -j 4 -r 30 -v
+./mysql_backup.sh -c -r 30 -v
 ```
 
 #### Using Configuration File
@@ -347,7 +347,7 @@ bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/m
 
 # With parameters
 bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.sh) \
-  -h localhost -u backup_user -p backup_pass -d "db1,db2" -o /backup -c -j 2
+  -h localhost -u backup_user -p backup_pass -d "db1,db2" -o /backup -c
 
 # Using remote configuration file
 curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.yaml > /tmp/backup.yaml
@@ -380,7 +380,7 @@ bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/m
 - **`--pre-cmd`**: Command to execute before backup
 - **`--post-cmd`**: Command to execute after backup
 - **`-c, --compress`**: Use tar compression for backup files
-- **`-j, --parallel`**: Number of parallel backup processes (max: 4)
+
 - **`-r, --retention`**: Backup retention days (0 means no cleanup)
 - **`-l, --log-dir`**: Log file directory
 - **`-v, --verbose`**: Enable verbose debug output
@@ -407,7 +407,6 @@ output_dir: "/backup/mysql"
 file_suffix: "sql"
 extra_options: "--ssl-mode=DISABLED --single-transaction --routines --triggers"
 compress: true
-parallel: 2
 retention_days: 30
 pre_backup: "echo 'Starting backup...'"
 post_backup: "echo 'Backup completed'"
@@ -460,7 +459,7 @@ notifications:
 2. Run backup operations:
    ```bash
    ./mysql_backup.sh                                    # Basic backup with defaults
-   ./mysql_backup.sh -d "app_db,user_db" -c -j 2       # Backup specific databases with compression
+   ./mysql_backup.sh -d "app_db,user_db" -c            # Backup specific databases with compression
    ./mysql_backup.sh -f production.yaml                # Use configuration file
    ./mysql_backup.sh -v -r 7 --apprise-url "http://localhost:8000/notify"  # Verbose with cleanup and notifications
    ```
@@ -477,7 +476,7 @@ The script provides comprehensive backup statistics including:
 - **Security**: Avoid storing passwords in plain text. Use environment variables or secure credential management.
 - **Permissions**: Ensure the script has appropriate permissions and the backup directory is writable.
 - **MySQL Client**: The script automatically installs MySQL client if not present on supported systems.
-- **Parallel Processing**: Maximum parallel jobs is limited to 4 to prevent system overload.
+- **Sequential Processing**: Uses sequential processing to ensure data integrity and avoid system overload.
 - **File Naming**: Backup files are named with database name and timestamp for easy identification.
 - **Compression**: When enabled, creates tar.gz files and removes original SQL files.
 - **Notifications**: Supports both Apprise (universal notification) and Bark (iOS) notification services.
