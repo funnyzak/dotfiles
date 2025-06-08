@@ -5,24 +5,32 @@
 #===============================================================================
 # Description: A comprehensive shell script for uploading files to AList via API
 # Author: funnyzak
-# Version: 1.0.0
-# Repository: https://gitee.com/funnyzak/dotfiles
+# Version: 1.1.0
+# Repository: https://github.com/funnyzak/dotfiles
 # Dependencies: curl, jq (optional for better JSON parsing)
 #
 # Features:
 # - API authentication with token caching (24h validity)
 # - Command line parameter support
 # - Environment variable configuration
-# - Automatic token refresh
+# - Automatic token refresh on 401 errors
+# - Multiple file upload support
+# - Option to disable token caching
 # - File upload with custom remote paths
 # - Comprehensive error handling and logging
 #
 # Usage Examples:
-#   # Basic usage
+#   # Basic usage - single file
 #   ./alist_upload.sh file1.txt
 #
+#   # Upload multiple files
+#   ./alist_upload.sh file1.txt file2.pdf ./path/file3.jpg
+#
 #   # Specify remote path
-#   ./alist_upload.sh -r /documents file1.txt
+#   ./alist_upload.sh -r /documents file1.txt file2.pdf
+#
+#   # Disable token caching
+#   ./alist_upload.sh --no-cache file1.txt
 #
 #   # Specify full parameters
 #   ./alist_upload.sh -a https://api.example.com -u username -p password -r /backup file1.txt
@@ -31,16 +39,19 @@
 #   export ALIST_API_URL="https://api.example.com"
 #   export ALIST_USERNAME="myuser"
 #   export ALIST_PASSWORD="mypass"
-#   ./alist_upload.sh file1.txt
+#   ./alist_upload.sh file1.txt file2.pdf
 #
 # Remote Execution Examples:
-#   # Direct remote execution
-#   curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist-upload.sh | bash -s -- file1.txt
+#   # Direct remote execution - single file
+#   curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt
+#
+#   # Direct remote execution - multiple files
+#   curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt file2.pdf
 #
 #   # Download and execute
-#   curl -fsSL -o alist_upload.sh https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist-upload.sh
+#   curl -fsSL -o alist_upload.sh https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh
 #   chmod +x alist_upload.sh
-#   ./alist_upload.sh file1.txt
+#   ./alist_upload.sh file1.txt file2.pdf
 #
 # Environment Variables:
 #   ALIST_API_URL     - API base URL (e.g., http://prod-cn.your-api-server.com)
@@ -54,6 +65,7 @@
 #   -p, --password    Password for authentication
 #   -t, --token       Pre-existing token
 #   -r, --remote-path Remote upload path (default: /)
+#   --no-cache        Disable token caching (login for each upload)
 #   -v, --verbose     Enable verbose output
 #   -h, --help        Show this help message
 #
@@ -64,7 +76,7 @@ set -euo pipefail
 
 # Script metadata
 readonly SCRIPT_NAME="$(basename "$0")"
-readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_VERSION="1.1.0"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Default configuration
@@ -79,8 +91,9 @@ USERNAME=""
 PASSWORD=""
 TOKEN=""
 REMOTE_PATH="${DEFAULT_REMOTE_PATH}"
-UPLOAD_FILE=""
+UPLOAD_FILES=()
 VERBOSE=false
+NO_CACHE=false
 
 # Color codes for output
 readonly RED='\033[0;31m'
@@ -173,7 +186,7 @@ DESCRIPTION:
     and token caching for improved performance.
 
 USAGE:
-    ${SCRIPT_NAME} [OPTIONS] <file_path>
+    ${SCRIPT_NAME} [OPTIONS] <file_path> [file_path2] [file_path3] ...
 
 OPTIONS:
     -a, --api-url URL       API base URL (e.g., http://prod-cn.your-api-server.com)
@@ -181,6 +194,7 @@ OPTIONS:
     -p, --password PASS     Password for authentication
     -t, --token TOKEN       Pre-existing authentication token
     -r, --remote-path PATH  Remote upload path (default: /)
+    --no-cache              Disable token caching (login for each upload)
     -v, --verbose           Enable verbose output
     -h, --help              Show this help message
 
@@ -191,11 +205,17 @@ ENVIRONMENT VARIABLES:
     ALIST_TOKEN            Pre-existing token
 
 EXAMPLES:
-    # Basic upload to root directory
+    # Basic upload to root directory - single file
     ${SCRIPT_NAME} document.pdf
 
+    # Upload multiple files to root directory
+    ${SCRIPT_NAME} document.pdf image.jpg archive.zip
+
     # Upload to specific remote directory
-    ${SCRIPT_NAME} -r /documents document.pdf
+    ${SCRIPT_NAME} -r /documents document.pdf image.jpg
+
+    # Upload with disabled token caching
+    ${SCRIPT_NAME} --no-cache document.pdf
 
     # Upload with custom API endpoint
     ${SCRIPT_NAME} -a https://my-alist.com -u myuser -p mypass document.pdf
@@ -204,16 +224,19 @@ EXAMPLES:
     export ALIST_API_URL="https://my-alist.com"
     export ALIST_USERNAME="myuser"
     export ALIST_PASSWORD="mypass"
-    ${SCRIPT_NAME} document.pdf
+    ${SCRIPT_NAME} document.pdf image.jpg
 
 REMOTE EXECUTION:
-    # Direct execution from repository
-    curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist-upload.sh | bash -s -- document.pdf
+    # Direct execution from repository - single file
+    curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- document.pdf
+
+    # Direct execution from repository - multiple files
+    curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- document.pdf image.jpg
 
     # Download and execute
-    curl -fsSL -o alist_upload.sh https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist-upload.sh
+    curl -fsSL -o alist_upload.sh https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh
     chmod +x alist_upload.sh
-    ./alist_upload.sh document.pdf
+    ./alist_upload.sh document.pdf image.jpg
 
 EOF
 }
@@ -242,6 +265,10 @@ parse_arguments() {
                 REMOTE_PATH="$2"
                 shift 2
                 ;;
+            --no-cache)
+                NO_CACHE=true
+                shift
+                ;;
             -v|--verbose)
                 VERBOSE=true
                 shift
@@ -254,11 +281,7 @@ parse_arguments() {
                 die "Unknown option: $1. Use -h for help."
                 ;;
             *)
-                if [[ -z "$UPLOAD_FILE" ]]; then
-                    UPLOAD_FILE="$1"
-                else
-                    die "Multiple files specified. Only one file can be uploaded at a time."
-                fi
+                UPLOAD_FILES+=("$1")
                 shift
                 ;;
         esac
@@ -267,19 +290,20 @@ parse_arguments() {
 
 # Validate configuration
 validate_config() {
-    # Check if file is specified
-    if [[ -z "$UPLOAD_FILE" ]]; then
-        die "No file specified for upload. Use -h for help."
+    # Check if files are specified
+    if [[ ${#UPLOAD_FILES[@]} -eq 0 ]]; then
+        die "No files specified for upload. Use -h for help."
     fi
 
-    # Check if file exists and is readable
-    if [[ ! -f "$UPLOAD_FILE" ]]; then
-        die "File not found: $UPLOAD_FILE"
-    fi
-
-    if [[ ! -r "$UPLOAD_FILE" ]]; then
-        die "File is not readable: $UPLOAD_FILE"
-    fi
+    # Check if files exist and are readable
+    for file in "${UPLOAD_FILES[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            die "File not found: $file"
+        fi
+        if [[ ! -r "$file" ]]; then
+            die "File is not readable: $file"
+        fi
+    done
 
     # Check required parameters (if token is not provided)
     if [[ -z "$TOKEN" ]]; then
@@ -461,7 +485,11 @@ EOF
     fi
 
     TOKEN="$token"
-    save_token_cache "$token"
+
+    # Only save token to cache if caching is enabled
+    if [[ "$NO_CACHE" != true ]]; then
+        save_token_cache "$token"
+    fi
 
     log_success "Authentication successful"
 }
@@ -471,6 +499,13 @@ get_auth_token() {
     # If token is provided via parameter or environment, use it
     if [[ -n "$TOKEN" ]]; then
         log_verbose "Using provided token"
+        return 0
+    fi
+
+    # If no-cache is enabled, always login
+    if [[ "$NO_CACHE" == true ]]; then
+        log_verbose "Token caching disabled, performing fresh login"
+        login_and_get_token
         return 0
     fi
 
@@ -520,7 +555,8 @@ upload_file() {
         -H "File-Path: $file_path_header" \
         -H "As-Task: true" \
         -F "file=@$file_path" 2>/dev/null); then
-        die "Failed to upload file. Please check your network connection."
+        log_error "Failed to upload file. Please check your network connection."
+        return 1
     fi
 
     # Extract HTTP status code and response body
@@ -530,47 +566,91 @@ upload_file() {
     log_verbose "HTTP Status Code: $http_code"
     log_verbose "Response: $response"
 
-    # Check HTTP status
-    if [[ "$http_code" != "200" ]]; then
-        # If unauthorized, try to refresh token
-        if [[ "$http_code" == "401" ]]; then
-            log_warning "Token expired, refreshing authentication..."
-            clear_token_cache
-            login_and_get_token
+    # Check HTTP status and JSON response code
+    local needs_retry=false
+    local json_code=""
 
-            # Retry upload with new token
-            log_info "Retrying upload with refreshed token..."
-            if ! response=$(curl -s -w "\n%{http_code}" \
-                -X PUT "$upload_url" \
-                -H "Authorization: $TOKEN" \
-                -H "File-Path: $file_path_header" \
-                -H "As-Task: true" \
-                -F "file=@$file_path" 2>/dev/null); then
-                die "Failed to upload file after token refresh."
-            fi
-
-            http_code=$(echo "$response" | tail -n1)
-            response=$(echo "$response" | sed '$d')
-
-            if [[ "$http_code" != "200" ]]; then
-                die "Upload failed with HTTP status $http_code after token refresh."
-            fi
-        else
-            die "Upload failed with HTTP status $http_code."
+    # Parse JSON response code first
+    if command_exists jq; then
+        json_code=$(echo "$response" | jq -r '.code // empty' 2>/dev/null)
+    else
+        # Fallback to basic pattern matching for JSON code
+        if [[ "$response" =~ \"code\":([0-9]+) ]]; then
+            json_code="${BASH_REMATCH[1]}"
         fi
     fi
 
-    # Parse upload response
-    if command_exists jq; then
-        local code
-        code=$(echo "$response" | jq -r '.code // empty' 2>/dev/null)
-
-        if [[ "$code" != "200" ]]; then
-            local message
+    # Check for authentication errors (HTTP 401 or JSON code 401)
+    if [[ "$http_code" == "401" ]] || [[ "$json_code" == "401" ]]; then
+        needs_retry=true
+        log_warning "Authentication failed (HTTP: $http_code, JSON code: $json_code), refreshing token..."
+    elif [[ "$http_code" != "200" ]]; then
+        log_error "Upload failed with HTTP status $http_code."
+        return 1
+    elif [[ -n "$json_code" && "$json_code" != "200" ]]; then
+        local message=""
+        if command_exists jq; then
             message=$(echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null)
-            die "Upload failed: $message"
+        else
+            # Try to extract message with basic pattern matching
+            if [[ "$response" =~ \"message\":\"([^\"]+)\" ]]; then
+                message="${BASH_REMATCH[1]}"
+            else
+                message="Unknown error"
+            fi
+        fi
+        log_error "Upload failed with JSON code $json_code: $message"
+        return 1
+    fi
+
+    # Retry upload if authentication failed
+    if [[ "$needs_retry" == true ]]; then
+        clear_token_cache
+        login_and_get_token
+
+                # Retry upload with new token
+        log_info "Retrying upload with refreshed token..."
+        if ! response=$(curl -s -w "\n%{http_code}" \
+            -X PUT "$upload_url" \
+            -H "Authorization: $TOKEN" \
+            -H "File-Path: $file_path_header" \
+            -H "As-Task: true" \
+            -F "file=@$file_path" 2>/dev/null); then
+            log_error "Failed to upload file after token refresh."
+            return 1
         fi
 
+        http_code=$(echo "$response" | tail -n1)
+        response=$(echo "$response" | sed '$d')
+
+        # Check retry response
+        if [[ "$http_code" != "200" ]]; then
+            log_error "Upload failed with HTTP status $http_code after token refresh."
+            return 1
+        fi
+
+        # Check JSON code in retry response
+        if command_exists jq; then
+            json_code=$(echo "$response" | jq -r '.code // empty' 2>/dev/null)
+            if [[ "$json_code" != "200" ]]; then
+                local message
+                message=$(echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null)
+                log_error "Upload failed after retry with JSON code $json_code: $message"
+                return 1
+            fi
+        else
+            if [[ "$response" =~ \"code\":([0-9]+) ]]; then
+                json_code="${BASH_REMATCH[1]}"
+                if [[ "$json_code" != "200" ]]; then
+                    log_error "Upload failed after retry with JSON code $json_code"
+                    return 1
+                fi
+            fi
+        fi
+    fi
+
+    # Parse successful upload response
+    if command_exists jq; then
         local task_id
         task_id=$(echo "$response" | jq -r '.data.task.id // empty' 2>/dev/null)
 
@@ -580,12 +660,7 @@ upload_file() {
             log_success "Upload completed successfully"
         fi
     else
-        # Fallback to basic pattern matching
-        if [[ "$response" =~ \"code\":200 ]]; then
-            log_success "Upload completed successfully"
-        else
-            die "Upload failed. Please check the response."
-        fi
+        log_success "Upload completed successfully"
     fi
 
     log_success "File uploaded: $filename → $file_path_header"
@@ -611,14 +686,50 @@ main() {
     # Get authentication token
     get_auth_token
 
-    # Convert relative path to absolute path
-    local abs_file_path
-    abs_file_path=$(realpath "$UPLOAD_FILE")
+    # Upload all files
+    local total_files=${#UPLOAD_FILES[@]}
+    local current_file=0
+    local failed_files=()
+    local successful_files=()
 
-    # Upload file
-    upload_file "$abs_file_path" "$REMOTE_PATH"
+    log_info "Starting upload of $total_files file(s)..."
 
-    log_success "Upload process completed successfully!"
+    for file in "${UPLOAD_FILES[@]}"; do
+        current_file=$((current_file + 1))
+        log_info "Processing file $current_file/$total_files: $(basename "$file")"
+
+        # Convert relative path to absolute path
+        local abs_file_path
+        abs_file_path=$(realpath "$file")
+
+        # Upload file with error handling
+        if upload_file "$abs_file_path" "$REMOTE_PATH"; then
+            successful_files+=("$file")
+        else
+            failed_files+=("$file")
+            log_error "Failed to upload: $file"
+        fi
+
+        # Add a small delay between uploads to avoid overwhelming the server
+        if [[ $current_file -lt $total_files ]]; then
+            sleep 0.5
+        fi
+    done
+
+    # Report final results
+    echo ""
+    log_info "Upload Summary:"
+    log_success "Successfully uploaded: ${#successful_files[@]} file(s)"
+
+    if [[ ${#failed_files[@]} -gt 0 ]]; then
+        log_error "Failed to upload: ${#failed_files[@]} file(s)"
+        for failed_file in "${failed_files[@]}"; do
+            log_error "  - $failed_file"
+        done
+        exit 1
+    else
+        log_success "All files uploaded successfully!"
+    fi
 }
 
 #===============================================================================

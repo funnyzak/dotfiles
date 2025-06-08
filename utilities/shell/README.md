@@ -133,22 +133,25 @@ app1,App Server 1,192.168.1.30,2222,admin,key,/home/user/.ssh/app1.key
 
 ## alist_upload.sh
 
-`alist_upload.sh` is a comprehensive shell script for uploading files to AList storage via API. It features automatic authentication with token caching, command line parameter support, and comprehensive error handling.
+`alist_upload.sh` is a comprehensive shell script for uploading files to AList storage via API. It features automatic authentication with token caching, multiple file upload support, and comprehensive error handling.
 
 **Tips:** You can quickly execute the script remotely:
 
 ```bash
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist-upload.sh | bash -s -- file1.txt
+curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt file2.pdf
 ```
 
 ### Features
+- **Multiple File Upload**: Upload single or multiple files in one command
 - **API Authentication**: Automatic token management with 24-hour validity caching
 - **Command Line Support**: Full parameter support for all configuration options
 - **Environment Variables**: Configure via environment variables for automation
-- **Automatic Token Refresh**: Seamless token renewal when expired
+- **Automatic Token Refresh**: Seamless token renewal when expired on 401 errors
 - **Custom Remote Paths**: Upload files to specific directories
+- **Token Caching Control**: Option to disable token caching with `--no-cache`
 - **Comprehensive Logging**: Detailed error handling and verbose output options
 - **Remote Execution**: Support for direct remote execution from repository
+- **Batch Processing**: Upload multiple files with progress tracking and summary reporting
 
 ### Requirements
 - `curl` installed on your system
@@ -158,21 +161,26 @@ curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/al
 ### Usage
 
 #### Basic Usage
-Upload a file to the root directory:
+Upload a single file to the root directory:
 ```bash
 ./alist_upload.sh file1.txt
 ```
 
-#### Specify Remote Path
-Upload to a specific remote directory:
+Upload multiple files to the root directory:
 ```bash
-./alist_upload.sh -r /documents file1.txt
+./alist_upload.sh file1.txt file2.pdf ./path/file3.jpg
+```
+
+#### Specify Remote Path
+Upload multiple files to a specific remote directory:
+```bash
+./alist_upload.sh -r /documents file1.txt file2.pdf
 ```
 
 #### Full Parameter Configuration
 Specify all parameters via command line:
 ```bash
-./alist_upload.sh -a https://api.example.com -u username -p password -r /backup file1.txt
+./alist_upload.sh -a https://api.example.com -u username -p password -r /backup file1.txt file2.pdf
 ```
 
 #### Using Environment Variables
@@ -181,13 +189,19 @@ Configure via environment variables:
 export ALIST_API_URL="https://api.example.com"
 export ALIST_USERNAME="myuser"
 export ALIST_PASSWORD="mypass"
-./alist_upload.sh file1.txt
+./alist_upload.sh file1.txt file2.pdf
+```
+
+#### Disable Token Caching
+Upload without using cached tokens:
+```bash
+./alist_upload.sh --no-cache file1.txt
 ```
 
 #### Verbose Output
 Enable detailed logging:
 ```bash
-./alist_upload.sh -v file1.txt
+./alist_upload.sh -v file1.txt file2.pdf
 ```
 
 ### Environment Variables
@@ -202,23 +216,27 @@ Enable detailed logging:
 - **`-p, --password`**: Password for authentication
 - **`-t, --token`**: Pre-existing authentication token
 - **`-r, --remote-path`**: Remote upload path (default: /)
+- **`--no-cache`**: Disable token caching (login for each upload)
 - **`-v, --verbose`**: Enable verbose output
 - **`-h, --help`**: Show help message
 
 ### Remote Execution
 Execute directly from the repository without downloading:
 ```bash
-# Direct remote execution
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist-upload.sh | bash -s -- file1.txt
+# Direct remote execution - single file
+curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt
+
+# Direct remote execution - multiple files
+curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt file2.pdf
 
 # With parameters
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist-upload.sh | bash -s -- -r /documents file1.txt
+curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- -r /documents file1.txt file2.pdf
 ```
 
 ### Installation
 1. **Download the Script**:
    ```bash
-   curl -fsSL -o alist_upload.sh https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist-upload.sh
+   curl -fsSL -o alist_upload.sh https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh
    chmod +x alist_upload.sh
    ```
 
@@ -239,17 +257,21 @@ curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/al
 1. Configure environment variables or prepare command line parameters
 2. Upload files:
    ```bash
-   ./alist_upload.sh document.pdf                    # Upload to root
-   ./alist_upload.sh -r /backup important.zip        # Upload to /backup directory
-   ./alist_upload.sh -v -r /documents report.docx    # Upload with verbose output
+   ./alist_upload.sh document.pdf                                    # Upload single file to root
+   ./alist_upload.sh document.pdf image.jpg archive.zip              # Upload multiple files to root
+   ./alist_upload.sh -r /backup important.zip data.csv               # Upload multiple files to /backup directory
+   ./alist_upload.sh -v -r /documents report.docx presentation.pptx  # Upload with verbose output
+   ./alist_upload.sh --no-cache file1.txt file2.pdf                  # Upload without token caching
    ```
 
 ### Token Caching
-The script automatically caches authentication tokens in `~/.cache/alist/token` with 24-hour validity. This improves performance by avoiding repeated authentication requests.
+The script automatically caches authentication tokens in `~/.cache/alist/token` with 24-hour validity. This improves performance by avoiding repeated authentication requests. Token caching can be disabled using the `--no-cache` option for scenarios requiring fresh authentication for each upload.
 
 ### Notes
 - **Security**: Avoid storing passwords in plain text. Consider using environment variables or secure credential management.
 - **File Validation**: The script validates file existence and readability before upload.
-- **Error Handling**: Comprehensive error handling with automatic token refresh on expiration.
+- **Error Handling**: Comprehensive error handling with automatic token refresh on 401 errors.
 - **Path Normalization**: Remote paths are automatically normalized (leading slash added, trailing slash removed).
+- **Batch Processing**: Multiple files are uploaded sequentially with progress tracking and final summary reporting.
+- **Performance**: Small delay (0.5s) between uploads to avoid overwhelming the server.
 

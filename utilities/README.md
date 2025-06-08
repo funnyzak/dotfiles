@@ -58,10 +58,11 @@ Shell utilities provide command-line tools and scripts for system operations. Fo
   - Includes retry mechanisms and customizable configuration
 
 - **AList Upload** (`shell/alist/alist_upload.sh`): A comprehensive script for uploading files to AList storage via API.
-  - Features automatic authentication with token caching (24h validity)
+  - Features multiple file upload support with batch processing
+  - Automatic authentication with token caching (24h validity) and optional cache disabling
   - Supports command line parameters and environment variable configuration
-  - Includes automatic token refresh and comprehensive error handling
-  - Provides remote execution capabilities and custom upload paths
+  - Includes automatic token refresh on 401 errors and comprehensive error handling
+  - Provides remote execution capabilities, custom upload paths, and progress tracking
 
 ## Usage
 
