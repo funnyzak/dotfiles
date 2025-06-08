@@ -40,7 +40,5 @@ alias upload-help='() {
   echo "==================="
   echo ""
   echo "Available commands:"
-  echo ""
-  echo "upload-alist [options] <file_path> [file_path2] ... - Upload multiple files to alist"
-  echo ""
+  echo "  upload-alist [options] <file_path> [file_path2] ... - Upload multiple files to alist"
 }' # Upload Aliases Help
