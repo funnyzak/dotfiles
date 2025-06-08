@@ -395,34 +395,57 @@ bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/m
 The script supports YAML configuration files for complex setups:
 ```yaml
 # MySQL connection settings
-name: "Production MySQL Server"
-host: "192.168.1.100"
-port: 3306
-user: "backup_user"
-password: "secure_password"
-databases: "wordpress,nextcloud,app_db"
+general:
+  # Instance name for notifications (default: hostname)
+  name: ""
 
-# Backup settings
-output_dir: "/backup/mysql"
-file_suffix: "sql"
-extra_options: "--ssl-mode=DISABLED --single-transaction --routines --triggers"
-compress: true
-retention_days: 30
-pre_backup: "echo 'Starting backup...'"
-post_backup: "echo 'Backup completed'"
+# MySQL connection configuration
+mysql:
+  host: "127.0.0.1"
+  port: 3306
+  user: "root"
+  password: "root"
+  # Database list for backup, empty string means backup all databases, or specify database names: "db1,db2,db3"
+  databases: ""
 
-# Logging
-log_dir: "/var/log/mysql-backup"
-verbose: true
+# Backup configuration
+backup:
+  output_dir: "./"
+  file_suffix: "sql"
+  extra_options: "--ssl-mode=DISABLED --single-transaction --routines --triggers --events --flush-logs --hex-blob --complete-insert"
+  compress: true
+  # Backup retention days, 0 means skip backup file cleanup
+  retention_days: 180
 
-# Notifications
+# Command execution configuration
+commands:
+  # Command to execute before backup, e.g.: "echo 'Starting backup...'"
+  pre_backup: ""
+  # Command to execute after backup, e.g.: "echo 'Backup completed'"
+  post_backup: ""
+
+# Logging configuration
+logging:
+  # Log directory, empty means no log file recording
+  log_dir: ""
+  # Enable verbose output
+  verbose: false
+
+# Notification configuration
 notifications:
   apprise:
-    url: "http://localhost:8000/notify"
-    tags: "mysql,backup"
+    # Apprise server URL, e.g.: "http://localhost:8000/notify/wgzryvfbmwoybymj"
+    # Leave empty to disable Apprise notifications
+    url: ""
+    # Notification tags (default: "all")
+    tags: "all"
   bark:
-    url: "https://api.day.app"
-    device_key: "your_device_key"
+    # Bark server URL, e.g.: "https://api.day.app"
+    # Leave empty to disable Bark notifications
+    url: ""
+    # Bark device key (required if bark url is set)
+    # Get this from your Bark app
+    device_key: ""
 ```
 
 ### Installation
