@@ -412,7 +412,7 @@ mysql:
 backup:
   output_dir: "./"
   file_suffix: "sql"
-  extra_options: "--ssl-mode=DISABLED --single-transaction --routines --triggers --events --flush-logs --hex-blob --complete-insert"
+  extra_options: "--ssl-mode=DISABLED --single-transaction --routines --triggers --events --hex-blob --complete-insert"
   compress: true
   # Backup retention days, 0 means skip backup file cleanup
   retention_days: 180
