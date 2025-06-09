@@ -511,10 +511,10 @@ backup_databases_serial() {
         fi
         log "DEBUG" "Mysqldump command: $debug_cmd"
 
-        eval "$dump_cmd" > "$backup_file" 2>/dev/null
+        eval "$dump_cmd" > "$backup_file"
 
-        # check backup file exists
-        if [[ -f "$backup_file" ]]; then
+        # check backup file exists and not empty
+        if [[ -s "$backup_file" ]]; then
             # Set file permissions
             chmod 640 "$backup_file"
             log "DEBUG" "Backup file permissions set to 640"
