@@ -105,9 +105,9 @@ alias img-resize='() {
 }' # Resize image to specified dimensions
 
 alias img-resize-dir='() {
+  echo -e "Batch resize images in directory and all subdirectories.\nUsage:\n img-resize-dir <source_dir> <size> [quality:100]\nAll output images will be saved in a mirrored subfolder structure under <source_dir>/<size>/"
+  # 参数校验
   if [ $# -lt 2 ]; then
-    echo "Batch resize images in directory."
-    echo "Usage: img-resize-dir <source_dir> <size> [quality:100]"
     return 0
   fi
 
@@ -116,24 +116,37 @@ alias img-resize-dir='() {
   local source_dir="$1"
   local size="$2"
   local quality="${3:-100}"
-  local output_dir="$source_dir/$size"
-
-  mkdir -p "$output_dir"
-
-  local total_files=$(find "$source_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" -o -iname "*.tif" -o -iname "*.tiff" \) | wc -l | tr -d " ")
+  local output_root="$source_dir/$size"
+  local magick_cmd=$(_image_aliases_magick_cmd)
+  local total_files=0
   local processed=0
+  local errors=0
+
+  # 递归查找所有图片文件
+  while IFS= read -r file; do
+    total_files=$((total_files+1))
+  done < <(find "$source_dir" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" -o -iname "*.tif" -o -iname "*.tiff" \))
 
   echo "Found $total_files images to process..."
 
-  find "$source_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" -o -iname "*.tif" -o -iname "*.tiff" \) | while IFS= read -r file; do
-    local filename=$(basename "$file")
-    processed=$((processed+1))
-    echo "[$processed/$total_files] Processing: $filename"
-    magick "$file" -resize "$size" -quality "$quality" "$output_dir/$filename"
+  find "$source_dir" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" -o -iname "*.tif" -o -iname "*.tiff" \) | while IFS= read -r file; do
+    # 计算相对路径
+    local rel_path="${file#$source_dir/}"
+    local out_dir="$output_root/$(dirname "$rel_path")"
+    mkdir -p "$out_dir"
+    local out_file="$out_dir/$(basename "$file")"
+    echo "Processing: $file -> $out_file"
+    if $magick_cmd "$file" -resize "$size" -quality "$quality" "$out_file"; then
+      processed=$((processed+1))
+    else
+      echo "Error: Failed to resize $file" >&2
+      errors=$((errors+1))
+    fi
   done
 
-  echo "Resize complete, exported $processed images to $output_dir"
-}' # Batch resize images in directory
+  echo "Resize complete, exported $processed images to $output_root, $errors errors."
+  [ $errors -eq 0 ] || return 1
+}' # Batch resize images in directory and all subdirectories, output to mirrored structure
 
 # --------------------------------
 # Preset Image Sizes
@@ -965,8 +978,7 @@ alias img-compress='() {
 }' # Compress an image while preserving dimensions
 
 alias img-compress-dir='() {
-  echo "Batch compress all images in a directory."
-  echo "Usage: img-compress-dir [directory:.] [quality:75]"
+  echo -e "Batch compress all images in a directory and all subdirectories.\nUsage:\n img-compress-dir [directory:.] [quality:75]\nAll output images will be saved in a mirrored subfolder structure under <directory>/compressed_q<quality>/"
 
   local dir="${1:-.}"
   local quality="${2:-75}"
@@ -974,23 +986,38 @@ alias img-compress-dir='() {
   _image_aliases_check_imagemagick || return 1
   _image_aliases_validate_dir "$dir" || return 1
 
-  local output_dir="$dir/compressed_q${quality}"
+  local output_root="$dir/compressed_q${quality}"
   local magick_cmd=$(_image_aliases_magick_cmd)
-
-  mkdir -p "$output_dir"
+  local total_files=0
+  local processed=0
   local errors=0
 
-  find "$dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) | while IFS= read -r img; do
-    local base_name="$(basename "$img")"
-    if ! $magick_cmd "$img" -quality "$quality" "$output_dir/$base_name"; then
+  # 递归查找所有图片文件
+  while IFS= read -r file; do
+    total_files=$((total_files+1))
+  done < <(find "$dir" -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \))
+
+  echo "Found $total_files images to compress..."
+
+  find "$dir" -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) | while IFS= read -r img; do
+    # 计算相对路径
+    local rel_path="${img#$dir/}"
+    local out_dir="$output_root/$(dirname "$rel_path")"
+    mkdir -p "$out_dir"
+    local out_file="$out_dir/$(basename "$img")"
+    echo "Processing: $img -> $out_file"
+    if ! $magick_cmd "$img" -quality "$quality" "$out_file"; then
       echo "Error: Failed to compress $img" >&2
       errors=$((errors+1))
+    else
+      processed=$((processed+1))
     fi
   done
 
-  echo "Batch compression complete, files saved to $output_dir"
+  echo "Batch compression complete, $processed files processed, $errors errors"
+  echo "Files saved to: $output_root"
   [ $errors -eq 0 ] || return 1
-}' # Batch compress all images in a directory
+}' # Batch compress all images in a directory and all subdirectories, output to mirrored structure
 
 # --------------------------------
 # Image Joining Functions
