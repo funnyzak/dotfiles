@@ -287,7 +287,7 @@ alias img-convert-format='() {
     local output_dir="$source_path/$new_ext"
     mkdir -p "$output_dir"
 
-    for img in "$source_path"/*.(jpg|png|jpeg|bmp|heic|tif|tiff|gif|webp); do
+    while IFS= read -r img; do
       if [ -f "$img" ]; then
         local filename=$(basename "$img")
         local output_path="$output_dir/${filename%.*}.${new_ext}"
@@ -299,7 +299,7 @@ alias img-convert-format='() {
           errors=$((errors+1))
         fi
       fi
-    done
+    done < <(find "$source_path" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" -o -iname "*.tif" -o -iname "*.tiff" -o -iname "*.gif" -o -iname "*.webp" \))
 
     echo "Converted files saved to: $output_dir"
   else
@@ -415,7 +415,7 @@ alias img-grayscale-binary-dir='() {
 
   mkdir -p "$output_dir"
 
-  if magick mogrify -colorspace Gray -threshold 50% -path "$output_dir" "$source_dir"/*.(jpg|png|jpeg|bmp|heic) 2>/dev/null; then
+  if magick mogrify -colorspace Gray -threshold 50% -path "$output_dir" "$(find "$source_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" \))" 2>/dev/null; then
     echo "Grayscale and binarization complete, exported to $output_dir"
   else
     echo "Warning: Some images may not have been processed correctly." >&2
@@ -436,7 +436,7 @@ alias img-grayscale-dir='() {
 
   mkdir -p "$output_dir"
 
-  if magick mogrify -colorspace Gray -path "$output_dir" "$source_dir"/*.(jpg|png|jpeg|bmp|heic) 2>/dev/null; then
+  if magick mogrify -colorspace Gray -path "$output_dir" "$(find "$source_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" \))" 2>/dev/null; then
     echo "Grayscale conversion complete, exported to $output_dir"
   else
     echo "Warning: Some images may not have been processed correctly." >&2
@@ -624,7 +624,7 @@ alias img-split-dir='() {
   if [ "$recursive" = false ]; then
     find_cmd="$find_cmd -maxdepth 1"
   fi
-  find_cmd="$find_cmd -type f -regex \".*\\.($pattern)$\""
+  find_cmd="$find_cmd -type f -iregex \".*\\.($pattern)$\""
 
   local processed=0
   local errors=0
@@ -688,7 +688,7 @@ alias img-dir-to-pdf='() {
   local folder_name="$(basename "$source_dir")"
   local output_pdf="${2:-$folder_name.pdf}"
 
-  if magick convert "$source_dir"/*.(jpg|png|jpeg|bmp|heic) "$output_pdf"; then
+  if magick convert "$(find "$source_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" \))" "$output_pdf"; then
     echo "Merged directory of images into PDF complete, exported to $output_pdf"
   else
     echo "Error: Failed to merge images to PDF." >&2
@@ -762,7 +762,7 @@ alias img-watermark-dir='() {
   mkdir -p "$output_dir"
   local errors=0
 
-  for img in "$source_dir"/*.(jpg|png|jpeg|bmp|heic); do
+  while IFS= read -r img; do
     if [ -f "$img" ]; then
       local base_name="$(basename "$img")"
       if ! magick composite -dissolve "$opacity" -gravity "$position" "$watermark_path" "$img" "$output_dir/$base_name"; then
@@ -770,7 +770,7 @@ alias img-watermark-dir='() {
         errors=$((errors+1))
       fi
     fi
-  done
+  done < <(find "$source_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" \))
 
   echo "Batch watermarking complete, exported to $output_dir"
   [ $errors -eq 0 ] || return 1

@@ -50,7 +50,7 @@ alias vdo-merge='() {
   _vdo_check_ffmpeg || return 1
 
   # Check if source files exist
-  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | wc -l)
+  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
   if [ "$file_count" -eq 0 ]; then
     echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
     return 1
@@ -58,7 +58,7 @@ alias vdo-merge='() {
 
   # Create a temporary file list
   temp_list=$(mktemp)
-  find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | sort | while read -r f; do
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | sort | while read -r f; do
     echo "file \"$f\"" >> "$temp_list"
   done
 
@@ -207,7 +207,7 @@ alias vdo-batch-merge-audio='() {
   _vdo_check_ffmpeg || return 1
 
   # Check if video files exist
-  local file_count=$(find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | wc -l)
+  local file_count=$(find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | wc -l)
   if [ "$file_count" -eq 0 ]; then
     echo "Error: No ${video_ext} files found in $video_dir" >&2
     return 1
@@ -221,7 +221,7 @@ alias vdo-batch-merge-audio='() {
   local skipped_count=0
 
   # Process each video file
-  find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | while read -r video_file; do
+  find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | while read -r video_file; do
     local base_name=$(basename "$video_file" .${video_ext})
     local audio_file="${audio_dir}/${base_name}.${audio_ext}"
     local output_file="${output_dir}/${base_name}.mp4"
@@ -304,7 +304,7 @@ alias vdo-batch-to-mp4='() {
   _vdo_check_ffmpeg || return 1
 
   # Check if source files exist
-  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | wc -l)
+  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
   if [ "$file_count" -eq 0 ]; then
     echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
     return 1
@@ -313,7 +313,7 @@ alias vdo-batch-to-mp4='() {
   mkdir -p "${vdo_folder}/mp4"
   errors=0
 
-  find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | while read -r file; do
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
     output_file="$vdo_folder/mp4/$(basename "$file" .${vdo_ext}).mp4"
     echo "Converting $file to $output_file..."
     if ! ffmpeg -i "$file" -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 256k -ac 2 "$output_file"; then
@@ -372,7 +372,7 @@ alias vdo-extract-dir-mp3='() {
   _vdo_check_ffmpeg || return 1
 
   # Check if source files exist
-  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | wc -l)
+  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
   if [ "$file_count" -eq 0 ]; then
     echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
     return 1
@@ -381,7 +381,7 @@ alias vdo-extract-dir-mp3='() {
   mkdir -p "${vdo_folder}/mp3"
   errors=0
 
-  find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | while read -r file; do
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
     output_file="$vdo_folder/mp3/$(basename "$file" .${vdo_ext}).mp3"
     echo "Extracting audio from $file to $output_file..."
     if ! ffmpeg -i "$file" -vn -acodec libmp3lame -ab 128k -ar 44100 -y "$output_file"; then
@@ -457,7 +457,7 @@ alias vdo-compress-dir='() {
   fi
 
   # Check if source files exist
-  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | wc -l)
+  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
   if [ "$file_count" -eq 0 ]; then
     echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
     return 1
@@ -466,7 +466,7 @@ alias vdo-compress-dir='() {
   mkdir -p "${vdo_folder}/compressed"
   errors=0
 
-  find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | while read -r file; do
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
     output_file="$vdo_folder/compressed/$(basename "$file" .${vdo_ext})_compressed.mp4"
     echo "Compressing $file to $output_file with quality factor $quality..."
     if ! ffmpeg -i "$file" -c:v libx264 -tag:v avc1 -movflags faststart -crf "$quality" -preset superfast "$output_file"; then
@@ -526,7 +526,7 @@ _vdo_convert_dir_resolution='() {
   _vdo_check_ffmpeg || return 1
 
   # Check if source files exist
-  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | wc -l)
+  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
   if [ "$file_count" -eq 0 ]; then
     echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
     return 1
@@ -535,7 +535,7 @@ _vdo_convert_dir_resolution='() {
   mkdir -p "${vdo_folder}/${resolution}p"
   errors=0
 
-  find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | while read -r file; do
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
     output_file="$vdo_folder/${resolution}p/$(basename "$file" .${vdo_ext})_${resolution}p.mp4"
     echo "Converting $file to ${resolution}p resolution..."
     if ! ffmpeg -i "$file" -vf "scale=-2:${resolution}" -c:a copy "$output_file"; then
@@ -890,7 +890,7 @@ alias vdo-batch-extract-frame='() {
   _vdo_check_ffmpeg || return 1
 
   # Check if source files exist
-  local file_count=$(find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | wc -l)
+  local file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
   if [ "$file_count" -eq 0 ]; then
     echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
     return 1
@@ -901,7 +901,7 @@ alias vdo-batch-extract-frame='() {
   mkdir -p "$output_dir"
   local errors=0
 
-  find "$vdo_folder" -maxdepth 1 -type f -name "*.${vdo_ext}" | while read -r file; do
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
     local base_name=$(basename "$file" .${vdo_ext})
     local output_file="$output_dir/${base_name}_frame_${time_pos//:/}.jpg"
     echo "Extracting frame from $file at position $time_pos..."
@@ -1513,7 +1513,7 @@ alias vdo-batch-screenshot='() {
   mkdir -p "$output_dir"
 
   # Check if video files exist
-  local file_count=$(find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | wc -l)
+  local file_count=$(find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | wc -l)
   if [ "$file_count" -eq 0 ]; then
     echo "Error: No ${video_ext} files found in $video_dir" >&2
     return 1
@@ -1524,7 +1524,7 @@ alias vdo-batch-screenshot='() {
   local processed_videos=0
 
   # Process each video file
-  find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | while read -r video_file; do
+  find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | while read -r video_file; do
     local base_name=$(basename "$video_file" .${video_ext})
     echo "Processing $video_file..."
     ((processed_videos++))
@@ -1863,7 +1863,7 @@ alias vdo-batch-crop='() {
   mkdir -p "$output_dir"
 
   # Check if video files exist
-  local file_count=$(find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | wc -l)
+  local file_count=$(find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | wc -l)
   if [ "$file_count" -eq 0 ]; then
     echo "Error: No ${video_ext} files found in $video_dir" >&2
     return 1
@@ -1874,7 +1874,7 @@ alias vdo-batch-crop='() {
   local processed_videos=0
 
   # Process each video file
-  find "$video_dir" -maxdepth 1 -type f -name "*.${video_ext}" | while read -r video_file; do
+  find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | while read -r video_file; do
     local base_name=$(basename "$video_file" .${video_ext})
     local output_file="$output_dir/${base_name}_cropped.mp4"
 
