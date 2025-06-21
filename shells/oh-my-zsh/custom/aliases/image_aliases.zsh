@@ -1301,6 +1301,232 @@ alias img-add-color-background='() {
 }' # Add solid color background to image(s)
 
 # --------------------------------
+# Sprite Generation Functions
+# --------------------------------
+
+alias img-sprite='() {
+  echo "Generate sprite sheet from images in a directory."
+  echo "Usage: img-sprite <source_dir> [columns:6] [resize_spec:original]"
+  echo "Examples:"
+  echo "  img-sprite ./icons                    # 6 columns, original size"
+  echo "  img-sprite ./icons 4                 # 4 columns, original size"
+  echo "  img-sprite ./icons 8 50x             # 8 columns, resize to 50px width"
+  echo "  img-sprite ./icons 6 50x100          # 6 columns, resize to 50x100"
+
+  if [ $# -eq 0 ]; then
+    return 0
+  fi
+
+  _image_aliases_check_imagemagick || return 1
+  _image_aliases_validate_dir "$1" || return 1
+
+  local source_dir="$1"
+  local columns="${2:-6}"
+  local resize_spec="${3:-original}"
+  local magick_cmd=$(_image_aliases_magick_cmd)
+
+  # Validate columns parameter
+  if ! echo "$columns" | grep -qE "^[1-9][0-9]*$"; then
+    echo "Error: Columns must be a positive integer." >&2
+    return 1
+  fi
+
+  # Get all image files
+  local temp_files=()
+  local original_files=()
+  local cleanup_needed=false
+
+  while IFS= read -r img; do
+    original_files+=("$img")
+  done < <(find "$source_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" -o -iname "*.bmp" -o -iname "*.webp" \) | sort)
+
+  if [ ${#original_files[@]} -eq 0 ]; then
+    echo "Error: No image files found in $source_dir" >&2
+    return 1
+  fi
+
+  echo "Found ${#original_files[@]} images to process..."
+
+  # Prepare files (resize if needed)
+  local files_to_use=()
+  if [ "$resize_spec" != "original" ]; then
+    cleanup_needed=true
+    local temp_dir=$(mktemp -d)
+    echo "Resizing images to $resize_spec..."
+
+    for img in "${original_files[@]}"; do
+      local base_name=$(basename "$img")
+      local temp_file="$temp_dir/$base_name"
+      if $magick_cmd "$img" -resize "$resize_spec" "$temp_file"; then
+        temp_files+=("$temp_file")
+        files_to_use+=("$temp_file")
+      else
+        echo "Warning: Failed to resize $img, using original" >&2
+        files_to_use+=("$img")
+      fi
+    done
+  else
+    files_to_use=("${original_files[@]}")
+  fi
+
+  # Generate sprite sheet
+  local dir_name=$(basename "$source_dir")
+  local output_name="${dir_name}_sprite_${columns}col"
+  if [ "$resize_spec" != "original" ]; then
+    output_name="${output_name}_${resize_spec}"
+  fi
+  local output_file="$source_dir/${output_name}.png"
+
+  echo "Generating sprite sheet with $columns columns..."
+  if $magick_cmd montage "${files_to_use[@]}" -tile "${columns}x" -geometry +0+0 -background transparent "$output_file"; then
+    echo "Sprite sheet generated successfully: $output_file"
+  else
+    echo "Error: Failed to generate sprite sheet." >&2
+    # Cleanup temp files if needed
+    if [ "$cleanup_needed" = true ] && [ ${#temp_files[@]} -gt 0 ]; then
+      rm -rf "$temp_dir"
+    fi
+    return 1
+  fi
+
+  # Cleanup temp files if needed
+  if [ "$cleanup_needed" = true ] && [ ${#temp_files[@]} -gt 0 ]; then
+    rm -rf "$temp_dir"
+  fi
+
+  return 0
+}' # Generate sprite sheet from images in a directory
+
+alias img-sprite-multi='() {
+  echo "Generate sprite sheets from multiple directories (subdirectories of parent directory)."
+  echo "Usage: img-sprite-multi <parent_dir> [columns:6] [resize_spec:original]"
+  echo "Examples:"
+  echo "  img-sprite-multi ./assets             # Process all subdirs, 6 columns, original size"
+  echo "  img-sprite-multi ./assets 4          # Process all subdirs, 4 columns, original size"
+  echo "  img-sprite-multi ./assets 8 50x      # Process all subdirs, 8 columns, resize to 50px width"
+
+  if [ $# -eq 0 ]; then
+    return 0
+  fi
+
+  _image_aliases_check_imagemagick || return 1
+  _image_aliases_validate_dir "$1" || return 1
+
+  local parent_dir="$1"
+  local columns="${2:-6}"
+  local resize_spec="${3:-original}"
+  local processed=0
+  local errors=0
+
+  # Validate columns parameter
+  if ! echo "$columns" | grep -qE "^[1-9][0-9]*$"; then
+    echo "Error: Columns must be a positive integer." >&2
+    return 1
+  fi
+
+  # Find all subdirectories
+  local subdirs=()
+  while IFS= read -r subdir; do
+    subdirs+=("$subdir")
+  done < <(find "$parent_dir" -maxdepth 1 -type d ! -path "$parent_dir" | sort)
+
+  if [ ${#subdirs[@]} -eq 0 ]; then
+    echo "Error: No subdirectories found in $parent_dir" >&2
+    return 1
+  fi
+
+  echo "Found ${#subdirs[@]} subdirectories to process..."
+
+  # Process each subdirectory
+  for subdir in "${subdirs[@]}"; do
+    echo "Processing directory: $(basename "$subdir")"
+
+    # Check if directory contains images
+    local img_count=$(find "$subdir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" -o -iname "*.bmp" -o -iname "*.webp" \) | wc -l)
+
+    if [ "$img_count" -eq 0 ]; then
+      echo "  Skipping $(basename "$subdir"): No image files found"
+      continue
+    fi
+
+    # Generate sprite for this directory
+    if img-sprite "$subdir" "$columns" "$resize_spec" >/dev/null 2>&1; then
+      echo "  ✓ Generated sprite for $(basename "$subdir") ($img_count images)"
+      processed=$((processed+1))
+    else
+      echo "  ✗ Failed to generate sprite for $(basename "$subdir")" >&2
+      errors=$((errors+1))
+    fi
+  done
+
+  echo ""
+  echo "Multi-directory sprite generation complete:"
+  echo "  Processed: $processed directories"
+  echo "  Errors: $errors directories"
+  echo "  Columns: $columns"
+  echo "  Resize: $resize_spec"
+
+  [ $errors -eq 0 ] || return 1
+}' # Generate sprite sheets from multiple directories
+
+alias img-sprite-batch='() {
+  echo "Generate sprite sheets with different configurations from a directory."
+  echo "Usage: img-sprite-batch <source_dir> [resize_specs...]"
+  echo "Examples:"
+  echo "  img-sprite-batch ./icons              # Generate with default settings"
+  echo "  img-sprite-batch ./icons 50x 100x    # Generate sprites with 50px and 100px widths"
+  echo "  img-sprite-batch ./icons 32x32 64x64 # Generate sprites with fixed dimensions"
+
+  if [ $# -eq 0 ]; then
+    return 0
+  fi
+
+  _image_aliases_check_imagemagick || return 1
+  _image_aliases_validate_dir "$1" || return 1
+
+  local source_dir="$1"
+  shift
+  local resize_specs=("$@")
+  local processed=0
+  local errors=0
+
+  # If no resize specs provided, use default configurations
+  if [ ${#resize_specs[@]} -eq 0 ]; then
+    resize_specs=("original" "50x" "100x")
+  fi
+
+  # Check if directory contains images
+  local img_count=$(find "$source_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" -o -iname "*.bmp" -o -iname "*.webp" \) | wc -l)
+
+  if [ "$img_count" -eq 0 ]; then
+    echo "Error: No image files found in $source_dir" >&2
+    return 1
+  fi
+
+  echo "Generating sprite sheets for $(basename "$source_dir") with $img_count images..."
+
+  # Generate sprites with different configurations
+  for resize_spec in "${resize_specs[@]}"; do
+    echo "Creating sprite with resize: $resize_spec"
+
+    if img-sprite "$source_dir" 6 "$resize_spec" >/dev/null 2>&1; then
+      echo "  ✓ Generated sprite with resize: $resize_spec"
+      processed=$((processed+1))
+    else
+      echo "  ✗ Failed to generate sprite with resize: $resize_spec" >&2
+      errors=$((errors+1))
+    fi
+  done
+
+  echo ""
+  echo "Batch sprite generation complete:"
+  echo "  Generated: $processed sprites"
+  echo "  Errors: $errors sprites"
+
+  [ $errors -eq 0 ] || return 1
+}' # Generate sprite sheets with different configurations
+
+# --------------------------------
 # Batch Rename Functions
 # --------------------------------
 
@@ -1420,6 +1646,11 @@ alias image-help='() {
   echo
   echo "Image Optimization:"
   echo "  img-optimize-batch   - Batch optimize images by size"
+  echo
+  echo "Sprite Generation:"
+  echo "  img-sprite           - Generate sprite sheet from images in a directory"
+  echo "  img-sprite-multi     - Generate sprite sheets from multiple directories"
+  echo "  img-sprite-batch     - Generate sprite sheets with different configurations"
   echo
   echo "Batch Rename:"
   echo "  img-rename-sequential - Rename images in a directory with sequential numbering"
