@@ -488,7 +488,7 @@ alias vdo-compress-dir='() {
 #------------------------------------------------------------------------------
 
 # Helper functions for resolution conversion
-_vdo_convert_resolution='() {
+_vdo_convert_resolution() {
   if [ $# -lt 2 ]; then
     echo "Error: Missing required parameters" >&2
     return 1
@@ -510,9 +510,9 @@ _vdo_convert_resolution='() {
     echo "Error: Video resolution conversion failed" >&2
     return 1
   fi
-}' # Convert video to specified resolution
+} # Convert video to specified resolution
 
-_vdo_convert_dir_resolution='() {
+_vdo_convert_dir_resolution() {
   if [ $# -lt 2 ]; then
     echo "Error: Missing required parameters" >&2
     return 1
@@ -551,7 +551,7 @@ _vdo_convert_dir_resolution='() {
     echo "Warning: Resolution conversion completed with $errors errors" >&2
     return 1
   fi
-}' # Convert videos in directory to specified resolution
+} # Convert videos in directory to specified resolution
 
 # Resolution specific aliases
 alias vdo-to-320p='() {
