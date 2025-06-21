@@ -1307,6 +1307,7 @@ alias img-add-color-background='() {
 alias img-sprite='() {
   echo "Generate sprite sheet from images in a directory."
   echo "Usage: img-sprite <source_dir> [columns:6] [resize_spec:original]"
+  echo "Note: Output sprite will be saved at the same level as the source directory."
   echo "Examples:"
   echo "  img-sprite ./icons                    # 6 columns, original size"
   echo "  img-sprite ./icons 4                 # 4 columns, original size"
@@ -1371,11 +1372,12 @@ alias img-sprite='() {
 
   # Generate sprite sheet
   local dir_name=$(basename "$source_dir")
+  local parent_dir=$(dirname "$source_dir")
   local output_name="${dir_name}_sprite_${columns}col"
   if [ "$resize_spec" != "original" ]; then
     output_name="${output_name}_${resize_spec}"
   fi
-  local output_file="$source_dir/${output_name}.png"
+  local output_file="$parent_dir/${output_name}.png"
 
   echo "Generating sprite sheet with $columns columns..."
   if $magick_cmd montage "${files_to_use[@]}" -tile "${columns}x" -geometry +0+0 -background transparent "$output_file"; then
@@ -1400,6 +1402,7 @@ alias img-sprite='() {
 alias img-sprite-multi='() {
   echo "Generate sprite sheets from multiple directories (subdirectories of parent directory)."
   echo "Usage: img-sprite-multi <parent_dir> [columns:6] [resize_spec:original]"
+  echo "Note: Each sprite will be saved at the same level as its source subdirectory."
   echo "Examples:"
   echo "  img-sprite-multi ./assets             # Process all subdirs, 6 columns, original size"
   echo "  img-sprite-multi ./assets 4          # Process all subdirs, 4 columns, original size"
@@ -1472,6 +1475,7 @@ alias img-sprite-multi='() {
 alias img-sprite-batch='() {
   echo "Generate sprite sheets with different configurations from a directory."
   echo "Usage: img-sprite-batch <source_dir> [resize_specs...]"
+  echo "Note: All sprites will be saved at the same level as the source directory."
   echo "Examples:"
   echo "  img-sprite-batch ./icons              # Generate with default settings"
   echo "  img-sprite-batch ./icons 50x 100x    # Generate sprites with 50px and 100px widths"
