@@ -554,6 +554,27 @@ _vdo_convert_dir_resolution() {
 } # Convert videos in directory to specified resolution
 
 # Resolution specific aliases
+alias vdo-to-144p='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert video to 144p resolution."
+    echo "Usage:"
+    echo "  vdo-to-144p <video_file_path>"
+    return 1
+  fi
+  _vdo_convert_resolution "$1" "144"
+}' # Convert video to 144p resolution
+
+alias vdo-to-240p='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert video to 240p resolution."
+    echo "Usage:"
+    echo "  vdo-to-240p <video_file_path>"
+    return 1
+  fi
+  _vdo_convert_resolution "$1" "240"
+}' # Convert video to 240p resolution
+
+# Resolution specific aliases
 alias vdo-to-320p='() {
   if [ $# -eq 0 ]; then
     echo "Convert video to 320p resolution."
@@ -1965,6 +1986,8 @@ alias vdo-help='() {
   echo "  vdo-convert-m3u8-to-mp4 <url>        - Convert M3U8 stream to MP4 video"
   echo ""
   echo "Resolution Conversion:"
+  echo "  vdo-to-144p <file>                   - Convert video to 144p resolution"
+  echo "  vdo-to-240p <file>                   - Convert video to 240p resolution"
   echo "  vdo-to-320p <file>                   - Convert video to 320p resolution"
   echo "  vdo-to-480p <file>                   - Convert video to 480p resolution"
   echo "  vdo-to-720p <file>                   - Convert video to 720p resolution"
