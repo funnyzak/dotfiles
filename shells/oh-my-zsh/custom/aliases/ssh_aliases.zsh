@@ -839,11 +839,84 @@ alias ssh-connect='() {
 
 alias sshc='ssh-connect' # Alias for ssh-connect
 
+# SSH Port Forward Management
+# Connect with port forwarding using expect script
+alias ssh-port-forward='() {
+  echo -e "Connect to a remote host with port forwarding using expect script.\nUsage:\n  ssh-port-forward [server_id]\nOptions:\n  server_id: Optional server ID to connect directly\n\nEnvironment Variables:"
+  echo -n "  PORT_FORWARD_CONFIG: Custom config file path"
+  [[ -n "$PORT_FORWARD_CONFIG" ]] && echo " (current: $PORT_FORWARD_CONFIG)" || echo " (default: ~/.ssh/port_forward.conf)"
+  echo -n "  SSH_TIMEOUT: Connection timeout in seconds"
+  [[ -n "$SSH_TIMEOUT" ]] && echo " (current: $SSH_TIMEOUT)" || echo " (default: 30)"
+  echo -n "  SSH_MAX_ATTEMPTS: Maximum connection attempts"
+  [[ -n "$SSH_MAX_ATTEMPTS" ]] && echo " (current: $SSH_MAX_ATTEMPTS)" || echo " (default: 3)"
+  echo -n "  SSH_NO_COLOR: Disable colored output if set to any value"
+  [[ -n "$SSH_NO_COLOR" ]] && echo " (current: enabled)" || echo " (default: disabled)"
+  echo -n "  SSH_KEEP_ALIVE: Enable/disable keep-alive packets"
+  [[ -n "$SSH_KEEP_ALIVE" ]] && echo " (current: $SSH_KEEP_ALIVE)" || echo " (default: 1 - enabled)"
+  echo -n "  SSH_ALIVE_INTERVAL: Seconds between keep-alive packets"
+  [[ -n "$SSH_ALIVE_INTERVAL" ]] && echo " (current: $SSH_ALIVE_INTERVAL)" || echo " (default: 60)"
+  echo -n "  SSH_ALIVE_COUNT: Maximum missed keep-alive responses before disconnect"
+  [[ -n "$SSH_ALIVE_COUNT" ]] && echo " (current: $SSH_ALIVE_COUNT)" || echo " (default: 3)"
+  echo -n "  SSH_DEFAULT_SHELL: Shell to switch to after login"
+  [[ -n "$SSH_DEFAULT_SHELL" ]] && echo " (current: $SSH_DEFAULT_SHELL)" || echo ""
+  echo ""
+
+  local port_forward_exp_path="${PORT_FORWARD_CONFIG:-$HOME/.ssh/ssh_port_forward.exp}"
+
+  # Check if expect script exists
+  if [[ ! -f "$port_forward_exp_path" ]]; then
+    echo "SSH port forward script not found. Running setup..."
+    ssh-port-forward-setup
+
+    if [[ ! -f "$port_forward_exp_path" ]]; then
+      _show_error_ssh_aliases "Failed to setup SSH port forward tool"
+      return 1
+    fi
+  fi
+
+  # Check if script is executable
+  if [[ ! -x "$port_forward_exp_path" ]]; then
+    echo "Making SSH port forward script executable"
+    chmod +x "$port_forward_exp_path"
+
+    if [[ $? -ne 0 ]]; then
+      _show_error_ssh_aliases "Failed to make SSH port forward script executable"
+      return 1
+    fi
+  fi
+
+  # Handle direct server_id or pass all arguments to the script
+  if [[ $# -gt 0 ]]; then
+    # Direct connection mode with server ID
+    echo "Using SSH port forward script: $port_forward_exp_path"
+    echo "Connecting to server ID: $1\n"
+    "$port_forward_exp_path" "$@"
+  else
+    # Interactive mode
+    echo "Using SSH port forward script: $port_forward_exp_path\n"
+    "$port_forward_exp_path"
+  fi
+
+  local connection_status=$?
+
+  # Check connection status
+  if [[ $connection_status -ne 0 ]]; then
+    _show_error_ssh_aliases "SSH port forward connection failed with status $connection_status"
+    return $connection_status
+  fi
+
+  return 0
+}' # Connect with port forwarding using expect script
+
+alias sshpf='ssh-port-forward' # Short alias for ssh-port-forward
+
 # SSH help function
 alias ssh-help='() {
   echo -e "SSH aliases and functions help\n"
   echo "SSH Connection Management:"
   echo "  ssh-connect            - Connect to a remote host using expect script"
+  echo "  ssh-port-forward       - Connect with port forwarding using expect script"
+  echo ""
   echo "SSH Key Management:"
   echo "  ssh-key-generate      - Generate a new SSH key with enhanced security"
   echo "  ssh-key-ed25519       - Generate Ed25519 SSH key (recommended)"
@@ -863,6 +936,10 @@ alias ssh-help='() {
   echo ""
   echo "SSH Connection Testing:"
   echo "  ssh-connection-test   - Test SSH connection to a host"
+  echo ""
+  echo "Short aliases:"
+  echo "  sshc                  - Alias for ssh-connect"
+  echo "  sshpf                 - Alias for ssh-port-forward"
   echo ""
   echo "For server management functions, use: ssh-srv-help"
 }' # Show help for SSH aliases and functions

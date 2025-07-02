@@ -1,0 +1,18 @@
+# Port Forward Configuration File
+# Format: ID,Name,Host,Port,User,AuthType,AuthValue,PortMappings
+# - ID: Unique identifier for the server
+# - Name: Descriptive name of the server
+# - Host: IP address or hostname
+# - Port: SSH port number
+# - User: SSH username
+# - AuthType: 'key' or 'password'
+# - AuthValue: Path to key file or password
+# - PortMappings: Comma-separated list of local:remote port mappings (e.g., "8080:80,3306:3306")
+
+# Example entries:
+web1,Web Server 1,192.168.1.10,22,root,key,~/.ssh/web1.key,8080:80,3306:3306
+db1,Database Server 1,192.168.1.20,22,root,password,securepass123,3307:3306,6379:6379
+app1,App Server 1,192.168.1.30,2222,admin,key,~/.ssh/app1.key,8081:80,8082:443,3308:3306
+
+# Port mapping format: local_port:remote_port
+# Multiple mappings separated by comma: local1:remote1,local2:remote2
