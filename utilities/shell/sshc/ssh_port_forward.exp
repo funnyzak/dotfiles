@@ -1,0 +1,422 @@
+#!/usr/bin/expect -f
+# SSH Port Forward Expect Script
+# Supports multiple port forwarding with server configuration file
+
+# Configuration variables with defaults
+set config_file "$env(HOME)/.ssh/port_forward.conf"
+set timeout 30
+set max_attempts 3
+set no_color 0
+set keep_alive 1
+set alive_interval 60
+set alive_count 3
+set default_shell ""
+
+# Override with environment variables if set
+if {[info exists env(PORT_FORWARD_CONFIG)]} {
+    set config_file $env(PORT_FORWARD_CONFIG)
+}
+if {[info exists env(SSH_TIMEOUT)]} {
+    set timeout $env(SSH_TIMEOUT)
+}
+if {[info exists env(SSH_MAX_ATTEMPTS)]} {
+    set max_attempts $env(SSH_MAX_ATTEMPTS)
+}
+if {[info exists env(SSH_NO_COLOR)]} {
+    set no_color 1
+}
+if {[info exists env(SSH_KEEP_ALIVE)]} {
+    set keep_alive $env(SSH_KEEP_ALIVE)
+}
+if {[info exists env(SSH_ALIVE_INTERVAL)]} {
+    set alive_interval $env(SSH_ALIVE_INTERVAL)
+}
+if {[info exists env(SSH_ALIVE_COUNT)]} {
+    set alive_count $env(SSH_ALIVE_COUNT)
+}
+if {[info exists env(SSH_DEFAULT_SHELL)]} {
+    set default_shell $env(SSH_DEFAULT_SHELL)
+}
+
+# Color codes for output
+if {$no_color == 0} {
+    set color_red "\033\[31m"
+    set color_green "\033\[32m"
+    set color_yellow "\033\[33m"
+    set color_blue "\033\[34m"
+    set color_magenta "\033\[35m"
+    set color_cyan "\033\[36m"
+    set color_reset "\033\[0m"
+    set color_bold "\033\[1m"
+} else {
+    set color_red ""
+    set color_green ""
+    set color_yellow ""
+    set color_blue ""
+    set color_magenta ""
+    set color_cyan ""
+    set color_reset ""
+    set color_bold ""
+}
+
+# Helper function to print colored output
+proc print_color {color text} {
+    global color_reset
+    puts "$color$text$color_reset"
+}
+
+# Helper function to print error
+proc print_error {text} {
+    global color_red
+    print_color $color_red "ERROR: $text"
+}
+
+# Helper function to print success
+proc print_success {text} {
+    global color_green
+    print_color $color_green "SUCCESS: $text"
+}
+
+# Helper function to print info
+proc print_info {text} {
+    global color_blue
+    print_color $color_blue "INFO: $text"
+}
+
+# Helper function to print warning
+proc print_warning {text} {
+    global color_yellow
+    print_color $color_yellow "WARNING: $text"
+}
+
+# Function to parse port mappings
+proc parse_port_mappings {mappings} {
+    set port_pairs {}
+    set mappings [string trim $mappings]
+
+    if {$mappings == ""} {
+        return $port_pairs
+    }
+
+    foreach mapping [split $mappings ","] {
+        set mapping [string trim $mapping]
+        if {$mapping != ""} {
+            set parts [split $mapping ":"]
+            if {[llength $parts] == 2} {
+                set local_port [string trim [lindex $parts 0]]
+                set remote_port [string trim [lindex $parts 1]]
+                if {$local_port != "" && $remote_port != ""} {
+                    lappend port_pairs [list $local_port $remote_port]
+                }
+            }
+        }
+    }
+    return $port_pairs
+}
+
+# Function to load server configuration
+proc load_server_config {config_file} {
+    set servers {}
+
+    if {![file exists $config_file]} {
+        print_error "Configuration file not found: $config_file"
+        print_info "Please create the configuration file or set PORT_FORWARD_CONFIG environment variable"
+        return $servers
+    }
+
+    set file_handle [open $config_file r]
+    while {[gets $file_handle line] >= 0} {
+        set line [string trim $line]
+
+        # Skip empty lines and comments
+        if {$line == "" || [string index $line 0] == "#"} {
+            continue
+        }
+
+        # Parse CSV format
+        set parts [split $line ","]
+        if {[llength $parts] >= 8} {
+            set server_id [string trim [lindex $parts 0]]
+            set server_name [string trim [lindex $parts 1]]
+            set host [string trim [lindex $parts 2]]
+            set port [string trim [lindex $parts 3]]
+            set user [string trim [lindex $parts 4]]
+            set auth_type [string trim [lindex $parts 5]]
+            set auth_value [string trim [lindex $parts 6]]
+            set port_mappings [string trim [lindex $parts 7]]
+
+            # Parse port mappings
+            set mappings [parse_port_mappings $port_mappings]
+
+            lappend servers [list $server_id $server_name $host $port $user $auth_type $auth_value $mappings]
+        }
+    }
+    close $file_handle
+
+    return $servers
+}
+
+# Function to display server list
+proc display_servers {servers} {
+    global color_bold color_cyan color_reset
+
+    if {[llength $servers] == 0} {
+        print_error "No servers found in configuration file"
+        return
+    }
+
+    print_color $color_bold "\nAvailable servers for port forwarding:"
+    print_color $color_bold "=========================================="
+
+    foreach server $servers {
+        lassign $server server_id server_name host port user auth_type auth_value mappings
+
+        print_color $color_cyan "\nID: $server_id"
+        puts "Name: $server_name"
+        puts "Host: $host:$port"
+        puts "User: $user"
+        puts "Auth: $auth_type"
+
+        if {[llength $mappings] > 0} {
+            puts "Port Mappings:"
+            foreach mapping $mappings {
+                lassign $mapping local_port remote_port
+                puts "  Local:$local_port -> Remote:$remote_port"
+            }
+        } else {
+            puts "Port Mappings: None configured"
+        }
+    }
+    puts ""
+}
+
+# Function to find server by ID
+proc find_server_by_id {servers target_id} {
+    foreach server $servers {
+        lassign $server server_id server_name host port user auth_type auth_value mappings
+        if {$server_id == $target_id} {
+            return $server
+        }
+    }
+    return {}
+}
+
+# Function to build SSH command with port forwarding
+proc build_ssh_command {server} {
+    global keep_alive alive_interval alive_count
+
+    lassign $server server_id server_name host port user auth_type auth_value mappings
+
+    set ssh_cmd "ssh"
+
+    # Add port if not default
+    if {$port != "22"} {
+        append ssh_cmd " -p $port"
+    }
+
+    # Add keep-alive options
+    if {$keep_alive == 1} {
+        append ssh_cmd " -o ServerAliveInterval=$alive_interval"
+        append ssh_cmd " -o ServerAliveCountMax=$alive_count"
+    }
+
+    # Add port forwarding options
+    foreach mapping $mappings {
+        lassign $mapping local_port remote_port
+        append ssh_cmd " -L $local_port:localhost:$remote_port"
+    }
+
+    # Add user@host
+    append ssh_cmd " $user@$host"
+
+    return $ssh_cmd
+}
+
+# Function to handle authentication
+proc handle_authentication {auth_type auth_value} {
+    if {$auth_type == "password"} {
+        # For password authentication, we'll prompt the user
+        print_info "Password authentication required"
+        stty -echo
+        expect_user -re "(.*)\n"
+        set password $expect_out(1,string)
+        stty echo
+        puts ""
+        return $password
+    } elseif {$auth_type == "key"} {
+        # For key authentication, check if key file exists
+        set key_file [string map {"~" $env(HOME)} $auth_value]
+        if {![file exists $key_file]} {
+            print_error "SSH key file not found: $key_file"
+            return ""
+        }
+        return ""
+    }
+    return ""
+}
+
+# Main execution
+proc main {} {
+    global config_file timeout max_attempts default_shell color_bold
+
+    print_color $color_bold "SSH Port Forward Tool"
+    print_color $color_bold "===================="
+
+    # Load server configuration
+    set servers [load_server_config $config_file]
+
+    # Check if server ID is provided as argument
+    set target_server_id ""
+    if {$argc > 0} {
+        set target_server_id [lindex $argv 0]
+    }
+
+    # If no target server specified, show list and prompt
+    if {$target_server_id == ""} {
+        display_servers $servers
+
+        if {[llength $servers] == 0} {
+            exit 1
+        }
+
+        print_info "Enter server ID to connect (or 'q' to quit): "
+        gets stdin target_server_id
+
+        if {$target_server_id == "q" || $target_server_id == "quit"} {
+            print_info "Exiting..."
+            exit 0
+        }
+    }
+
+    # Find the target server
+    set target_server [find_server_by_id $servers $target_server_id]
+    if {[llength $target_server] == 0} {
+        print_error "Server not found: $target_server_id"
+        exit 1
+    }
+
+    lassign $target_server server_id server_name host port user auth_type auth_value mappings
+
+    print_info "Connecting to: $server_name ($host:$port)"
+    print_info "User: $user"
+
+    if {[llength $mappings] > 0} {
+        print_info "Port mappings:"
+        foreach mapping $mappings {
+            lassign $mapping local_port remote_port
+            print_info "  Local:$local_port -> Remote:$remote_port"
+        }
+    } else {
+        print_warning "No port mappings configured for this server"
+    }
+
+    # Build SSH command
+    set ssh_cmd [build_ssh_command $target_server]
+    print_info "SSH Command: $ssh_cmd"
+
+    # Handle authentication
+    set password [handle_authentication $auth_type $auth_value]
+
+    # Start SSH connection
+    print_info "Starting SSH connection..."
+
+    set attempt 1
+    while {$attempt <= $max_attempts} {
+        if {$attempt > 1} {
+            print_warning "Retry attempt $attempt of $max_attempts"
+        }
+
+        spawn {*}$ssh_cmd
+
+        expect {
+            timeout {
+                print_error "Connection timeout"
+                catch {close}
+                catch {wait}
+                incr attempt
+                continue
+            }
+            "Are you sure you want to continue connecting" {
+                send "yes\r"
+                exp_continue
+            }
+            "password:" {
+                if {$password != ""} {
+                    send "$password\r"
+                } else {
+                    print_error "Password required but not provided"
+                    catch {close}
+                    catch {wait}
+                    exit 1
+                }
+                exp_continue
+            }
+            "Permission denied" {
+                print_error "Authentication failed"
+                catch {close}
+                catch {wait}
+                incr attempt
+                continue
+            }
+            "$ " {
+                print_success "Connected successfully!"
+
+                # Switch to default shell if specified
+                if {$default_shell != ""} {
+                    send "$default_shell\r"
+                    expect "$ "
+                }
+
+                # Show port forwarding status
+                if {[llength $mappings] > 0} {
+                    print_info "Port forwarding active:"
+                    foreach mapping $mappings {
+                        lassign $mapping local_port remote_port
+                        print_info "  Local:$local_port -> Remote:$remote_port"
+                    }
+                }
+
+                # Interactive mode
+                interact
+                break
+            }
+            "# " {
+                print_success "Connected successfully!"
+
+                # Switch to default shell if specified
+                if {$default_shell != ""} {
+                    send "$default_shell\r"
+                    expect "$ "
+                }
+
+                # Show port forwarding status
+                if {[llength $mappings] > 0} {
+                    print_info "Port forwarding active:"
+                    foreach mapping $mappings {
+                        lassign $mapping local_port remote_port
+                        print_info "  Local:$local_port -> Remote:$remote_port"
+                    }
+                }
+
+                # Interactive mode
+                interact
+                break
+            }
+            eof {
+                print_error "Connection failed"
+                catch {close}
+                catch {wait}
+                incr attempt
+                continue
+            }
+        }
+    }
+
+    if {$attempt > $max_attempts} {
+        print_error "Failed to connect after $max_attempts attempts"
+        exit 1
+    }
+}
+
+# Start the main function
+main
