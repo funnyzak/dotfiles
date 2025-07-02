@@ -4,6 +4,7 @@ This directory contains shell-related utility scripts to enhance your workflow.
 
 ## Contents
 - [ssh_connect.exp](#ssh_connectexp)
+- [ssh_port_forward.exp](#ssh_port_forwardexp)
 - [alist_upload.sh](#alist_uploadsh)
 - [mysql_backup.sh](#mysql_backupsh)
 
@@ -131,6 +132,156 @@ app1,App Server 1,192.168.1.30,2222,admin,key,/home/user/.ssh/app1.key
 - **Security**: Avoid storing sensitive passwords in plain text. Consider using SSH keys or a password manager.
 - **Permissions**: Ensure `ssh_connect.exp` is executable (`chmod +x`) and the configuration file is readable only by you (`chmod 600 ~/.servers.conf`).
 - **Troubleshooting**: If connections fail, check your SSH keys, network, and server availability.
+
+## ssh_port_forward.exp
+
+`ssh_port_forward.exp` is an advanced Expect script designed to automate SSH connections with port forwarding capabilities. It extends the functionality of `ssh_connect.exp` by adding support for multiple local-to-remote port mappings, making it ideal for accessing remote services through SSH tunnels.
+
+**Tips:** You can quickly set up ssh_port_forward.exp with the following script:
+
+```bash
+curl -s https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/utilities/shell/sshc/setup.sh | bash
+```
+
+### Features
+- **Multiple Port Forwarding**: Configure multiple local-to-remote port mappings per server
+- **Interactive Mode**: Displays a list of servers with their port mappings for user selection
+- **Non-Interactive Mode**: Connect directly to a server using its ID via command-line arguments
+- **Flexible Authentication**: Supports SSH key files or passwords
+- **Retry Mechanism**: Automatically retries failed connections with configurable attempts and timeouts
+- **Keep-Alive Support**: Configurable SSH keep-alive settings for stable connections
+- **Environment Variable Support**: Customize behavior without modifying the script
+- **Extensible Configuration**: Manage server details and port mappings in an external configuration file
+- **Color-Coded Output**: Enhanced user experience with colored terminal output
+
+### Requirements
+- `expect` installed on your system (`sudo apt install expect` on Debian/Ubuntu, `brew install expect` on macOS, etc.)
+- SSH client installed (`openssh-client`)
+
+### Usage
+
+#### Interactive Mode
+Run the script without arguments to see a list of servers and select one:
+```bash
+./ssh_port_forward.exp
+```
+
+#### Non-Interactive Mode
+Connect directly to a server by specifying its ID or number:
+```bash
+./ssh_port_forward.exp web1     # Connect using server ID
+./ssh_port_forward.exp 2        # Connect using server number (2nd server in list)
+```
+Or use environment variables:
+```bash
+TARGET_SERVER_ID=web1 ./ssh_port_forward.exp    # Connect using server ID
+TARGET_SERVER_NUM=3 ./ssh_port_forward.exp      # Connect using server number (3rd server in list)
+```
+
+#### Custom Configuration
+Specify a custom configuration file:
+```bash
+PORT_FORWARD_CONFIG=/path/to/custom.conf ./ssh_port_forward.exp
+```
+
+#### Advanced Options
+Override default timeout and retry attempts:
+```bash
+SSH_TIMEOUT=60 SSH_MAX_ATTEMPTS=5 ./ssh_port_forward.exp
+```
+
+### Environment Variables
+- **`PORT_FORWARD_CONFIG`**: Path to the port forward configuration file. Default: `~/.ssh/port_forward.conf`
+- **`TARGET_SERVER_ID`**: Server ID for non-interactive connection. No default.
+- **`TARGET_SERVER_NUM`**: Server number (index) for non-interactive connection. No default.
+- **`SSH_TIMEOUT`**: Connection timeout in seconds. Default: `30`
+- **`SSH_MAX_ATTEMPTS`**: Maximum number of connection attempts. Default: `3`
+- **`SSH_NO_COLOR`**: Disable colored output. Default: `0` (enabled)
+- **`SSH_KEEP_ALIVE`**: Enable SSH keep-alive. Default: `1` (enabled)
+- **`SSH_ALIVE_INTERVAL`**: Keep-alive interval in seconds. Default: `60`
+- **`SSH_ALIVE_COUNT`**: Maximum keep-alive count. Default: `3`
+- **`SSH_DEFAULT_SHELL`**: Shell to switch to after login (e.g., zsh, bash, fish)
+
+### Configuration File
+The script reads server details and port mappings from a configuration file. See `port_forward.conf.example` for the format:
+```
+# Format: ID,Name,Host,Port,User,AuthType,AuthValue,PortMappings
+web1,Web Server 1,192.168.1.10,22,root,key,~/.ssh/web1.key,8080:80,3306:3306
+db1,Database Server 1,192.168.1.20,22,root,password,securepass123,3307:3306,6379:6379
+app1,App Server 1,192.168.1.30,2222,admin,key,~/.ssh/app1.key,8081:80,8082:443,3308:3306
+```
+
+- **ID**: Unique identifier for the server
+- **Name**: Human-readable server name
+- **Host**: IP address or hostname
+- **Port**: SSH port number
+- **User**: SSH username
+- **AuthType**: `key` or `password`
+- **AuthValue**: Path to key file or plaintext password
+- **PortMappings**: Comma-separated list of local:remote port mappings (e.g., "8080:80,3306:3306")
+
+### Port Mapping Format
+Port mappings follow the format `local_port:remote_port`:
+- **local_port**: Port on your local machine that will forward to the remote server
+- **remote_port**: Port on the remote server that you want to access
+- **Multiple mappings**: Separate multiple mappings with commas: `local1:remote1,local2:remote2`
+
+### Installation
+1. **Copy the Script**:
+   Place `ssh_port_forward.exp` in a directory in your PATH (e.g., `~/bin`):
+   ```bash
+   mkdir -p ~/bin
+   cp ssh_port_forward.exp ~/bin/ssh_port_forward
+   chmod +x ~/bin/ssh_port_forward
+   ```
+
+2. **Set Up Configuration**:
+   Copy the example config to your SSH directory and edit it:
+   ```bash
+   cp port_forward.conf.example ~/.ssh/port_forward.conf
+   # Edit ~/.ssh/port_forward.conf with your server details and port mappings
+   ```
+
+3. **Configure Shell**:
+   Add these lines to your shell configuration (e.g., `~/.zshrc` or `~/.bashrc`):
+   ```bash
+   export PORT_FORWARD_CONFIG=~/.ssh/port_forward.conf
+   alias sshpf='~/bin/ssh_port_forward'
+   ```
+   Reload your shell:
+   ```bash
+   source ~/.zshrc  # or ~/.bashrc
+   ```
+
+4. **Verify**:
+   Test the script:
+   ```bash
+   sshpf  # Interactive mode
+   sshpf web1  # Direct connection with port forwarding
+   ```
+
+### Example Workflow
+1. Configure `~/.ssh/port_forward.conf` with your servers and port mappings
+2. Use the alias:
+   ```bash
+   sshpf                    # Choose a server from the list
+   sshpf db1                # Connect to Database Server 1 with port forwarding
+   sshpf 2                  # Connect to the second server in the list
+   sshpf ali-bj-main        # Connect to server with ID 'ali-bj-main'
+   ```
+
+### Common Use Cases
+- **Web Development**: Forward local port 8080 to remote port 80 for web server access
+- **Database Access**: Forward local port 3307 to remote MySQL port 3306
+- **Redis Access**: Forward local port 6379 to remote Redis port 6379
+- **Multiple Services**: Forward multiple ports simultaneously for complex applications
+
+### Notes
+- **Security**: Avoid storing sensitive passwords in plain text. Consider using SSH keys or a password manager
+- **Permissions**: Ensure `ssh_port_forward.exp` is executable (`chmod +x`) and the configuration file is readable only by you (`chmod 600 ~/.ssh/port_forward.conf`)
+- **Port Conflicts**: Ensure local ports are not already in use by other applications
+- **Firewall**: Make sure your local firewall allows connections to the forwarded ports
+- **Troubleshooting**: If connections fail, check your SSH keys, network, and server availability
 
 ## alist_upload.sh
 
