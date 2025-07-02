@@ -840,46 +840,6 @@ alias ssh-connect='() {
 alias sshc='ssh-connect' # Alias for ssh-connect
 
 # SSH Port Forward Management
-
-# Setup SSH port forward tool
-alias ssh-port-forward-setup='() {
-  echo -e "Setup SSH port forward tool with configuration.\nUsage:\n  ssh-port-forward-setup\nThis will install the port forward expect script and create configuration files."
-
-  local script_dir="$HOME/.ssh"
-  local setup_script="$script_dir/setup_port_forward.sh"
-  local remote_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
-  local remote_url_cn="https://gitee.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
-  local download_success=false
-
-  # Check if setup script exists locally
-  if [[ -f "$setup_script" ]]; then
-    echo "Using local setup script: $setup_script"
-    bash "$setup_script"
-    return $?
-  fi
-
-  # Try to download setup script
-  echo "Setup script not found locally. Downloading..."
-
-  # Try China mirror first if accessible
-  if curl -s --connect-timeout 2 "$remote_url_cn" >/dev/null 2>&1; then
-    echo "Using China mirror for download"
-    remote_url="$remote_url_cn"
-  fi
-
-  # Download and run setup script
-  if curl -s "${remote_url}/utilities/shell/sshc/setup_port_forward.sh" | bash; then
-    download_success=true
-  fi
-
-  if [[ "$download_success" != "true" ]]; then
-    _show_error_ssh_aliases "Failed to download or run setup script"
-    return 1
-  fi
-
-  return 0
-}' # Setup SSH port forward tool
-
 # Connect with port forwarding using expect script
 alias ssh-port-forward='() {
   echo -e "Connect to a remote host with port forwarding using expect script.\nUsage:\n  ssh-port-forward [server_id]\nOptions:\n  server_id: Optional server ID to connect directly\n\nEnvironment Variables:"
@@ -950,52 +910,12 @@ alias ssh-port-forward='() {
 
 alias sshpf='ssh-port-forward' # Short alias for ssh-port-forward
 
-# Edit port forward configuration file
-alias ssh-port-forward-config='() {
-  echo -e "Edit port forward configuration file with default or specified editor.\nUsage:\n  ssh-port-forward-config [editor_name:${EDITOR:-nano}]\nIf no editor is specified, uses the EDITOR environment variable or defaults to nano."
-
-  local editor="${1:-${EDITOR:-nano}}"
-  local config_file="${PORT_FORWARD_CONFIG:-$HOME/.ssh/port_forward.conf}"
-
-  # Check if editor exists
-  if ! command -v "$editor" &> /dev/null; then
-    _show_error_ssh_aliases "Specified editor not found: $editor. Please install it or use another editor."
-    return 1
-  fi
-
-  # Check if config file exists
-  if [[ ! -f "$config_file" ]]; then
-    echo "Port forward config file does not exist. Running setup..."
-    ssh-port-forward-setup
-
-    if [[ ! -f "$config_file" ]]; then
-      _show_error_ssh_aliases "Failed to create port forward config file"
-      return 1
-    fi
-  fi
-
-  # Check config file permissions
-  local config_perms=$(stat -f "%Lp" "$config_file" 2>/dev/null || stat -c "%a" "$config_file" 2>/dev/null)
-  if [[ "$config_perms" != "600" ]]; then
-    echo "Warning: Port forward config file has incorrect permissions: $config_perms" >&2
-    echo "Setting permissions to 600..." >&2
-    chmod 600 "$config_file"
-  fi
-
-  echo "Opening port forward config with $editor..."
-  "$editor" "$config_file"
-}' # Edit port forward configuration file
-
-alias sshpfc='ssh-port-forward-config' # Short alias for ssh-port-forward-config
-
 # SSH help function
 alias ssh-help='() {
   echo -e "SSH aliases and functions help\n"
   echo "SSH Connection Management:"
   echo "  ssh-connect            - Connect to a remote host using expect script"
   echo "  ssh-port-forward       - Connect with port forwarding using expect script"
-  echo "  ssh-port-forward-setup - Setup SSH port forward tool"
-  echo "  ssh-port-forward-config - Edit port forward configuration file"
   echo ""
   echo "SSH Key Management:"
   echo "  ssh-key-generate      - Generate a new SSH key with enhanced security"
@@ -1020,7 +940,6 @@ alias ssh-help='() {
   echo "Short aliases:"
   echo "  sshc                  - Alias for ssh-connect"
   echo "  sshpf                 - Alias for ssh-port-forward"
-  echo "  sshpfc                - Alias for ssh-port-forward-config"
   echo ""
   echo "For server management functions, use: ssh-srv-help"
 }' # Show help for SSH aliases and functions

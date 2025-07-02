@@ -267,8 +267,11 @@ proc main {} {
 
     # Check if server ID is provided as argument
     set target_server_id ""
-    if {$argc > 0} {
-        set target_server_id [lindex $argv 0]
+    # Use a more compatible way to check for arguments
+    if {[catch {set target_server_id [lindex $argv 0]}] == 0 && $target_server_id != ""} {
+        # Argument provided
+    } else {
+        set target_server_id ""
     }
 
     # If no target server specified, show list and prompt
