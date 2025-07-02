@@ -842,103 +842,437 @@ alias vdo-split-video='() {
 }' # Split video into equal segments
 
 #------------------------------------------------------------------------------
-# Video Frame Extraction
+# Video Frame Extraction (Legacy - Use vdo-export-frames instead)
 #------------------------------------------------------------------------------
 
+# Legacy aliases for backward compatibility
+# These functions are kept for compatibility but vdo-export-frames provides more features
 alias vdo-extract-frame='() {
-  echo -e "Extract a single frame from a video at specified time.\nUsage:\n  vdo-extract-frame <video_file_path> <time_position>\nTime format examples: 00:01:30 (1m30s), 00:00:45 (45s)\n\nExamples:\n  vdo-extract-frame video.mp4 00:01:30\n  vdo-extract-frame movie.mkv 00:45:22"
-
-  if [ $# -lt 2 ]; then
-    return 1
-  fi
-
-  local input_file="$1"
-  local time_pos="$2"
-
-  _vdo_validate_file "$input_file" || return 1
-  _vdo_check_ffmpeg || return 1
-
-  local output_file="${input_file%.*}_frame_${time_pos//:/}.jpg"
-  echo "Extracting frame from $input_file at position $time_pos..."
-
-  if ffmpeg -ss "$time_pos" -i "$input_file" -vframes 1 -q:v 2 "$output_file"; then
-    echo "Frame extraction complete, saved to $output_file"
-  else
-    echo "Error: Frame extraction failed" >&2
-    return 1
-  fi
-}' # Extract single frame at specified time position
+  echo "DEPRECATED: Use vdo-export-frames instead for better features"
+  echo "Example: vdo-export-frames <video> --mode time --start <time> --end <time>"
+  echo "Or: vdo-export-frames <video> --mode count --count 1"
+  return 1
+}' # Legacy: Extract single frame at specified time position
 
 alias vdo-extract-frames='() {
-  echo -e "Extract frames from a video at specified interval.\nUsage:\n  vdo-extract-frames <video_file_path> <interval_in_seconds:1>\n\nExamples:\n  vdo-extract-frames video.mp4 2\n  -> Extracts a frame every 2 seconds from video.mp4"
+  echo "DEPRECATED: Use vdo-export-frames instead for better features"
+  echo "Example: vdo-export-frames <video> --mode fps --fps <interval>"
+  return 1
+}' # Legacy: Extract frames at regular intervals
 
-  if [ $# -lt 1 ]; then
+alias vdo-batch-extract-frame='() {
+  echo "DEPRECATED: Use vdo-batch-export-frames instead for better features"
+  echo "Example: vdo-batch-export-frames <dir> --mode time --start <time> --end <time>"
+  return 1
+}' # Legacy: Extract frames at specified time from multiple videos
+
+#------------------------------------------------------------------------------
+# Advanced Frame Export Functions
+#------------------------------------------------------------------------------
+
+alias vdo-export-frames='() {
+  echo -e "Export frames from video with advanced options.\nUsage:\n  vdo-export-frames <video_file_path> [options]\n\nOptions:\n  -m, --mode MODE        : Export mode: \"time\" (time range), \"fps\" (frame rate), \"count\" (frame count) (default: fps)\n  -s, --start START      : Start time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -e, --end END          : End time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -f, --fps FPS          : Frame rate for fps mode (default: 1)\n  -c, --count COUNT      : Number of frames for count mode (default: 10)\n  -o, --output DIR       : Output directory (default: video_name_frames)\n  -q, --quality VALUE    : Image quality (1-31 for JPEG, lower is better, default: 2)\n  -t, --format FORMAT    : Output format: jpg, png, bmp (default: jpg)\n  -w, --width WIDTH      : Resize width (default: original size)\n  -h, --height HEIGHT    : Resize height (default: original size)\n  -n, --name FORMAT      : Output filename format (default: \"frame_%04d\")\n  -h, --help             : Show this help message\n\nExamples:\n  # Basic usage - extract 1 frame per second\n  vdo-export-frames video.mp4\n  vdo-export-frames video.mp4 --mode fps --fps 1\n\n  # Extract frames from specific time range\n  vdo-export-frames video.mp4 --mode time --start 00:01:00 --end 00:02:00\n  vdo-export-frames video.mp4 --mode time --start 00:05:30 --end 00:06:00 --fps 2\n\n  # Extract specific number of evenly spaced frames\n  vdo-export-frames video.mp4 --mode count --count 20\n  vdo-export-frames video.mp4 --mode count --count 5 --start 00:01:00 --end 00:02:00\n\n  # High quality and custom format\n  vdo-export-frames video.mp4 --mode fps --fps 0.5 --quality 1 --format png\n  vdo-export-frames video.mp4 --mode fps --fps 1 --quality 1 --format bmp\n\n  # Resize frames\n  vdo-export-frames video.mp4 --mode fps --fps 1 --width 1280 --height 720\n  vdo-export-frames video.mp4 --mode fps --fps 1 --width 800\n\n  # Custom output directory and naming\n  vdo-export-frames video.mp4 --mode fps --fps 1 --output ./my_frames\n  vdo-export-frames video.mp4 --mode fps --fps 1 --name \"shot_%03d\"\n  vdo-export-frames video.mp4 --mode fps --fps 1 --name \"frame_%05d\"\n\n  # Complex examples\n  vdo-export-frames video.mp4 --mode time --start 00:01:00 --end 00:02:00 --fps 2 --quality 1 --format png --width 1920 --output ./high_quality_frames\n  vdo-export-frames video.mp4 --mode count --count 10 --quality 1 --format png --name \"preview_%02d\" --output ./previews"
+
+  # Variables with default values
+  local input_file=""
+  local mode="fps"
+  local start_time=""
+  local end_time=""
+  local fps=1
+  local count=10
+  local output_dir=""
+  local quality=2
+  local format="jpg"
+  local width=""
+  local height=""
+  local name_format="frame_%04d"
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -m|--mode)
+        mode="$2"
+        shift 2
+        ;;
+      -s|--start)
+        start_time="$2"
+        shift 2
+        ;;
+      -e|--end)
+        end_time="$2"
+        shift 2
+        ;;
+      -f|--fps)
+        fps="$2"
+        shift 2
+        ;;
+      -c|--count)
+        count="$2"
+        shift 2
+        ;;
+      -o|--output)
+        output_dir="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -t|--format)
+        format="$2"
+        shift 2
+        ;;
+      -w|--width)
+        width="$2"
+        shift 2
+        ;;
+      -h|--height)
+        height="$2"
+        shift 2
+        ;;
+      -n|--name)
+        name_format="$2"
+        shift 2
+        ;;
+      --help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the input file
+        if [ -z "$input_file" ]; then
+          input_file="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no input_file provided
+  if $show_help || [ -z "$input_file" ]; then
     return 1
   fi
-
-  local input_file="$1"
-  local interval="${2:-1}"
 
   _vdo_validate_file "$input_file" || return 1
   _vdo_check_ffmpeg || return 1
 
+  # Validate mode parameter
+  if [[ "$mode" != "time" && "$mode" != "fps" && "$mode" != "count" ]]; then
+    echo "Error: Mode must be either \"time\", \"fps\", or \"count\"" >&2
+    return 1
+  fi
+
+  # Validate format parameter
+  if [[ "$format" != "jpg" && "$format" != "png" && "$format" != "bmp" ]]; then
+    echo "Error: Format must be either \"jpg\", \"png\", or \"bmp\"" >&2
+    return 1
+  fi
+
+  # Set default output_dir if not specified
+  if [ -z "$output_dir" ]; then
+    local base_name=$(basename "$input_file")
+    output_dir="${base_name%.*}_frames"
+  fi
+
   # Create output directory
-  local output_dir="${input_file%.*}_frames"
   mkdir -p "$output_dir"
 
-  echo "Extracting frames from $input_file every $interval seconds..."
+  # Build ffmpeg command based on mode
+  local ffmpeg_cmd="ffmpeg"
+  local filter_complex=""
 
-  if ffmpeg -i "$input_file" -vf "fps=1/${interval}" "$output_dir/frame_%04d.jpg"; then
-    echo "Frame extraction complete, saved to $output_dir/"
+  # Add input file
+  ffmpeg_cmd="$ffmpeg_cmd -i \"$input_file\""
+
+  # Add time range if specified
+  if [ -n "$start_time" ]; then
+    ffmpeg_cmd="$ffmpeg_cmd -ss \"$start_time\""
+  fi
+
+  if [ -n "$end_time" ]; then
+    ffmpeg_cmd="$ffmpeg_cmd -to \"$end_time\""
+  fi
+
+  # Build filter complex based on mode and options
+  if [ "$mode" = "time" ]; then
+    # Time mode: extract frames at regular intervals within time range
+    filter_complex="fps=$fps"
+  elif [ "$mode" = "fps" ]; then
+    # FPS mode: extract frames at specified frame rate
+    filter_complex="fps=$fps"
   else
-    echo "Error: Frame extraction failed" >&2
-    return 1
-  fi
-}' # Extract frames at regular intervals
-
-alias vdo-batch-extract-frame='() {
-  echo -e "Extract a frame at the same time position from multiple videos.\nUsage:\n  vdo-batch-extract-frame <time_position> <video_directory> <file_extension:mp4>\n\nExamples:\n  vdo-batch-extract-frame 00:01:30 ./videos mp4\n  -> Extracts a frame at 1m30s from all mp4 files in ./videos directory"
-
-  if [ $# -lt 2 ]; then
-    return 1
+    # Count mode: extract specified number of evenly spaced frames
+    local duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$input_file")
+    duration=${duration%.*} # Remove decimal part
+    local interval=$((duration / (count + 1)))
+    filter_complex="fps=1/$interval"
   fi
 
-  local time_pos="$1"
-  local vdo_folder="${2:-.}"
-  local vdo_ext="${3:-mp4}"
+  # Add resize if specified
+  if [ -n "$width" ] || [ -n "$height" ]; then
+    local scale_filter="scale="
+    if [ -n "$width" ] && [ -n "$height" ]; then
+      scale_filter="${scale_filter}${width}:${height}"
+    elif [ -n "$width" ]; then
+      scale_filter="${scale_filter}${width}:-1"
+    else
+      scale_filter="${scale_filter}-1:${height}"
+    fi
+    filter_complex="${filter_complex},${scale_filter}"
+  fi
 
-  _vdo_validate_dir "$vdo_folder" || return 1
+  # Add quality settings
+  local quality_param=""
+  if [ "$format" = "jpg" ]; then
+    quality_param="-q:v $quality"
+  elif [ "$format" = "png" ]; then
+    quality_param="-compression_level $((10 - quality))"
+  fi
+
+  # Build final command
+  local output_pattern="$output_dir/${name_format}.${format}"
+  ffmpeg_cmd="$ffmpeg_cmd -vf \"$filter_complex\" $quality_param \"$output_pattern\""
+
+  echo "Exporting frames from $input_file..."
+  echo "  Mode: $mode"
+  echo "  Output directory: $output_dir"
+  echo "  Format: $format"
+
+  # Execute ffmpeg command
+  if eval "$ffmpeg_cmd"; then
+    echo "Frame export complete, saved to $output_dir/"
+  else
+    echo "Error: Frame export failed" >&2
+    return 1
+  fi
+
+  return 0
+}' # Export frames from video with advanced options
+
+alias vdo-batch-export-frames='() {
+  echo -e "Batch export frames from videos in directory with advanced options.\nUsage:\n  vdo-batch-export-frames <video_directory> [options]\n\nOptions:\n  -m, --mode MODE        : Export mode: \"time\" (time range), \"fps\" (frame rate), \"count\" (frame count) (default: fps)\n  -s, --start START      : Start time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -e, --end END          : End time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -f, --fps FPS          : Frame rate for fps mode (default: 1)\n  -c, --count COUNT      : Number of frames for count mode (default: 10)\n  -o, --output DIR       : Output directory (default: video_dir/frames)\n  -q, --quality VALUE    : Image quality (1-31 for JPEG, lower is better, default: 2)\n  -t, --format FORMAT    : Output format: jpg, png, bmp (default: jpg)\n  -w, --width WIDTH      : Resize width (default: original size)\n  -h, --height HEIGHT    : Resize height (default: original size)\n  --extension EXT        : Video file extension to process (default: mp4)\n  -n, --name FORMAT      : Output filename format (default: \"%s_frame_%04d\")\n  --help                 : Show this help message\n\nExamples:\n  # Basic usage - extract 1 frame per second from all videos\n  vdo-batch-export-frames videos/\n  vdo-batch-export-frames videos/ --mode fps --fps 1\n\n  # Extract frames from specific time range for all videos\n  vdo-batch-export-frames videos/ --mode time --start 00:01:00 --end 00:02:00\n  vdo-batch-export-frames videos/ --mode time --start 00:05:30 --end 00:06:00 --fps 2\n\n  # Extract specific number of evenly spaced frames from all videos\n  vdo-batch-export-frames videos/ --mode count --count 20\n  vdo-batch-export-frames videos/ --mode count --count 5 --start 00:01:00 --end 00:02:00\n\n  # Process specific video format\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --extension mkv\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --extension avi\n\n  # High quality and custom format\n  vdo-batch-export-frames videos/ --mode fps --fps 0.5 --quality 1 --format png\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --quality 1 --format bmp\n\n  # Resize frames for all videos\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --width 1280 --height 720\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --width 800\n\n  # Custom output directory and naming\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --output ./my_frames\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --name \"%s_shot_%03d\"\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --name \"%s_frame_%05d\"\n\n  # Complex examples\n  vdo-batch-export-frames videos/ --mode time --start 00:01:00 --end 00:02:00 --fps 2 --quality 1 --format png --width 1920 --output ./high_quality_frames\n  vdo-batch-export-frames videos/ --mode count --count 10 --quality 1 --format png --name \"%s_preview_%02d\" --output ./previews --extension mp4"
+
+  # Variables with default values
+  local video_dir=""
+  local mode="fps"
+  local start_time=""
+  local end_time=""
+  local fps=1
+  local count=10
+  local output_dir=""
+  local quality=2
+  local format="jpg"
+  local width=""
+  local height=""
+  local video_ext="mp4"
+  local name_format="%s_frame_%04d"
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -m|--mode)
+        mode="$2"
+        shift 2
+        ;;
+      -s|--start)
+        start_time="$2"
+        shift 2
+        ;;
+      -e|--end)
+        end_time="$2"
+        shift 2
+        ;;
+      -f|--fps)
+        fps="$2"
+        shift 2
+        ;;
+      -c|--count)
+        count="$2"
+        shift 2
+        ;;
+      -o|--output)
+        output_dir="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -t|--format)
+        format="$2"
+        shift 2
+        ;;
+      -w|--width)
+        width="$2"
+        shift 2
+        ;;
+      -h|--height)
+        height="$2"
+        shift 2
+        ;;
+      --extension)
+        video_ext="$2"
+        shift 2
+        ;;
+      -n|--name)
+        name_format="$2"
+        shift 2
+        ;;
+      --help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the video directory
+        if [ -z "$video_dir" ]; then
+          video_dir="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no video_dir provided
+  if $show_help || [ -z "$video_dir" ]; then
+    return 1
+  fi
+
+  _vdo_validate_dir "$video_dir" || return 1
   _vdo_check_ffmpeg || return 1
 
-  # Check if source files exist
-  local file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
-  if [ "$file_count" -eq 0 ]; then
-    echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
+  # Validate mode parameter
+  if [[ "$mode" != "time" && "$mode" != "fps" && "$mode" != "count" ]]; then
+    echo "Error: Mode must be either \"time\", \"fps\", or \"count\"" >&2
     return 1
   fi
 
-  # Create output directory
-  local output_dir="${vdo_folder}/frames_${time_pos//:/}"
-  mkdir -p "$output_dir"
-  local errors=0
+  # Validate format parameter
+  if [[ "$format" != "jpg" && "$format" != "png" && "$format" != "bmp" ]]; then
+    echo "Error: Format must be either \"jpg\", \"png\", or \"bmp\"" >&2
+    return 1
+  fi
 
-  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
-    local base_name=$(basename "$file" .${vdo_ext})
-    local output_file="$output_dir/${base_name}_frame_${time_pos//:/}.jpg"
-    echo "Extracting frame from $file at position $time_pos..."
-    if ! ffmpeg -ss "$time_pos" -i "$file" -vframes 1 -q:v 2 "$output_file"; then
-      echo "Error: Failed to extract frame from $file" >&2
-      ((errors++))
+  # Set default output_dir if not specified
+  if [ -z "$output_dir" ]; then
+    output_dir="${video_dir}/frames"
+  fi
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  # Check if video files exist
+  local file_count=$(find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${video_ext} files found in $video_dir" >&2
+    return 1
+  fi
+
+  local success_count=0
+  local error_count=0
+  local processed_videos=0
+
+  # Process each video file
+  find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | while read -r video_file; do
+    local base_name=$(basename "$video_file" .${video_ext})
+    local video_output_dir="$output_dir/$base_name"
+
+    echo "Processing $video_file..."
+    ((processed_videos++))
+
+    # Create subdirectory for this video
+    mkdir -p "$video_output_dir"
+
+    # Build ffmpeg command for this video
+    local ffmpeg_cmd="ffmpeg"
+    local filter_complex=""
+
+    # Add input file
+    ffmpeg_cmd="$ffmpeg_cmd -i \"$video_file\""
+
+    # Add time range if specified
+    if [ -n "$start_time" ]; then
+      ffmpeg_cmd="$ffmpeg_cmd -ss \"$start_time\""
+    fi
+
+    if [ -n "$end_time" ]; then
+      ffmpeg_cmd="$ffmpeg_cmd -to \"$end_time\""
+    fi
+
+    # Build filter complex based on mode and options
+    if [ "$mode" = "time" ]; then
+      # Time mode: extract frames at regular intervals within time range
+      filter_complex="fps=$fps"
+    elif [ "$mode" = "fps" ]; then
+      # FPS mode: extract frames at specified frame rate
+      filter_complex="fps=$fps"
+    else
+      # Count mode: extract specified number of evenly spaced frames
+      local duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$video_file")
+      duration=${duration%.*} # Remove decimal part
+      local interval=$((duration / (count + 1)))
+      filter_complex="fps=1/$interval"
+    fi
+
+    # Add resize if specified
+    if [ -n "$width" ] || [ -n "$height" ]; then
+      local scale_filter="scale="
+      if [ -n "$width" ] && [ -n "$height" ]; then
+        scale_filter="${scale_filter}${width}:${height}"
+      elif [ -n "$width" ]; then
+        scale_filter="${scale_filter}${width}:-1"
+      else
+        scale_filter="${scale_filter}-1:${height}"
+      fi
+      filter_complex="${filter_complex},${scale_filter}"
+    fi
+
+    # Add quality settings
+    local quality_param=""
+    if [ "$format" = "jpg" ]; then
+      quality_param="-q:v $quality"
+    elif [ "$format" = "png" ]; then
+      quality_param="-compression_level $((10 - quality))"
+    fi
+
+    # Build final command
+    local actual_name_format=$(printf "$name_format" "$base_name" "%04d")
+    local output_pattern="$video_output_dir/${actual_name_format}.${format}"
+    ffmpeg_cmd="$ffmpeg_cmd -vf \"$filter_complex\" $quality_param \"$output_pattern\""
+
+    echo "  Exporting frames to $video_output_dir..."
+
+    # Execute ffmpeg command
+    if eval "$ffmpeg_cmd"; then
+      echo "  Frame export complete for $base_name"
+      ((success_count++))
+    else
+      echo "  Error: Frame export failed for $base_name" >&2
+      ((error_count++))
     fi
   done
 
-  if [ "$errors" -eq 0 ]; then
-    echo "Batch frame extraction complete, exported to $output_dir"
-  else
-    echo "Warning: Frame extraction completed with $errors errors" >&2
+  # Print summary
+  echo "Batch frame export summary:"
+  echo "  Processed: $processed_videos videos"
+  echo "  Successfully exported: $success_count videos"
+  echo "  Failed: $error_count videos"
+  echo "Output files saved to: $output_dir"
+
+  # Return error if any errors occurred
+  if [ "$error_count" -gt 0 ]; then
     return 1
   fi
-}' # Extract frames at specified time from multiple videos
+
+  return 0
+}' # Batch export frames from videos in directory with advanced options
 
 #------------------------------------------------------------------------------
 # Video Speed Modification
@@ -1952,9 +2286,9 @@ alias vdo-help='() {
   echo "  vdo-split-video <file> <segment_duration> - Split video into segments of specified duration"
   echo ""
   echo "Frame Extraction:"
-  echo "  vdo-extract-frame <file> <time>      - Extract a single frame at specified time"
-  echo "  vdo-extract-frames <file> <interval> - Extract frames at regular intervals"
-  echo "  vdo-batch-extract-frame <time> <dir> <ext> - Extract a frame at same time from multiple videos"
+  echo "  vdo-export-frames <file> [options]   - Export frames with advanced options (time range, fps, count)"
+  echo "  vdo-batch-export-frames <dir> [options] - Batch export frames from videos with advanced options"
+  echo "  Note: Legacy functions (vdo-extract-frame, vdo-extract-frames, vdo-batch-extract-frame) are deprecated"
   echo ""
   echo "Cropping:"
   echo "  vdo-crop <file> [options]            - Crop a video by position and size"
