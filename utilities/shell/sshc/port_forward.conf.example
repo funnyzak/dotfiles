@@ -9,6 +9,15 @@
 # - AuthValue: Path to key file or password
 # - PortMappings: Comma-separated list of local:remote port mappings (e.g., "8080:80,3306:3306")
 
+# Environment variables for timeout configuration:
+# SSH_TIMEOUT=60              # Expect timeout (default: 60 seconds)
+# SSH_CONNECTION_TIMEOUT=30   # SSH connection timeout (default: 30 seconds)
+# SSH_MAX_ATTEMPTS=3          # Maximum retry attempts (default: 3)
+# SSH_KEEP_ALIVE=1            # Enable keep-alive (default: 1)
+# SSH_ALIVE_INTERVAL=30       # Keep-alive interval (default: 30 seconds)
+# SSH_ALIVE_COUNT=5           # Keep-alive count (default: 5)
+# SSH_TCP_KEEP_ALIVE=1        # Enable TCP keep-alive (default: 1)
+
 # Example entries:
 web1,Web Server 1,192.168.1.10,22,root,key,~/.ssh/web1.key,8080:80,3306:3306
 db1,Database Server 1,192.168.1.20,22,root,password,securepass123,3307:3306,6379:6379
