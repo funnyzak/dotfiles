@@ -4,15 +4,16 @@
 
 # Configuration variables with defaults
 set config_file "$env(HOME)/.ssh/port_forward.conf"
-set timeout 60
-set max_attempts 3
+set timeout 300
+set max_attempts 5
 set no_color 0
 set keep_alive 1
-set alive_interval 30
-set alive_count 5
+set alive_interval 15
+set alive_count 10
 set default_shell ""
-set connection_timeout 30
+set connection_timeout 60
 set tcp_keep_alive 1
+set idle_timeout 0
 
 # Override with environment variables if set
 if {[info exists env(PORT_FORWARD_CONFIG)]} {
@@ -44,6 +45,9 @@ if {[info exists env(SSH_CONNECTION_TIMEOUT)]} {
 }
 if {[info exists env(SSH_TCP_KEEP_ALIVE)]} {
     set tcp_keep_alive $env(SSH_TCP_KEEP_ALIVE)
+}
+if {[info exists env(SSH_IDLE_TIMEOUT)]} {
+    set idle_timeout $env(SSH_IDLE_TIMEOUT)
 }
 
 # Color codes for output
@@ -245,7 +249,7 @@ proc find_server_by_id {servers target_id} {
 
 # Function to build SSH command with port forwarding
 proc build_ssh_command {server} {
-    global keep_alive alive_interval alive_count connection_timeout tcp_keep_alive
+    global keep_alive alive_interval alive_count connection_timeout tcp_keep_alive idle_timeout
 
     lassign $server server_id server_name host port user auth_type auth_value mappings
 
@@ -267,13 +271,37 @@ proc build_ssh_command {server} {
     lappend ssh_cmd -o "IPQoS=0x00"
     lappend ssh_cmd -o "ExitOnForwardFailure=no"
 
-    # Add keep-alive options if enabled
-    if {$keep_alive == 1} {
-        lappend ssh_cmd -o "ServerAliveInterval=$alive_interval"
-        lappend ssh_cmd -o "ServerAliveCountMax=$alive_count"
-        lappend ssh_cmd -o "ClientAliveInterval=$alive_interval"
-        lappend ssh_cmd -o "ClientAliveCountMax=$alive_count"
+    # Add maximum connection persistence options
+    lappend ssh_cmd -o "ServerAliveInterval=$alive_interval"
+    lappend ssh_cmd -o "ServerAliveCountMax=$alive_count"
+    lappend ssh_cmd -o "ClientAliveInterval=$alive_interval"
+    lappend ssh_cmd -o "ClientAliveCountMax=$alive_count"
+
+    # Disable idle timeout to keep connection alive indefinitely
+    if {$idle_timeout > 0} {
+        lappend ssh_cmd -o "IdleTimeout=$idle_timeout"
+    } else {
+        # Set very long idle timeout (effectively no timeout)
+        lappend ssh_cmd -o "IdleTimeout=0"
     }
+
+    # Additional options for maximum connection persistence
+    lappend ssh_cmd -o "TCPKeepAlive=yes"
+    lappend ssh_cmd -o "KeepAlive=yes"
+    lappend ssh_cmd -o "BatchMode=no"
+    lappend ssh_cmd -o "RequestTTY=no"
+    lappend ssh_cmd -o "StdinNull=no"
+    lappend ssh_cmd -o "StdoutNull=no"
+    lappend ssh_cmd -o "StderrNull=no"
+
+    # Disable connection multiplexing to prevent interference
+    lappend ssh_cmd -o "ControlMaster=no"
+    lappend ssh_cmd -o "ControlPath=none"
+
+    # Optimize for long-running connections
+    lappend ssh_cmd -o "GSSAPIAuthentication=no"
+    lappend ssh_cmd -o "GSSAPIDelegateCredentials=no"
+    lappend ssh_cmd -o "UseRoaming=no"
 
     # Add authentication options
     if {$auth_type == "key"} {
