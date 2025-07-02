@@ -63,6 +63,46 @@ _yt_check_ffmpeg() {
   return 0
 }
 
+# Helper function to convert format string to yt-dlp format argument
+_youtube_format_arg() {
+  # Usage: _youtube_format_arg <format>
+  local input_format="$1"
+  local format_arg=""
+  case "$input_format" in
+    best)
+      format_arg="bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
+      ;;
+    144p)
+      format_arg="bestvideo[height<=144][ext=mp4]+bestaudio[ext=m4a]/best[height<=144][ext=mp4]/best"
+      ;;
+    240p)
+      format_arg="bestvideo[height<=240][ext=mp4]+bestaudio[ext=m4a]/best[height<=240][ext=mp4]/best"
+      ;;
+    360p)
+      format_arg="bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360][ext=mp4]/best"
+      ;;
+    480p)
+      format_arg="bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best"
+      ;;
+    720p)
+      format_arg="bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best"
+      ;;
+    1080p)
+      format_arg="bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best"
+      ;;
+    1440p)
+      format_arg="bestvideo[height<=1440][ext=mp4]+bestaudio[ext=m4a]/best[height<=1440][ext=mp4]/best"
+      ;;
+    2160p)
+      format_arg="bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/best[height<=2160][ext=mp4]/best"
+      ;;
+    *)
+      format_arg="$input_format"
+      ;;
+  esac
+  echo "$format_arg"
+}
+
 #------------------------------------------------------------------------------
 # Video Download Aliases
 #------------------------------------------------------------------------------
@@ -134,23 +174,7 @@ alias yt-download='() {
 
   # Prepare format specification
   local format_arg=""
-  case "$format" in
-    best)
-      format_arg="bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
-      ;;
-    720p)
-      format_arg="bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best"
-      ;;
-    1080p)
-      format_arg="bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best"
-      ;;
-    2160p)
-      format_arg="bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/best[height<=2160][ext=mp4]/best"
-      ;;
-    *)
-      format_arg="$format"
-      ;;
-  esac
+  format_arg="$(_youtube_format_arg "$format")"
 
   # Build yt-dlp arguments
   ytdlp_args="$ytdlp_args -f \"$format_arg\" -o \"$output_dir/%(title)s.%(ext)s\""
@@ -248,23 +272,7 @@ alias yt-batch-download='() {
 
   # Prepare format specification
   local format_arg=""
-  case "$format" in
-    best)
-      format_arg="bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
-      ;;
-    720p)
-      format_arg="bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best"
-      ;;
-    1080p)
-      format_arg="bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best"
-      ;;
-    2160p)
-      format_arg="bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/best[height<=2160][ext=mp4]/best"
-      ;;
-    *)
-      format_arg="$format"
-      ;;
-  esac
+  format_arg="$(_youtube_format_arg "$format")"
 
   # Build yt-dlp arguments
   ytdlp_args="$ytdlp_args -f \"$format_arg\" -o \"$output_dir/%(title)s.%(ext)s\""
@@ -408,23 +416,7 @@ alias yt-playlist='() {
 
   # Prepare format specification
   local format_arg=""
-  case "$format" in
-    best)
-      format_arg="bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
-      ;;
-    720p)
-      format_arg="bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best"
-      ;;
-    1080p)
-      format_arg="bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best"
-      ;;
-    2160p)
-      format_arg="bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/best[height<=2160][ext=mp4]/best"
-      ;;
-    *)
-      format_arg="$format"
-      ;;
-  esac
+  format_arg="$(_youtube_format_arg "$format")"
 
   # Build yt-dlp arguments
   ytdlp_args="$ytdlp_args -f \"$format_arg\" -o \"$output_dir/%(playlist_index)s-%(title)s.%(ext)s\" --yes-playlist"
