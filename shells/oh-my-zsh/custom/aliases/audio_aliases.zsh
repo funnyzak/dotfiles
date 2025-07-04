@@ -88,8 +88,20 @@ alias ado-dir-to-mp3='() {
   _audio_validate_dir "$aud_folder" || return 1
   _audio_check_ffmpeg || return 1
 
-  # Check if source files exist
-  local file_count=$(find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" | wc -l)
+  # Set locale to handle Unicode/Chinese characters properly
+  export LC_ALL=en_US.UTF-8
+  export LANG=en_US.UTF-8
+
+  # Check if source files exist using a more robust method
+  local file_count=0
+  local temp_files=()
+
+  # Use process substitution to handle filenames with special characters
+  while IFS= read -r -d "" file; do
+    temp_files+=("$file")
+    ((file_count++))
+  done < <(find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" -print0)
+
   if [ "$file_count" -eq 0 ]; then
     echo "Error: No ${aud_ext} files found in $aud_folder" >&2
     return 1
@@ -97,18 +109,34 @@ alias ado-dir-to-mp3='() {
 
   mkdir -p "${aud_folder}/mp3"
   local errors=0
+  local success_count=0
 
-  find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" | while read -r file; do
-    local output_file="$aud_folder/mp3/$(basename "$file" .${aud_ext}).mp3"
-    echo "Converting $file to $output_file with bitrate $bitrate..."
-    if ! ffmpeg -i "$file" -c:a libmp3lame -b:a "$bitrate" "$output_file"; then
-      echo "Error: Failed to convert $file" >&2
+  # Process each file using array to preserve filenames with special characters
+  for file in "${temp_files[@]}"; do
+    local base_name=$(basename "$file" .${aud_ext})
+    local output_file="$aud_folder/mp3/${base_name}.mp3"
+
+    echo "Converting: $(basename "$file") -> ${base_name}.mp3"
+    echo "  Bitrate: $bitrate"
+
+    if ffmpeg -i "$file" -c:a libmp3lame -b:a "$bitrate" "$output_file" 2>/dev/null; then
+      echo "  ✓ Success"
+      ((success_count++))
+    else
+      echo "  ✗ Error: Failed to convert $(basename "$file")" >&2
       ((errors++))
     fi
+    echo ""
   done
+
+  echo "Conversion Summary:"
+  echo "  Total files processed: $file_count"
+  echo "  Successfully converted: $success_count"
+  echo "  Failed conversions: $errors"
 
   if [ "$errors" -eq 0 ]; then
     echo "Directory audio conversion complete, exported to $aud_folder/mp3"
+    return 0
   else
     echo "Warning: Audio conversion completed with $errors errors" >&2
     return 1
@@ -282,8 +310,20 @@ alias ado-batch-volume='() {
   _audio_validate_dir "$aud_folder" || return 1
   _audio_check_ffmpeg || return 1
 
-  # Check if source files exist
-  local file_count=$(find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" | wc -l)
+  # Set locale to handle Unicode/Chinese characters properly
+  export LC_ALL=en_US.UTF-8
+  export LANG=en_US.UTF-8
+
+  # Check if source files exist using a more robust method
+  local file_count=0
+  local temp_files=()
+
+  # Use process substitution to handle filenames with special characters
+  while IFS= read -r -d "" file; do
+    temp_files+=("$file")
+    ((file_count++))
+  done < <(find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" -print0)
+
   if [ "$file_count" -eq 0 ]; then
     echo "Error: No ${aud_ext} files found in $aud_folder" >&2
     return 1
@@ -291,19 +331,34 @@ alias ado-batch-volume='() {
 
   mkdir -p "${aud_folder}/volume_adjusted"
   local errors=0
+  local success_count=0
 
-  find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" | while read -r file; do
+  # Process each file using array to preserve filenames with special characters
+  for file in "${temp_files[@]}"; do
     local base_name=$(basename "$file" .${aud_ext})
     local output_file="$aud_folder/volume_adjusted/${base_name}_vol.${aud_ext}"
-    echo "Adjusting volume of $file by factor $volume..."
-    if ! ffmpeg -i "$file" -filter:a "volume=$volume" "$output_file"; then
-      echo "Error: Failed to adjust volume for $file" >&2
+
+    echo "Adjusting volume: $(basename "$file") -> ${base_name}_vol.${aud_ext}"
+    echo "  Volume factor: $volume"
+
+    if ffmpeg -i "$file" -filter:a "volume=$volume" "$output_file" 2>/dev/null; then
+      echo "  ✓ Success"
+      ((success_count++))
+    else
+      echo "  ✗ Error: Failed to adjust volume for $(basename "$file")" >&2
       ((errors++))
     fi
+    echo ""
   done
+
+  echo "Volume Adjustment Summary:"
+  echo "  Total files processed: $file_count"
+  echo "  Successfully adjusted: $success_count"
+  echo "  Failed adjustments: $errors"
 
   if [ "$errors" -eq 0 ]; then
     echo "Batch volume adjustment complete, exported to $aud_folder/volume_adjusted"
+    return 0
   else
     echo "Warning: Volume adjustment completed with $errors errors" >&2
     return 1
@@ -324,30 +379,50 @@ alias ado-merge='() {
 
   _audio_check_ffmpeg || return 1
 
+  # Set locale to handle Unicode/Chinese characters properly
+  export LC_ALL=en_US.UTF-8
+  export LANG=en_US.UTF-8
+
   # Create a temp file listing all input files
   local temp_file=$(mktemp)
   local errors=0
+  local valid_files=0
 
+  echo "Validating input files..."
   for file in "$@"; do
     if ! _audio_validate_file "$file"; then
+      echo "  ✗ Invalid: $(basename "$file")"
       ((errors++))
       continue
     fi
-    echo "file '$file'" >> "$temp_file"
+    # Use absolute path to handle special characters properly
+    local abs_file=$(realpath "$file")
+    echo "file \"$abs_file\"" >> "$temp_file"
+    echo "  ✓ Valid: $(basename "$file")"
+    ((valid_files++))
   done
 
   if [ "$errors" -gt 0 ]; then
+    echo "Error: $errors invalid files found. Cannot proceed with merge." >&2
     rm "$temp_file"
     return 1
   fi
 
-  echo "Merging audio files into $output_file..."
-
-  if ffmpeg -f concat -safe 0 -i "$temp_file" -c copy "$output_file"; then
-    echo "Merging complete, exported to $output_file"
+  if [ "$valid_files" -eq 0 ]; then
+    echo "Error: No valid files to merge." >&2
     rm "$temp_file"
+    return 1
+  fi
+
+  echo ""
+  echo "Merging $valid_files audio files into $(basename "$output_file")..."
+
+  if ffmpeg -f concat -safe 0 -i "$temp_file" -c copy "$output_file" 2>/dev/null; then
+    echo "✓ Merging complete, exported to $output_file"
+    rm "$temp_file"
+    return 0
   else
-    echo "Error: Audio merging failed" >&2
+    echo "✗ Error: Audio merging failed" >&2
     rm "$temp_file"
     return 1
   fi
@@ -406,8 +481,20 @@ alias ado-batch-fade='() {
   _audio_validate_dir "$aud_folder" || return 1
   _audio_check_ffmpeg || return 1
 
-  # Check if source files exist
-  local file_count=$(find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" | wc -l)
+  # Set locale to handle Unicode/Chinese characters properly
+  export LC_ALL=en_US.UTF-8
+  export LANG=en_US.UTF-8
+
+  # Check if source files exist using a more robust method
+  local file_count=0
+  local temp_files=()
+
+  # Use process substitution to handle filenames with special characters
+  while IFS= read -r -d "" file; do
+    temp_files+=("$file")
+    ((file_count++))
+  done < <(find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" -print0)
+
   if [ "$file_count" -eq 0 ]; then
     echo "Error: No ${aud_ext} files found in $aud_folder" >&2
     return 1
@@ -415,30 +502,52 @@ alias ado-batch-fade='() {
 
   mkdir -p "${aud_folder}/fade_added"
   local errors=0
+  local success_count=0
 
-  find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" | while read -r file; do
+  # Process each file using array to preserve filenames with special characters
+  for file in "${temp_files[@]}"; do
     local base_name=$(basename "$file" .${aud_ext})
     local output_file="$aud_folder/fade_added/${base_name}_fade.${aud_ext}"
+
+    echo "Adding fade effects: $(basename "$file") -> ${base_name}_fade.${aud_ext}"
+    echo "  Fade-in: ${fade_in}s, Fade-out: ${fade_out}s"
 
     # Get duration of audio file
     local duration=$(ffprobe -i "$file" -show_entries format=duration -v quiet -of csv="p=0")
 
     if [ -z "$duration" ]; then
-      echo "Error: Could not determine audio duration for $file" >&2
+      echo "  ✗ Error: Could not determine audio duration" >&2
       ((errors++))
+      echo ""
       continue
     fi
 
-    echo "Adding fade-in ($fade_in sec) and fade-out ($fade_out sec) to $file..."
+    # Check if bc is available for calculation
+    if ! command -v bc &> /dev/null; then
+      echo "  ✗ Error: bc calculator not found. Please install bc." >&2
+      ((errors++))
+      echo ""
+      continue
+    fi
 
-    if ! ffmpeg -i "$file" -af "afade=t=in:st=0:d=$fade_in,afade=t=out:st=$( echo "$duration - $fade_out" | bc ):d=$fade_out" "$output_file"; then
-      echo "Error: Failed to add fade effect to $file" >&2
+    if ffmpeg -i "$file" -af "afade=t=in:st=0:d=$fade_in,afade=t=out:st=$( echo "$duration - $fade_out" | bc ):d=$fade_out" "$output_file" 2>/dev/null; then
+      echo "  ✓ Success"
+      ((success_count++))
+    else
+      echo "  ✗ Error: Failed to add fade effect" >&2
       ((errors++))
     fi
+    echo ""
   done
+
+  echo "Fade Effect Summary:"
+  echo "  Total files processed: $file_count"
+  echo "  Successfully processed: $success_count"
+  echo "  Failed processing: $errors"
 
   if [ "$errors" -eq 0 ]; then
     echo "Batch fade effect addition complete, exported to $aud_folder/fade_added"
+    return 0
   else
     echo "Warning: Fade effect addition completed with $errors errors" >&2
     return 1
