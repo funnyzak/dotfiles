@@ -1,5 +1,5 @@
 # Port Forward Configuration File
-# Format: ID,Name,Host,Port,User,AuthType,AuthValue,PortMappings
+# Format: ID,Name,Host,Port,User,AuthType,AuthValue,PortMapping1,PortMapping2,...
 # - ID: Unique identifier for the server
 # - Name: Descriptive name of the server
 # - Host: IP address or hostname
@@ -7,21 +7,46 @@
 # - User: SSH username
 # - AuthType: 'key' or 'password'
 # - AuthValue: Path to key file or password
-# - PortMappings: Comma-separated list of local:remote port mappings (e.g., "8080:80,3306:3306")
+# - PortMappings: Multiple port mapping fields in format "local_port:remote_port"
+#   Each port mapping should be in a separate field, or combined in one field separated by commas
 
 # Environment variables for timeout configuration:
-# SSH_TIMEOUT=60              # Expect timeout (default: 60 seconds)
-# SSH_CONNECTION_TIMEOUT=30   # SSH connection timeout (default: 30 seconds)
-# SSH_MAX_ATTEMPTS=3          # Maximum retry attempts (default: 3)
+# SSH_TIMEOUT=300             # Expect timeout (default: 300 seconds)
+# SSH_CONNECTION_TIMEOUT=60   # SSH connection timeout (default: 60 seconds)
+# SSH_MAX_ATTEMPTS=5          # Maximum retry attempts (default: 5)
 # SSH_KEEP_ALIVE=1            # Enable keep-alive (default: 1)
-# SSH_ALIVE_INTERVAL=30       # Keep-alive interval (default: 30 seconds)
-# SSH_ALIVE_COUNT=5           # Keep-alive count (default: 5)
+# SSH_ALIVE_INTERVAL=15       # Keep-alive interval (default: 15 seconds)
+# SSH_ALIVE_COUNT=10          # Keep-alive count (default: 10)
 # SSH_TCP_KEEP_ALIVE=1        # Enable TCP keep-alive (default: 1)
 
-# Example entries:
-web1,Web Server 1,192.168.1.10,22,root,key,~/.ssh/web1.key,8080:80,3306:3306
+# Example entries with multiple port mappings:
+
+# Method 1: Multiple port mappings in separate fields
+web1,Web Server 1,192.168.1.10,22,root,key,~/.ssh/web1.key,8080:80,3306:3306,6379:6379
+
+# Method 2: Multiple port mappings in one field (comma-separated)
 db1,Database Server 1,192.168.1.20,22,root,password,securepass123,3307:3306,6379:6379
+
+# Method 3: Mixed approach
 app1,App Server 1,192.168.1.30,2222,admin,key,~/.ssh/app1.key,8081:80,8082:443,3308:3306
 
+# Method 4: Single port mapping
+test1,Test Server,192.168.1.40,22,user,key,~/.ssh/test.key,2222:22
+
 # Port mapping format: local_port:remote_port
-# Multiple mappings separated by comma: local1:remote1,local2:remote2
+# - local_port: Port on your local machine (must be available)
+# - remote_port: Port on the remote server
+# Multiple mappings can be:
+# 1. In separate fields: ...,8080:80,3306:3306,6379:6379
+# 2. In one field with commas: ...,8080:80,3306:3306,6379:6379
+# 3. Mixed approach works too
+
+# Port Conflict Detection:
+# The script automatically checks if local ports are in use before connecting
+# If conflicts are detected, it will:
+# - Show which ports are in use and by which processes
+# - Suggest alternative available ports
+# - Prevent connection attempts until conflicts are resolved
+#
+# To check port usage manually: lsof -i :PORT_NUMBER
+# To kill a process using a port: kill -9 PID

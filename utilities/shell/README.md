@@ -144,7 +144,8 @@ curl -s https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/util
 ```
 
 ### Features
-- **Multiple Port Forwarding**: Configure multiple local-to-remote port mappings per server
+- **Multiple Port Forwarding**: Configure multiple local-to-remote port mappings per server with flexible format support
+- **Port Conflict Detection**: Automatically detects and warns about port conflicts before attempting connection
 - **Interactive Mode**: Displays a list of servers with their port mappings for user selection
 - **Non-Interactive Mode**: Connect directly to a server using its ID via command-line arguments
 - **Flexible Authentication**: Supports SSH key files or passwords
@@ -153,6 +154,7 @@ curl -s https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/util
 - **Environment Variable Support**: Customize behavior without modifying the script
 - **Extensible Configuration**: Manage server details and port mappings in an external configuration file
 - **Color-Coded Output**: Enhanced user experience with colored terminal output
+- **Enhanced Error Handling**: Comprehensive error handling with detailed troubleshooting information
 
 ### Requirements
 - `expect` installed on your system (`sudo apt install expect` on Debian/Ubuntu, `brew install expect` on macOS, etc.)
@@ -194,19 +196,21 @@ SSH_TIMEOUT=60 SSH_MAX_ATTEMPTS=5 ./ssh_port_forward.exp
 - **`PORT_FORWARD_CONFIG`**: Path to the port forward configuration file. Default: `~/.ssh/port_forward.conf`
 - **`TARGET_SERVER_ID`**: Server ID for non-interactive connection. No default.
 - **`TARGET_SERVER_NUM`**: Server number (index) for non-interactive connection. No default.
-- **`SSH_TIMEOUT`**: Connection timeout in seconds. Default: `30`
-- **`SSH_MAX_ATTEMPTS`**: Maximum number of connection attempts. Default: `3`
+- **`SSH_TIMEOUT`**: Connection timeout in seconds. Default: `300`
+- **`SSH_CONNECTION_TIMEOUT`**: SSH connection timeout in seconds. Default: `60`
+- **`SSH_MAX_ATTEMPTS`**: Maximum number of connection attempts. Default: `5`
 - **`SSH_NO_COLOR`**: Disable colored output. Default: `0` (enabled)
 - **`SSH_KEEP_ALIVE`**: Enable SSH keep-alive. Default: `1` (enabled)
-- **`SSH_ALIVE_INTERVAL`**: Keep-alive interval in seconds. Default: `60`
-- **`SSH_ALIVE_COUNT`**: Maximum keep-alive count. Default: `3`
+- **`SSH_ALIVE_INTERVAL`**: Keep-alive interval in seconds. Default: `15`
+- **`SSH_ALIVE_COUNT`**: Maximum keep-alive count. Default: `10`
+- **`SSH_TCP_KEEP_ALIVE`**: Enable TCP keep-alive. Default: `1` (enabled)
 - **`SSH_DEFAULT_SHELL`**: Shell to switch to after login (e.g., zsh, bash, fish)
 
 ### Configuration File
 The script reads server details and port mappings from a configuration file. See `port_forward.conf.example` for the format:
 ```
-# Format: ID,Name,Host,Port,User,AuthType,AuthValue,PortMappings
-web1,Web Server 1,192.168.1.10,22,root,key,~/.ssh/web1.key,8080:80,3306:3306
+# Format: ID,Name,Host,Port,User,AuthType,AuthValue,PortMapping1,PortMapping2,...
+web1,Web Server 1,192.168.1.10,22,root,key,~/.ssh/web1.key,8080:80,3306:3306,6379:6379
 db1,Database Server 1,192.168.1.20,22,root,password,securepass123,3307:3306,6379:6379
 app1,App Server 1,192.168.1.30,2222,admin,key,~/.ssh/app1.key,8081:80,8082:443,3308:3306
 ```
@@ -218,13 +222,15 @@ app1,App Server 1,192.168.1.30,2222,admin,key,~/.ssh/app1.key,8081:80,8082:443,3
 - **User**: SSH username
 - **AuthType**: `key` or `password`
 - **AuthValue**: Path to key file or plaintext password
-- **PortMappings**: Comma-separated list of local:remote port mappings (e.g., "8080:80,3306:3306")
+- **PortMappings**: Multiple port mapping fields in format "local_port:remote_port"
 
 ### Port Mapping Format
-Port mappings follow the format `local_port:remote_port`:
+Port mappings follow the format `local_port:remote_port` and support multiple configuration methods:
 - **local_port**: Port on your local machine that will forward to the remote server
 - **remote_port**: Port on the remote server that you want to access
-- **Multiple mappings**: Separate multiple mappings with commas: `local1:remote1,local2:remote2`
+- **Method 1 - Separate fields**: `...,8080:80,3306:3306,6379:6379`
+- **Method 2 - Comma-separated in one field**: `...,8080:80,3306:3306,6379:6379`
+- **Method 3 - Mixed approach**: Both methods can be used together
 
 ### Installation
 1. **Copy the Script**:
@@ -276,12 +282,36 @@ Port mappings follow the format `local_port:remote_port`:
 - **Redis Access**: Forward local port 6379 to remote Redis port 6379
 - **Multiple Services**: Forward multiple ports simultaneously for complex applications
 
+### Port Conflict Detection
+The script automatically detects port conflicts before attempting connections and provides helpful suggestions:
+- **Conflict Detection**: Checks if local ports are already in use before connecting
+- **Alternative Ports**: Suggests available alternative ports when conflicts are detected
+- **Error Prevention**: Prevents connection attempts when port conflicts exist
+- **Troubleshooting**: Provides commands to identify and resolve port conflicts
+
+### Troubleshooting
+If you encounter issues:
+1. **Port Conflicts**: The script will detect and warn about port conflicts
+   - Use `lsof -i :PORT_NUMBER` to see what's using a port
+   - Kill processes with `kill -9 PID` if needed
+   - Choose alternative ports as suggested by the script
+
+2. **Connection Issues**: Check SSH connectivity and authentication
+   - Verify SSH keys exist and have correct permissions
+   - Test basic SSH connection without port forwarding
+   - Check network connectivity and firewall settings
+
+3. **Configuration Issues**: Validate your configuration file
+   - Ensure port mappings use valid integer port numbers
+   - Check that SSH key files exist and are readable
+   - Verify server details are correct
+
 ### Notes
 - **Security**: Avoid storing sensitive passwords in plain text. Consider using SSH keys or a password manager
 - **Permissions**: Ensure `ssh_port_forward.exp` is executable (`chmod +x`) and the configuration file is readable only by you (`chmod 600 ~/.ssh/port_forward.conf`)
-- **Port Conflicts**: Ensure local ports are not already in use by other applications
+- **Port Management**: The script helps manage port conflicts but you should still plan your port usage carefully
 - **Firewall**: Make sure your local firewall allows connections to the forwarded ports
-- **Troubleshooting**: If connections fail, check your SSH keys, network, and server availability
+- **Connection Stability**: Enhanced keep-alive settings provide better connection stability for long-running sessions
 
 ## alist_upload.sh
 

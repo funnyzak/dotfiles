@@ -101,6 +101,66 @@ proc print_warning {text} {
     print_color $color_yellow "WARNING: $text"
 }
 
+# Function to check if a port is in use
+proc check_port_in_use {port} {
+    # Use netstat or lsof to check if port is in use
+    if {[catch {exec lsof -i :$port} result]} {
+        # Port is not in use
+        return 0
+    } else {
+        # Port is in use
+        return 1
+    }
+}
+
+# Function to find available port starting from a base port
+proc find_available_port {base_port} {
+    set port $base_port
+    while {[check_port_in_use $port] && $port < [expr {$base_port + 100}]} {
+        incr port
+    }
+    if {$port >= [expr {$base_port + 100}]} {
+        return -1
+    }
+    return $port
+}
+
+# Function to validate and suggest alternative ports
+proc validate_port_mappings {mappings} {
+    set valid_mappings {}
+    set has_conflicts 0
+
+    foreach mapping $mappings {
+        lassign $mapping local_port remote_port
+
+        if {[check_port_in_use $local_port]} {
+            set has_conflicts 1
+            print_warning "Port $local_port is already in use"
+
+            # Try to find an alternative port
+            set alt_port [find_available_port $local_port]
+            if {$alt_port != -1} {
+                print_info "Suggesting alternative port: $alt_port instead of $local_port"
+                print_info "You can:"
+                print_info "  1. Kill the process using port $local_port"
+                print_info "  2. Use port $alt_port instead"
+                print_info "  3. Choose a different port"
+            }
+        } else {
+            lappend valid_mappings $mapping
+        }
+    }
+
+    if {$has_conflicts} {
+        print_error "Port conflicts detected. Please resolve them before continuing."
+        print_info "To see what's using the ports, run: lsof -i :PORT_NUMBER"
+        print_info "To kill a process: kill -9 PID"
+        return {}
+    }
+
+    return $valid_mappings
+}
+
 # Expand home directory in path (~)
 # This function handles path expansion for key file paths
 proc expand_path {path} {
@@ -132,6 +192,8 @@ proc parse_port_mappings {mappings} {
         return $port_pairs
     }
 
+    print_info "Parsing port mappings: $mappings"
+
     foreach mapping [split $mappings ","] {
         set mapping [string trim $mapping]
         if {$mapping != ""} {
@@ -139,12 +201,19 @@ proc parse_port_mappings {mappings} {
             if {[llength $parts] == 2} {
                 set local_port [string trim [lindex $parts 0]]
                 set remote_port [string trim [lindex $parts 1]]
-                if {$local_port != "" && $remote_port != ""} {
+                if {$local_port != "" && $remote_port != "" && [string is integer $local_port] && [string is integer $remote_port]} {
                     lappend port_pairs [list $local_port $remote_port]
+                    print_info "Added port mapping: $local_port -> $remote_port"
+                } else {
+                    print_warning "Invalid port mapping format: $mapping (ports must be integers)"
                 }
+            } else {
+                print_warning "Invalid port mapping format: $mapping (expected format: local_port:remote_port)"
             }
         }
     }
+
+    print_info "Total port mappings parsed: [llength $port_pairs]"
     return $port_pairs
 }
 
@@ -177,7 +246,18 @@ proc load_server_config {config_file} {
             set user [string trim [lindex $parts 4]]
             set auth_type [string trim [lindex $parts 5]]
             set auth_value [string trim [lindex $parts 6]]
-            set port_mappings [string trim [lindex $parts 7]]
+
+            # Collect all port mapping fields (from index 7 onwards)
+            set port_mappings_list {}
+            for {set i 7} {$i < [llength $parts]} {incr i} {
+                set mapping [string trim [lindex $parts $i]]
+                if {$mapping != ""} {
+                    lappend port_mappings_list $mapping
+                }
+            }
+
+            # Join all port mappings with comma
+            set port_mappings [join $port_mappings_list ","]
 
             # Parse port mappings
             set mappings [parse_port_mappings $port_mappings]
@@ -265,49 +345,25 @@ proc build_ssh_command {server} {
     lappend ssh_cmd -o "StrictHostKeyChecking=no"
     lappend ssh_cmd -o "UserKnownHostsFile=/dev/null"
     lappend ssh_cmd -o "ConnectTimeout=$connection_timeout"
-    lappend ssh_cmd -o "TCPKeepAlive=$tcp_keep_alive"
+    lappend ssh_cmd -o "TCPKeepAlive=yes"
     lappend ssh_cmd -o "Compression=yes"
-    lappend ssh_cmd -o "CompressionLevel=6"
-    lappend ssh_cmd -o "IPQoS=0x00"
     lappend ssh_cmd -o "ExitOnForwardFailure=no"
 
-    # Add maximum connection persistence options
+    # Add keep-alive options for connection persistence
     lappend ssh_cmd -o "ServerAliveInterval=$alive_interval"
     lappend ssh_cmd -o "ServerAliveCountMax=$alive_count"
-    lappend ssh_cmd -o "ClientAliveInterval=$alive_interval"
-    lappend ssh_cmd -o "ClientAliveCountMax=$alive_count"
 
-    # Disable idle timeout to keep connection alive indefinitely
-    if {$idle_timeout > 0} {
-        lappend ssh_cmd -o "IdleTimeout=$idle_timeout"
-    } else {
-        # Set very long idle timeout (effectively no timeout)
-        lappend ssh_cmd -o "IdleTimeout=0"
-    }
-
-    # Additional options for maximum connection persistence
-    lappend ssh_cmd -o "TCPKeepAlive=yes"
-    lappend ssh_cmd -o "KeepAlive=yes"
+    # Additional stability options
     lappend ssh_cmd -o "BatchMode=no"
-    lappend ssh_cmd -o "RequestTTY=no"
-    lappend ssh_cmd -o "StdinNull=no"
-    lappend ssh_cmd -o "StdoutNull=no"
-    lappend ssh_cmd -o "StderrNull=no"
-
-    # Disable connection multiplexing to prevent interference
-    lappend ssh_cmd -o "ControlMaster=no"
-    lappend ssh_cmd -o "ControlPath=none"
-
-    # Optimize for long-running connections
     lappend ssh_cmd -o "GSSAPIAuthentication=no"
-    lappend ssh_cmd -o "GSSAPIDelegateCredentials=no"
-    lappend ssh_cmd -o "UseRoaming=no"
 
     # Add authentication options
     if {$auth_type == "key"} {
         set key_file [expand_path $auth_value]
         lappend ssh_cmd -o "PubkeyAuthentication=yes"
         lappend ssh_cmd -i $key_file
+    } else {
+        lappend ssh_cmd -o "PasswordAuthentication=yes"
     }
 
     # Add port forwarding options
@@ -397,11 +453,22 @@ print_info "Connecting to: $server_name ($host:$port)"
 print_info "User: $user"
 
 if {[llength $mappings] > 0} {
-    print_info "Port mappings:"
+    print_info "Checking port mappings:"
     foreach mapping $mappings {
         lassign $mapping local_port remote_port
         print_info "  Local:$local_port -> Remote:$remote_port"
     }
+
+    # Validate port mappings before attempting connection
+    set valid_mappings [validate_port_mappings $mappings]
+    if {[llength $valid_mappings] == 0} {
+        print_error "Cannot proceed due to port conflicts"
+        exit 1
+    }
+
+    # Update mappings with validated ones
+    set mappings $valid_mappings
+    set target_server [list $server_id $server_name $host $port $user $auth_type $auth_value $mappings]
 } else {
     print_warning "No port mappings configured for this server"
 }
@@ -458,6 +525,27 @@ while {$attempt <= $max_attempts} {
             catch {wait}
             incr attempt
             continue
+        }
+        -re "bind.*Address already in use" {
+            print_error "Port forwarding failed - local port already in use"
+            print_info "Please check and free up the conflicting ports, or use different ports"
+            catch {close}
+            catch {wait}
+            exit 1
+        }
+        "channel_setup_fwd_listener_tcpip: cannot listen to port" {
+            print_error "Cannot bind to local port for forwarding"
+            print_info "The port might be in use by another process"
+            catch {close}
+            catch {wait}
+            exit 1
+        }
+        "Could not request local forwarding" {
+            print_error "Local port forwarding request failed"
+            print_info "Check if the ports are available and not blocked by firewall"
+            catch {close}
+            catch {wait}
+            exit 1
         }
         "Connection refused" {
             print_error "Connection refused - server may be down or port blocked"
