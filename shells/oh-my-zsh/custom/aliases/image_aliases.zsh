@@ -691,17 +691,73 @@ alias img-split-dir='() {
 alias img-dir-to-pdf='() {
   if [ $# -eq 0 ]; then
     echo "Merge directory of images into PDF."
-    echo "Usage: img-dir-to-pdf <source_dir> [output_pdf_name]"
+    echo "Usage: img-dir-to-pdf <source_dir> [output_pdf_name] [page_size]"
+    echo "Page sizes: A4 (default), A3, A5, Letter, Legal, Tabloid"
+    echo "Examples:"
+    echo "  img-dir-to-pdf /path/to/images"
+    echo "  img-dir-to-pdf /path/to/images output.pdf"
+    echo "  img-dir-to-pdf /path/to/images output.pdf A4"
+    echo "  img-dir-to-pdf /path/to/images output.pdf Letter"
     return 0
   fi
 
   _image_aliases_validate_dir "$1" || return 1
+  _image_aliases_check_imagemagick || return 1
 
   local source_dir="$1"
   local folder_name="$(basename "$source_dir")"
   local output_pdf="${2:-$folder_name.pdf}"
+  local page_size="${3:-A4}"
+  local magick_cmd=$(_image_aliases_magick_cmd)
 
-  if magick convert "$(find "$source_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" \))" "$output_pdf"; then
+  # Convert page size to ImageMagick format
+  local page_geometry=""
+  case "$page_size" in
+    A4|a4)
+      page_geometry="595x842"
+      ;;
+    A3|a3)
+      page_geometry="842x1191"
+      ;;
+    A5|a5)
+      page_geometry="420x595"
+      ;;
+    Letter|letter)
+      page_geometry="612x792"
+      ;;
+    Legal|legal)
+      page_geometry="612x1008"
+      ;;
+    Tabloid|tabloid)
+      page_geometry="792x1224"
+      ;;
+    *)
+      echo "Warning: Unknown page size '$page_size', using A4 as default"
+      page_geometry="595x842"
+      ;;
+  esac
+
+  # Find all image files and store in array
+  local image_files=()
+  while IFS= read -r img; do
+    image_files+=("$img")
+  done < <(find "$source_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.heic" \) | sort)
+
+  if [ ${#image_files[@]} -eq 0 ]; then
+    echo "Error: No image files found in $source_dir" >&2
+    return 1
+  fi
+
+  echo "Found ${#image_files[@]} images to merge..."
+  echo "Using page size: $page_size ($page_geometry)"
+
+  # Create array with page geometry for each image
+  local magick_args=()
+  for img in "${image_files[@]}"; do
+    magick_args+=("$img" -resize "${page_geometry}>" -gravity center -extent "$page_geometry" -background white)
+  done
+
+  if $magick_cmd "${magick_args[@]}" "$output_pdf"; then
     echo "Merged directory of images into PDF complete, exported to $output_pdf"
   else
     echo "Error: Failed to merge images to PDF." >&2
@@ -712,7 +768,13 @@ alias img-dir-to-pdf='() {
 alias img-to-pdf='() {
   if [ $# -eq 0 ]; then
     echo "Convert single image to PDF."
-    echo "Usage: img-to-pdf <source_image> [output_pdf_name]"
+    echo "Usage: img-to-pdf <source_image> [output_pdf_name] [page_size]"
+    echo "Page sizes: A4 (default), A3, A5, Letter, Legal, Tabloid"
+    echo "Examples:"
+    echo "  img-to-pdf image.jpg"
+    echo "  img-to-pdf image.jpg output.pdf"
+    echo "  img-to-pdf image.jpg output.pdf A4"
+    echo "  img-to-pdf image.jpg output.pdf Letter"
     return 0
   fi
 
@@ -720,8 +782,38 @@ alias img-to-pdf='() {
 
   local source_path="$1"
   local output_pdf="${2:-${source_path%.*}.pdf}"
+  local page_size="${3:-A4}"
 
-  if magick convert "$source_path" "$output_pdf"; then
+  # Convert page size to ImageMagick format
+  local page_geometry=""
+  case "$page_size" in
+    A4|a4)
+      page_geometry="595x842"
+      ;;
+    A3|a3)
+      page_geometry="842x1191"
+      ;;
+    A5|a5)
+      page_geometry="420x595"
+      ;;
+    Letter|letter)
+      page_geometry="612x792"
+      ;;
+    Legal|legal)
+      page_geometry="612x1008"
+      ;;
+    Tabloid|tabloid)
+      page_geometry="792x1224"
+      ;;
+    *)
+      echo "Warning: Unknown page size '$page_size', using A4 as default"
+      page_geometry="595x842"
+      ;;
+  esac
+
+  echo "Using page size: $page_size ($page_geometry)"
+
+  if magick convert "$source_path" -resize "${page_geometry}>" -gravity center -extent "$page_geometry" -background white "$output_pdf"; then
     echo "Single image to PDF conversion complete, exported to $output_pdf"
   else
     echo "Error: Failed to convert image to PDF." >&2
