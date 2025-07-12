@@ -46,9 +46,7 @@ _audio_validate_dir() {
 #------------------------------------------------------------------------------
 
 alias ado-to-mp3='() {
-  echo "Convert audio to MP3 format."
-  echo "Usage:"
-  echo "  ado-to-mp3 <audio_file_path> [bitrate:128k]"
+  echo -e "Convert audio to MP3 format.\nUsage:\n  ado-to-mp3 <audio_file_path> [bitrate:128k]\n\nExamples:\n  ado-to-mp3 music.wav\n  -> Converts music.wav to music.mp3 with 128k bitrate\n  ado-to-mp3 music.wav 192k\n  -> Converts with 192k bitrate"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -73,9 +71,7 @@ alias ado-to-mp3='() {
 }' # Convert audio file to MP3 format with specified bitrate
 
 alias ado-dir-to-mp3='() {
-  echo "Convert audio files in directory to MP3 format."
-  echo "Usage:"
-  echo "  ado-dir-to-mp3 <audio_directory> <source_extension:wav> [bitrate:128k]"
+  echo -e "Convert audio files in directory to MP3 format.\nUsage:\n  ado-dir-to-mp3 <audio_directory> <source_extension:wav> [bitrate:128k]\n\nExamples:\n  ado-dir-to-mp3 ./music wav\n  -> Converts all wav files in ./music to mp3 with 128k bitrate\n  ado-dir-to-mp3 ./music flac 192k\n  -> Converts all flac files with 192k bitrate"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -148,9 +144,7 @@ alias ado-dir-to-mp3='() {
 #------------------------------------------------------------------------------
 
 alias ado-info='() {
-  echo "Display detailed information about audio file(s)."
-  echo "Usage:"
-  echo "  ado-info <audio_file_path> [audio_file_path2 ...]"
+  echo -e "Display detailed information about audio file(s).\nUsage:\n  ado-info <audio_file_path> [audio_file_path2 ...]\n\nExamples:\n  ado-info music.mp3\n  -> Shows detailed info for music.mp3\n  ado-info music.mp3 song.wav\n  -> Shows info for multiple files"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -185,9 +179,7 @@ alias ado-info='() {
 #------------------------------------------------------------------------------
 
 alias ado-to-wav='() {
-  echo "Convert audio to WAV format."
-  echo "Usage:"
-  echo "  ado-to-wav <audio_file_path> [sample_rate:44100]"
+  echo -e "Convert audio to WAV format.\nUsage:\n  ado-to-wav <audio_file_path> [sample_rate:44100]\n\nExamples:\n  ado-to-wav music.mp3\n  -> Converts music.mp3 to music.wav with 44100 Hz sample rate\n  ado-to-wav music.mp3 48000\n  -> Converts with 48000 Hz sample rate"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -212,9 +204,7 @@ alias ado-to-wav='() {
 }' # Convert audio file to WAV format with specified sample rate
 
 alias ado-to-ogg='() {
-  echo "Convert audio to OGG format."
-  echo "Usage:"
-  echo "  ado-to-ogg <audio_file_path> [quality:3]"
+  echo -e "Convert audio to OGG format.\nUsage:\n  ado-to-ogg <audio_file_path> [quality:3]\n\nExamples:\n  ado-to-ogg music.mp3\n  -> Converts music.mp3 to music.ogg with quality 3\n  ado-to-ogg music.mp3 6\n  -> Converts with higher quality (6 out of 10)"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -243,10 +233,7 @@ alias ado-to-ogg='() {
 #------------------------------------------------------------------------------
 
 alias ado-trim='() {
-  echo "Trim audio file to specified start and duration."
-  echo "Usage:"
-  echo "  ado-trim <audio_file_path> <start_time> <duration>"
-  echo "  Time format: hh:mm:ss or seconds (e.g. 00:01:30 or 90)"
+  echo -e "Trim audio file to specified start and duration.\nUsage:\n  ado-trim <audio_file_path> <start_time> <duration>\n  Time format: hh:mm:ss or seconds (e.g. 00:01:30 or 90)\n\nExamples:\n  ado-trim music.mp3 00:01:30 00:02:00\n  -> Trims from 1:30 for 2 minutes\n  ado-trim music.mp3 90 120\n  -> Trims from 90 seconds for 120 seconds"
 
   if [ $# -lt 3 ]; then
     return 1
@@ -366,9 +353,7 @@ alias ado-batch-volume='() {
 }' # Adjust volume of multiple audio files in a directory
 
 alias ado-merge='() {
-  echo "Merge multiple audio files into one."
-  echo "Usage:"
-  echo "  ado-merge <output_file> <input_file1> <input_file2> [...]"
+  echo -e "Merge multiple audio files into one.\nUsage:\n  ado-merge <output_file> <input_file1> <input_file2> [...]\n\nExamples:\n  ado-merge combined.mp3 intro.mp3 main.mp3 outro.mp3\n  -> Merges three files into combined.mp3\n  ado-merge playlist.mp3 song1.mp3 song2.mp3\n  -> Creates playlist from two songs"
 
   if [ $# -lt 3 ]; then
     return 1
@@ -555,10 +540,7 @@ alias ado-batch-fade='() {
 }' # Add fade-in and fade-out effects to multiple audio files in a directory
 
 alias ado-speed='() {
-  echo "Change playback speed of audio file without changing pitch."
-  echo "Usage:"
-  echo "  ado-speed <audio_file_path> <speed_factor>"
-  echo "  Speed factor: 0.5 = half speed, 2.0 = double speed"
+  echo -e "Change playback speed of audio file without changing pitch.\nUsage:\n  ado-speed <audio_file_path> <speed_factor>\n  Speed factor: 0.5 = half speed, 2.0 = double speed\n\nExamples:\n  ado-speed music.mp3 0.8\n  -> Slows down music to 80% speed\n  ado-speed music.mp3 1.5\n  -> Speeds up music to 150% speed"
 
   if [ $# -lt 2 ]; then
     return 1
@@ -583,6 +565,330 @@ alias ado-speed='() {
 }' # Change playback speed of audio file without changing pitch
 
 #------------------------------------------------------------------------------
+# Audio Compression
+#------------------------------------------------------------------------------
+
+alias ado-compress='() {
+  echo -e "Compress audio file with various options.\nUsage:\n  ado-compress <audio_file_path> [--format mp3|aac|ogg] [--quality high|medium|low] [--bitrate 128k]\n\nExamples:\n  ado-compress music.wav\n  -> Compresses music.wav to music_compressed.mp3 with default settings\n  ado-compress music.wav --format aac --quality high\n  -> Compresses to AAC format with high quality\n  ado-compress music.wav --bitrate 96k\n  -> Compresses with specific bitrate"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  local input_file="$1"
+  local output_format="mp3"
+  local quality="medium"
+  local bitrate=""
+  local custom_bitrate=false
+
+  # Parse options
+  shift
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --format)
+        if [ -n "$2" ] && [[ "$2" =~ ^(mp3|aac|ogg)$ ]]; then
+          output_format="$2"
+          shift 2
+        else
+          echo "Error: Invalid format. Supported formats: mp3, aac, ogg" >&2
+          return 1
+        fi
+        ;;
+      --quality)
+        if [ -n "$2" ] && [[ "$2" =~ ^(high|medium|low)$ ]]; then
+          quality="$2"
+          shift 2
+        else
+          echo "Error: Invalid quality. Supported qualities: high, medium, low" >&2
+          return 1
+        fi
+        ;;
+      --bitrate)
+        if [ -n "$2" ] && [[ "$2" =~ ^[0-9]+k?$ ]]; then
+          bitrate="$2"
+          custom_bitrate=true
+          shift 2
+        else
+          echo "Error: Invalid bitrate format. Use format like 128k or 192" >&2
+          return 1
+        fi
+        ;;
+      *)
+        echo "Error: Unknown option $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  _audio_validate_file "$input_file" || return 1
+  _audio_check_ffmpeg || return 1
+
+  # Set bitrate based on quality if not custom specified
+  if [ "$custom_bitrate" = false ]; then
+    case "$quality" in
+      high)
+        case "$output_format" in
+          mp3) bitrate="192k" ;;
+          aac) bitrate="256k" ;;
+          ogg) bitrate="192k" ;;
+        esac
+        ;;
+      medium)
+        case "$output_format" in
+          mp3) bitrate="128k" ;;
+          aac) bitrate="128k" ;;
+          ogg) bitrate="128k" ;;
+        esac
+        ;;
+      low)
+        case "$output_format" in
+          mp3) bitrate="96k" ;;
+          aac) bitrate="96k" ;;
+          ogg) bitrate="96k" ;;
+        esac
+        ;;
+    esac
+  fi
+
+  local output_file="${input_file%.*}_compressed.${output_format}"
+
+  echo "Compressing $input_file to $output_format format..."
+  echo "  Quality: $quality"
+  echo "  Bitrate: $bitrate"
+
+  # Set compression options based on format
+  local compression_opts=""
+  case "$output_format" in
+    mp3)
+      compression_opts="-c:a libmp3lame -b:a $bitrate"
+      ;;
+    aac)
+      compression_opts="-c:a aac -b:a $bitrate"
+      ;;
+    ogg)
+      # For OGG, convert bitrate to quality if needed
+      local ogg_quality=""
+      case "$bitrate" in
+        96k) ogg_quality="2" ;;
+        128k) ogg_quality="4" ;;
+        192k) ogg_quality="6" ;;
+        *) ogg_quality="4" ;;
+      esac
+      compression_opts="-c:a libvorbis -q:a $ogg_quality"
+      ;;
+  esac
+
+  if eval "ffmpeg -i \"$input_file\" $compression_opts \"$output_file\""; then
+    echo "✓ Compression complete, exported to $output_file"
+
+    # Show file size comparison
+    if command -v stat &> /dev/null; then
+      local original_size=$(stat -f%z "$input_file" 2>/dev/null || stat -c%s "$input_file" 2>/dev/null)
+      local compressed_size=$(stat -f%z "$output_file" 2>/dev/null || stat -c%s "$output_file" 2>/dev/null)
+
+      if [ -n "$original_size" ] && [ -n "$compressed_size" ]; then
+        local compression_ratio=$(( compressed_size * 100 / original_size ))
+        echo "  Original size: $(( original_size / 1024 ))KB"
+        echo "  Compressed size: $(( compressed_size / 1024 ))KB"
+        echo "  Compression ratio: ${compression_ratio}%"
+      fi
+    fi
+  else
+    echo "✗ Error: Audio compression failed" >&2
+    echo "  Please check if the input file format is supported and try again" >&2
+    return 1
+  fi
+}' # Compress audio file with customizable format, quality and bitrate options
+
+alias ado-batch-compress='() {
+  echo -e "Compress all audio files in a directory with various options.\nUsage:\n  ado-batch-compress <audio_directory> <source_extension:mp3> [--format mp3|aac|ogg] [--quality high|medium|low] [--bitrate 128k]\n\nExamples:\n  ado-batch-compress ./music wav\n  -> Compresses all wav files to mp3 with default settings\n  ado-batch-compress ./music flac --format aac --quality high\n  -> Compresses all flac files to AAC with high quality"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  local aud_folder="${1:-.}"
+  local aud_ext="${2:-mp3}"
+  local output_format="mp3"
+  local quality="medium"
+  local bitrate=""
+  local custom_bitrate=false
+
+  # Parse options
+  shift 2
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --format)
+        if [ -n "$2" ] && [[ "$2" =~ ^(mp3|aac|ogg)$ ]]; then
+          output_format="$2"
+          shift 2
+        else
+          echo "Error: Invalid format. Supported formats: mp3, aac, ogg" >&2
+          return 1
+        fi
+        ;;
+      --quality)
+        if [ -n "$2" ] && [[ "$2" =~ ^(high|medium|low)$ ]]; then
+          quality="$2"
+          shift 2
+        else
+          echo "Error: Invalid quality. Supported qualities: high, medium, low" >&2
+          return 1
+        fi
+        ;;
+      --bitrate)
+        if [ -n "$2" ] && [[ "$2" =~ ^[0-9]+k?$ ]]; then
+          bitrate="$2"
+          custom_bitrate=true
+          shift 2
+        else
+          echo "Error: Invalid bitrate format. Use format like 128k or 192" >&2
+          return 1
+        fi
+        ;;
+      *)
+        echo "Error: Unknown option $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  _audio_validate_dir "$aud_folder" || return 1
+  _audio_check_ffmpeg || return 1
+
+  # Set bitrate based on quality if not custom specified
+  if [ "$custom_bitrate" = false ]; then
+    case "$quality" in
+      high)
+        case "$output_format" in
+          mp3) bitrate="192k" ;;
+          aac) bitrate="256k" ;;
+          ogg) bitrate="192k" ;;
+        esac
+        ;;
+      medium)
+        case "$output_format" in
+          mp3) bitrate="128k" ;;
+          aac) bitrate="128k" ;;
+          ogg) bitrate="128k" ;;
+        esac
+        ;;
+      low)
+        case "$output_format" in
+          mp3) bitrate="96k" ;;
+          aac) bitrate="96k" ;;
+          ogg) bitrate="96k" ;;
+        esac
+        ;;
+    esac
+  fi
+
+  # Set locale to handle Unicode/Chinese characters properly
+  export LC_ALL=en_US.UTF-8
+  export LANG=en_US.UTF-8
+
+  # Check if source files exist using a more robust method
+  local file_count=0
+  local temp_files=()
+
+  # Use process substitution to handle filenames with special characters
+  while IFS= read -r -d "" file; do
+    temp_files+=("$file")
+    ((file_count++))
+  done < <(find "$aud_folder" -maxdepth 1 -type f -name "*.${aud_ext}" -print0)
+
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${aud_ext} files found in $aud_folder" >&2
+    return 1
+  fi
+
+  mkdir -p "${aud_folder}/compressed_${output_format}"
+  local errors=0
+  local success_count=0
+  local total_original_size=0
+  local total_compressed_size=0
+
+  echo "Starting batch compression..."
+  echo "  Source format: $aud_ext"
+  echo "  Output format: $output_format"
+  echo "  Quality: $quality"
+  echo "  Bitrate: $bitrate"
+  echo ""
+
+  # Set compression options based on format
+  local compression_opts=""
+  case "$output_format" in
+    mp3)
+      compression_opts="-c:a libmp3lame -b:a $bitrate"
+      ;;
+    aac)
+      compression_opts="-c:a aac -b:a $bitrate"
+      ;;
+    ogg)
+      # For OGG, convert bitrate to quality if needed
+      local ogg_quality=""
+      case "$bitrate" in
+        96k) ogg_quality="2" ;;
+        128k) ogg_quality="4" ;;
+        192k) ogg_quality="6" ;;
+        *) ogg_quality="4" ;;
+      esac
+      compression_opts="-c:a libvorbis -q:a $ogg_quality"
+      ;;
+  esac
+
+  # Process each file using array to preserve filenames with special characters
+  for file in "${temp_files[@]}"; do
+    local base_name=$(basename "$file" .${aud_ext})
+    local output_file="$aud_folder/compressed_${output_format}/${base_name}_compressed.${output_format}"
+
+    echo "Compressing: $(basename "$file") -> ${base_name}_compressed.${output_format}"
+
+    if eval "ffmpeg -i \"$file\" $compression_opts \"$output_file\" -loglevel error"; then
+      echo "  ✓ Success"
+      ((success_count++))
+
+      # Calculate size if possible
+      if command -v stat &> /dev/null; then
+        local original_size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null)
+        local compressed_size=$(stat -f%z "$output_file" 2>/dev/null || stat -c%s "$output_file" 2>/dev/null)
+
+        if [ -n "$original_size" ] && [ -n "$compressed_size" ]; then
+          total_original_size=$(( total_original_size + original_size ))
+          total_compressed_size=$(( total_compressed_size + compressed_size ))
+          echo "    Size: $(( original_size / 1024 ))KB -> $(( compressed_size / 1024 ))KB"
+        fi
+      fi
+    else
+      echo "  ✗ Error: Failed to compress $(basename "$file")" >&2
+      ((errors++))
+    fi
+    echo ""
+  done
+
+  echo "Batch Compression Summary:"
+  echo "  Total files processed: $file_count"
+  echo "  Successfully compressed: $success_count"
+  echo "  Failed compressions: $errors"
+
+  if [ "$total_original_size" -gt 0 ] && [ "$total_compressed_size" -gt 0 ]; then
+    local total_compression_ratio=$(( total_compressed_size * 100 / total_original_size ))
+    echo "  Total original size: $(( total_original_size / 1024 / 1024 ))MB"
+    echo "  Total compressed size: $(( total_compressed_size / 1024 / 1024 ))MB"
+    echo "  Overall compression ratio: ${total_compression_ratio}%"
+    echo "  Space saved: $(( (total_original_size - total_compressed_size) / 1024 / 1024 ))MB"
+  fi
+
+  if [ "$errors" -eq 0 ]; then
+    echo "Batch compression complete, exported to $aud_folder/compressed_${output_format}"
+    return 0
+  else
+    echo "Warning: Batch compression completed with $errors errors" >&2
+    return 1
+  fi
+}' # Compress all audio files in a directory with customizable options
+
+#------------------------------------------------------------------------------
 # Audio Help
 #------------------------------------------------------------------------------
 
@@ -594,6 +900,10 @@ alias ado-help='() {
   echo "  ado-dir-to-mp3   - Convert all audio files in directory to MP3"
   echo "  ado-to-wav       - Convert audio file to WAV format"
   echo "  ado-to-ogg       - Convert audio file to OGG format"
+  echo
+  echo "Compression Commands:"
+  echo "  ado-compress     - Compress audio file with customizable options"
+  echo "  ado-batch-compress - Compress all audio files in a directory"
   echo
   echo "Information Commands:"
   echo "  ado-info         - Display detailed information about audio file(s)"
