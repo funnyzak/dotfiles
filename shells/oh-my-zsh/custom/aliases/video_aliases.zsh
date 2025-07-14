@@ -2269,6 +2269,84 @@ alias vdo-batch-crop='() {
   return 0
 }' # Crop multiple video files in a directory
 
+alias vdo-rm-metadata='() {
+  if [[ -z "$1" ]]; then
+    echo "Remove metadata from a video file"
+    echo "Usage: vdo-rm-metadata <input_file> [output_file]"
+    echo "Example: vdo-rm-metadata input.mp4 output.mp4"
+    return 1
+  fi
+
+  local input_file="$1"
+  local output_file="$2"
+
+  if [[ -z "$output_file" ]]; then
+    local base_name="${input_file%.*}"
+    local ext="${input_file##*.}"
+    output_file="${base_name}_nometa.${ext}"
+  fi
+
+  echo "Removing metadata from: $input_file"
+  echo "Output file: $output_file"
+
+  ffmpeg -hide_banner -loglevel error -y -i "$input_file" \
+    -c:v copy -c:a copy -map_metadata -1 -map_chapters -1 -fflags +bitexact "$output_file" && \
+    echo "Metadata removed successfully." || \
+    echo "Error: Failed to remove metadata." >&2
+}' # Remove metadata from a video file
+
+alias vdo-batch-rm-metadata='() {
+  if [[ -z "$1" ]]; then
+    echo "Remove metadata from all video files in a directory"
+    echo "Usage: vdo-batch-rm-metadata <directory> [extension]"
+    echo "Example: vdo-batch-rm-metadata ./videos mp4"
+    return 1
+  fi
+
+  local dir="$1"
+  local ext="${2:-mp4}"
+  local output_dir="${dir%/}_nometa"
+  local processed=0
+  local success=0
+  local failed=0
+
+  if [[ ! -d "$dir" ]]; then
+    echo "Error: Directory '$dir' does not exist." >&2
+    return 1
+  fi
+
+  mkdir -p "$output_dir"
+
+  for file in "$dir"/*."$ext"; do
+    if [[ ! -f "$file" ]]; then
+      continue
+    fi
+    local base_name="$(basename "$file")"
+    local out_file="$output_dir/${base_name%.*}_nometa.${ext}"
+    echo "Processing: $base_name"
+    if ffmpeg -hide_banner -loglevel error -y -i "$file" \
+      -c:v copy -c:a copy -map_metadata -1 -map_chapters -1 -fflags +bitexact "$out_file"; then
+      echo "  Metadata removed: $out_file"
+      ((success++))
+    else
+      echo "  Error: Failed to remove metadata from $base_name" >&2
+      ((failed++))
+    fi
+    ((processed++))
+  done
+
+  echo "Batch remove metadata summary:"
+  echo "  Processed: $processed files"
+  echo "  Success:   $success files"
+  echo "  Failed:    $failed files"
+  echo "Output files saved to: $output_dir"
+
+  if [[ $failed -gt 0 ]]; then
+    return 1
+  fi
+  return 0
+}' # Remove metadata from all video files in a directory
+
 #------------------------------------------------------------------------------
 # Video Help Function
 #------------------------------------------------------------------------------
@@ -2328,6 +2406,10 @@ alias vdo-help='() {
   echo "  vdo-to-1080p <file>                  - Convert video to 1080p resolution"
   echo "  vdo-dir-to-720p <dir> <ext>          - Convert videos in directory to 720p resolution"
   echo "  vdo-dir-to-1080p <dir> <ext>         - Convert videos in directory to 1080p resolution"
+  echo ""
+  echo "Metadata Removal:"
+  echo "  vdo-rm-metadata <file> [output_file]   - Remove metadata from a video file"
+  echo "  vdo-batch-rm-metadata <dir> [ext]      - Batch remove metadata from videos in a directory"
   echo ""
   echo "Screenshot Series:"
   echo "  vdo-create-thumbnails <file> <interval> - Create thumbnails at regular intervals"
