@@ -111,6 +111,58 @@ _bria_process_and_download() {
   fi
 }
 
+# Function to validate aspect ratio parameter
+_bria_validate_aspect_ratio() {
+  local aspect_ratio=$1
+  
+  # Check if it's a predefined ratio
+  case "$aspect_ratio" in
+    "1:1"|"2:3"|"3:2"|"3:4"|"4:3"|"4:5"|"5:4"|"9:16"|"16:9")
+      return 0
+      ;;
+    *)
+      # Check if it's a custom float between 0.5 and 3.0
+      if [[ "$aspect_ratio" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        # Use bc for floating point comparison if available, otherwise use awk
+        if command -v bc &> /dev/null; then
+          if (( $(echo "$aspect_ratio >= 0.5 && $aspect_ratio <= 3.0" | bc -l) )); then
+            return 0
+          fi
+        else
+          if awk "BEGIN {exit !($aspect_ratio >= 0.5 && $aspect_ratio <= 3.0)}"; then
+            return 0
+          fi
+        fi
+      fi
+      return 1
+      ;;
+  esac
+}
+
+# Function to generate output filename with aspect ratio information
+_bria_generate_output_filename() {
+  local input_url_or_path=$1
+  local aspect_ratio=$2
+  local output_dir=${3:-"./"}
+  
+  # Extract filename from URL or file path
+  local filename=$(basename "$input_url_or_path")
+  local name="${filename%.*}"
+  
+  # Convert aspect ratio to filename-safe format
+  local ratio_suffix=""
+  if [[ "$aspect_ratio" == *":"* ]]; then
+    # Handle ratio like "2:3" -> "2x3"
+    ratio_suffix="${aspect_ratio//:/x}"
+  else
+    # Handle float like "1.5" -> "1.5x"
+    ratio_suffix="${aspect_ratio}x"
+  fi
+  
+  # Generate output filename with aspect ratio info
+  echo "${output_dir}/${name}_${ratio_suffix}.png"
+}
+
 # Background Operations
 # -------------------
 
@@ -488,7 +540,7 @@ alias bria-gen-fill='() {
 # --------------------------
 
 alias bria-expand-img='() {
-  echo -e "Expand image canvas with AI generated content.\nUsage:\n bria-expand-img <image_path_or_url> <width:1024> <height:1024> [output_path] [\"prompt:matching content\"]\n\nExamples:\n bria-expand-img portrait.jpg 2048 1536\n -> Expands portrait.jpg to 2048x1536px with AI generated content around the edges\n -> Saves as portrait_expanded.jpg\n\n bria-expand-img photo.png 800 1200 new_photo.png \"mountain landscape\"\n -> Expands photo.png to 800x1200px with mountain landscape around the edges\n -> Saves as new_photo.png\n"
+  echo -e "Expand image canvas with AI generated content by aspect ratio.\nUsage:\n bria-expand-img <image_path_or_url> [aspect_ratio:16:9] [output_path]\n\nExamples:\n bria-expand-img portrait.jpg 2:3\n -> Expands portrait.jpg to 2:3 aspect ratio with AI generated content around the edges\n -> Saves as portrait_2x3.png\n\n bria-expand-img photo.png 1:1 square.png\n -> Expands photo.png to square (1:1) aspect ratio\n -> Saves as square.png\n\n bria-expand-img https://example.com/image.jpg 1.5\n -> Expands image using custom ratio 1.5 (between 0.5 and 3.0)\n -> Saves as image_1.5x.png\n\nSupported aspect ratios:\n - Predefined: \"1:1\", \"2:3\", \"3:2\", \"3:4\", \"4:3\", \"4:5\", \"5:4\", \"9:16\", \"16:9\"\n - Custom float: between 0.5 and 3.0\n"
 
   if [ -z "$1" ]; then
     echo "Error: Missing required parameter - image path or URL" >&2
@@ -496,10 +548,8 @@ alias bria-expand-img='() {
   fi
 
   local input=$1
-  local width=${2:-1024}
-  local height=${3:-1024}
-  local output=$4
-  local prompt=${5:-"matching content"}
+  local aspect_ratio=${2:-"16:9"}
+  local output=$3
   local api_url="https://engine.prod.bria-api.com/v1/image_expansion"
   local response=""
   local result_url=""
@@ -507,20 +557,27 @@ alias bria-expand-img='() {
   _bria_check_token || return 1
   _bria_check_dependencies || return 1
 
-  echo "Expanding image: $input to dimensions: ${width}x${height} with prompt: $prompt"
+  # Validate aspect ratio
+  if ! _bria_validate_aspect_ratio "$aspect_ratio"; then
+    echo "Error: Invalid aspect ratio: $aspect_ratio" >&2
+    echo "Supported ratios: \"1:1\", \"2:3\", \"3:2\", \"3:4\", \"4:3\", \"4:5\", \"5:4\", \"9:16\", \"16:9\" or custom float between 0.5 and 3.0" >&2
+    return 1
+  fi
+
+  echo "Expanding image: $input to aspect ratio: $aspect_ratio"
 
   # Check if input is URL or local file
   if [[ $input == http* ]]; then
     # Use URL
-    # If output not specified, use default
+    # If output not specified, use default with aspect ratio info
     if [ -z "$output" ]; then
-      output="./output_expanded.png"
+      output=$(_bria_generate_output_filename "$input" "$aspect_ratio" "./")
     fi
 
     response=$(curl -s -X POST "$api_url" \
       -H "api_token: $BRIA_TOKEN" \
       -H "Content-Type: application/json" \
-      -d "{\"image_url\":\"$input\", \"width\":$width, \"height\":$height, \"prompt\":\"$prompt\"}")
+      -d "{\"image_url\":\"$input\", \"aspect_ratio\":\"$aspect_ratio\"}")
 
   else
     # Use local file
@@ -531,11 +588,8 @@ alias bria-expand-img='() {
 
     # Generate default output path if not specified
     if [ -z "$output" ]; then
-      local filename=$(basename "$input")
       local dirname=$(dirname "$input")
-      local name="${filename%.*}"
-      local ext="${filename##*.}"
-      output="$dirname/${name}_expanded.$ext"
+      output=$(_bria_generate_output_filename "$input" "$aspect_ratio" "$dirname")
     fi
 
     # Get content type based on file extension
@@ -547,9 +601,7 @@ alias bria-expand-img='() {
     response=$(curl -s -X POST "$api_url" \
       -H "api_token: $BRIA_TOKEN" \
       -F "file=@$input;type=$content_type" \
-      -F "width=$width" \
-      -F "height=$height" \
-      -F "prompt=$prompt")
+      -F "aspect_ratio=$aspect_ratio")
   fi
 
   # Extract result_url from JSON response
@@ -569,7 +621,108 @@ alias bria-expand-img='() {
     echo "Error: Failed to download result image" >&2
     return 1
   fi
-}' # Expand image canvas with AI generated content
+}' # Expand image canvas with AI generated content by aspect ratio
+
+alias bria-batch-expand-img='() {
+  echo -e "Expand multiple images from URLs with AI generated content by aspect ratio.\nUsage:\n bria-batch-expand-img <urls_file> [aspect_ratio:16:9] [output_directory:./expanded]\n\nExamples:\n bria-batch-expand-img image_urls.txt 2:3\n -> Expands all images from URLs in image_urls.txt to 2:3 aspect ratio\n -> Saves results like image1_2x3.png, image2_2x3.png in ./expanded/ directory\n\n bria-batch-expand-img urls.txt 1:1 ./results\n -> Expands all images from URLs in urls.txt to square (1:1) aspect ratio\n -> Saves results like photo_1x1.png in ./results/ directory\n\nURL file format:\n Each line should contain one image URL:\n https://example.com/image1.jpg\n https://example.com/image2.png\n https://example.com/image3.jpg\n\nSupported aspect ratios:\n - Predefined: \"1:1\", \"2:3\", \"3:2\", \"3:4\", \"4:3\", \"4:5\", \"5:4\", \"9:16\", \"16:9\"\n - Custom float: between 0.5 and 3.0\n"
+
+  if [ -z "$1" ]; then
+    echo "Error: Missing required parameter - URLs file path" >&2
+    return 1
+  fi
+
+  local urls_file="$1"
+  local aspect_ratio="${2:-16:9}"
+  local output_dir="${3:-./expanded}"
+
+  if [ ! -f "$urls_file" ]; then
+    echo "Error: URLs file not found: $urls_file" >&2
+    return 1
+  fi
+
+  _bria_check_token || return 1
+  _bria_check_dependencies || return 1
+
+  # Validate aspect ratio
+  if ! _bria_validate_aspect_ratio "$aspect_ratio"; then
+    echo "Error: Invalid aspect ratio: $aspect_ratio" >&2
+    echo "Supported ratios: \"1:1\", \"2:3\", \"3:2\", \"3:4\", \"4:3\", \"4:5\", \"5:4\", \"9:16\", \"16:9\" or custom float between 0.5 and 3.0" >&2
+    return 1
+  fi
+
+  # Count URLs in file (excluding empty lines and comments)
+  local url_count=$(grep -v "^#" "$urls_file" | grep -v "^$" | wc -l)
+  if [ "$url_count" -eq 0 ]; then
+    echo "Error: No valid URLs found in $urls_file" >&2
+    return 1
+  fi
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  local processed=0
+  local errors=0
+  local line_number=0
+
+  echo "Processing $url_count URLs from $urls_file with aspect ratio: $aspect_ratio..."
+
+  # Process each URL
+  while IFS= read -r image_url; do
+    line_number=$((line_number + 1))
+    
+    # Skip empty lines and comments
+    if [[ -z "$image_url" ]] || [[ "$image_url" =~ ^#.* ]]; then
+      continue
+    fi
+
+    # Validate URL format
+    if ! [[ "$image_url" =~ ^https?:// ]]; then
+      echo "✗ Line $line_number: Invalid URL format: $image_url" >&2
+      errors=$((errors + 1))
+      continue
+    fi
+
+    # Generate output filename from URL with aspect ratio info
+    local output_path=$(_bria_generate_output_filename "$image_url" "$aspect_ratio" "$output_dir")
+
+    echo "Processing URL $processed/$url_count: $image_url"
+
+    # Call Bria API
+    local api_url="https://engine.prod.bria-api.com/v1/image_expansion"
+    local response=""
+    local result_url=""
+
+    response=$(curl -s -X POST "$api_url" \
+      -H "api_token: $BRIA_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "{\"image_url\":\"$image_url\", \"aspect_ratio\":\"$aspect_ratio\"}")
+
+    # Extract result_url from JSON response
+    result_url=$(echo "$response" | jq -r ".result_url")
+
+    if [ -z "$result_url" ] || [ "$result_url" = "null" ]; then
+      echo "✗ Failed to get result URL for $image_url" >&2
+      echo "Response: $response" >&2
+      errors=$((errors + 1))
+      continue
+    fi
+
+    # Download the result image
+    if curl -s "$result_url" -o "$output_path"; then
+      echo "✓ $filename expanded successfully -> $output_path"
+      processed=$((processed + 1))
+    else
+      echo "✗ Failed to download result for $image_url" >&2
+      errors=$((errors + 1))
+    fi
+  done < "$urls_file"
+
+  echo "Batch processing complete: $processed images processed successfully, $errors errors"
+  if [ "$errors" -gt 0 ]; then
+    return 1
+  fi
+  return 0
+}' # Expand multiple images from URLs with AI generated content by aspect ratio
 
 alias bria-increase-res='() {
   echo -e "Increase image resolution.\nUsage:\n bria-increase-res <image_path_or_url> [scale_factor:2] [output_path]\n\nExamples:\n bria-increase-res photo.jpg\n -> Doubles the resolution of photo.jpg using AI upscaling\n -> Saves as photo_upscaled.jpg\n\n bria-increase-res image.png 4 highres.png\n -> Increases resolution by 4x\n -> Saves as highres.png\n"
@@ -926,7 +1079,8 @@ alias bria-help='() {
   echo -e "  bria-gen-fill       - Fill masked area with generated content"
 
   echo -e "\nImage Enhancement Operations:"
-  echo -e "  bria-expand-img     - Expand image canvas with AI generated content"
+  echo -e "  bria-expand-img     - Expand image canvas with AI generated content by aspect ratio"
+  echo -e "  bria-batch-expand-img - Expand multiple images from URLs with AI generated content by aspect ratio"
   echo -e "  bria-increase-res   - Increase image resolution"
 
   echo -e "\nAdvanced Image Processing Operations:"
