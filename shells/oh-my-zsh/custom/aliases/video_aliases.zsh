@@ -263,22 +263,38 @@ alias vdo-batch-merge-audio='() {
 # Video Format Conversion
 #------------------------------------------------------------------------------
 
-alias vdo-to-mp4='() {
+alias vdo-convert='() {
   if [ $# -eq 0 ]; then
-    echo "Convert video to MP4 format."
+    echo "Convert video to specified format."
     echo "Usage:"
-    echo "  vdo-to-mp4 <video_file_path> [video_file_path2] [video_file_path3]..."
+    echo "  vdo-convert <video_file_path> [target_format] [video_file_path2] [target_format2]..."
+    echo "  vdo-convert <video_file_path> [video_file_path2] [video_file_path3]... [target_format]"
+    echo "Examples:"
+    echo "  vdo-convert video.avi mp4"
+    echo "  vdo-convert video1.avi video2.mkv mp4"
+    echo "  vdo-convert video.avi webm"
     return 1
   fi
 
   _vdo_check_ffmpeg || return 1
-  input_files=("$@")
+
+  # Parse arguments to separate files and format
+  local input_files=()
+  local target_format="mp4"
+
+  # If last argument looks like a format (no extension), use it as target format
+  if [[ "${@: -1}" =~ ^[a-zA-Z0-9]+$ ]] && [[ ! -f "${@: -1}" ]]; then
+    target_format="${@: -1}"
+    input_files=("${@:1:$(($#-1))}")
+  else
+    input_files=("$@")
+  fi
 
   for input_file in "${input_files[@]}"; do
     _vdo_validate_file "$input_file" || return 1
 
-    output_file="${input_file%.*}.mp4"
-    echo "Converting $input_file to MP4 format..."
+    output_file="${input_file%.*}.${target_format}"
+    echo "Converting $input_file to ${target_format} format..."
 
     if ffmpeg -i "$input_file" -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 256k -ac 2 "$output_file"; then
       echo "Conversion complete, exported to $output_file"
@@ -287,6 +303,63 @@ alias vdo-to-mp4='() {
       return 1
     fi
   done
+}' # Convert video to specified format
+
+alias vdo-batch-convert='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert videos in directory to specified format."
+    echo "Usage:"
+    echo "  vdo-batch-convert <video_directory> <source_extension> [target_format]"
+    echo "Examples:"
+    echo "  vdo-batch-convert ./videos avi mp4"
+    echo "  vdo-batch-convert ./videos mkv webm"
+    echo "  vdo-batch-convert ./videos mov (defaults to mp4)"
+    return 1
+  fi
+
+  vdo_folder="${1:-.}"
+  vdo_ext="${2:-mp4}"
+  target_format="${3:-mp4}"
+
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Check if source files exist
+  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
+    return 1
+  fi
+
+  mkdir -p "${vdo_folder}/${target_format}"
+  errors=0
+
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
+    output_file="$vdo_folder/${target_format}/$(basename "$file" .${vdo_ext}).${target_format}"
+    echo "Converting $file to $output_file..."
+    if ! ffmpeg -i "$file" -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 256k -ac 2 "$output_file"; then
+      echo "Error: Failed to convert $file" >&2
+      ((errors++))
+    fi
+  done
+
+  if [ "$errors" -eq 0 ]; then
+    echo "Directory video conversion complete, exported to $vdo_folder/${target_format}"
+  else
+    echo "Warning: Conversion completed with $errors errors" >&2
+    return 1
+  fi
+}' # Convert batch of videos to specified format
+
+alias vdo-to-mp4='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert video to MP4 format."
+    echo "Usage:"
+    echo "  vdo-to-mp4 <video_file_path> [video_file_path2] [video_file_path3]..."
+    return 1
+  fi
+
+  vdo-convert "$@" mp4
 }' # Convert video to MP4 format
 
 alias vdo-batch-to-mp4='() {
@@ -300,34 +373,7 @@ alias vdo-batch-to-mp4='() {
   vdo_folder="${1:-.}"
   vdo_ext="${2:-mp4}"
 
-  _vdo_validate_dir "$vdo_folder" || return 1
-  _vdo_check_ffmpeg || return 1
-
-  # Check if source files exist
-  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
-  if [ "$file_count" -eq 0 ]; then
-    echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
-    return 1
-  fi
-
-  mkdir -p "${vdo_folder}/mp4"
-  errors=0
-
-  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
-    output_file="$vdo_folder/mp4/$(basename "$file" .${vdo_ext}).mp4"
-    echo "Converting $file to $output_file..."
-    if ! ffmpeg -i "$file" -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 256k -ac 2 "$output_file"; then
-      echo "Error: Failed to convert $file" >&2
-      ((errors++))
-    fi
-  done
-
-  if [ "$errors" -eq 0 ]; then
-    echo "Directory video conversion complete, exported to $vdo_folder/mp4"
-  else
-    echo "Warning: Conversion completed with $errors errors" >&2
-    return 1
-  fi
+  vdo-batch-convert "$vdo_folder" "$vdo_ext" mp4
 }' # Convert batch of videos to MP4 format
 
 #------------------------------------------------------------------------------
@@ -2392,6 +2438,8 @@ alias vdo-help='() {
   echo "Compression & Conversion:"
   echo "  vdo-compress <file> <quality>        - Compress video with specified quality"
   echo "  vdo-compress-dir <dir> <ext> <quality> - Compress videos in directory"
+  echo "  vdo-convert <file> [file2] [file3]... [format] - Convert video to specified format"
+  echo "  vdo-batch-convert <dir> <ext> [format] - Convert videos in directory to specified format"
   echo "  vdo-to-mp4 <file> [file2] [file3]...   - Convert video to MP4 format"
   echo "  vdo-batch-to-mp4 <dir> <ext>          - Convert videos in directory to MP4 format"
   echo "  vdo-optimize-for-mobile <file> [file2] [file3]... - Optimize video for mobile devices"
