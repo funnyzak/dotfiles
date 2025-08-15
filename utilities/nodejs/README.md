@@ -4,6 +4,7 @@ This directory contains Node.js utility scripts to enhance your workflow.
 
 ## Contents
 - [JSON to Files Generator](#json-to-files-generator)
+- [Swagger API Path Filter](#swagger-api-path-filter)
 
 ## JSON to Files Generator
 
@@ -140,3 +141,80 @@ node json-to-files.js content.json -e "pandoc -f html -t docx -o {dir}/{file}.do
   ]
 }
 ```
+
+## Swagger API Path Filter
+
+`swagger-filter.js` is a versatile Node.js script designed to filter Swagger/OpenAPI JSON documents by retaining only API paths that match specified prefixes. It supports both command-line and interactive modes for different usage scenarios.
+
+### Features
+- **Path Prefix Filtering**: Retain only API paths that start with specified prefixes
+- **Multiple Prefix Support**: Filter by multiple path prefixes simultaneously
+- **Preserve Document Structure**: Maintain original Swagger document structure and metadata
+- **Dual Operation Modes**: Command-line mode for automation and interactive mode for manual use
+- **Statistics Reporting**: Display detailed information about filtered paths
+- **Error Handling**: Comprehensive error handling with informative messages
+
+### Requirements
+- Node.js 10.x or higher
+
+### Usage
+
+#### Command-Line Mode (Recommended for Automation)
+
+Filter paths with a single prefix:
+```bash
+node swagger-filter.js --input api-docs.json --output filtered.json --include /open/api
+```
+
+Filter paths with multiple prefixes:
+```bash
+node swagger-filter.js --input api-docs.json --output filtered.json --include /open/api,/public/v1
+```
+
+#### Interactive Mode (For Manual Operations)
+
+Run the script without parameters to enter interactive mode:
+```bash
+node swagger-filter.js
+```
+
+The script will guide you through entering:
+- Input file path (default: `api-docs.json`)
+- Output file path (default: `filtered-swagger.json`)
+- Path prefixes to include (default: `/open`)
+
+### Command-Line Options
+- **`--input <filepath>`**: Required. Path to the input Swagger JSON file
+- **`--output <filepath>`**: Optional. Path for the filtered output file (default: `filtered-swagger.json`)
+- **`--include <prefixes>`**: Required. Comma-separated list of path prefixes to retain
+
+### Example Workflows
+
+#### API Documentation Filtering
+```bash
+# Filter to keep only public API endpoints
+node swagger-filter.js --input full-api.json --output public-api.json --include /public,/open
+
+# Filter to keep only admin endpoints
+node swagger-filter.js --input full-api.json --output admin-api.json --include /admin,/internal
+```
+
+#### Microservice API Extraction
+```bash
+# Extract user service endpoints
+node swagger-filter.js --input monolith-api.json --output user-service.json --include /api/users,/api/auth
+
+# Extract payment service endpoints
+node swagger-filter.js --input monolith-api.json --output payment-service.json --include /api/payments,/api/billing
+```
+
+### Sample Output
+```
+正在从文件 "api-docs.json" 中保留指定前缀的路径...
+--- 任务完成 ---
+成功将过滤后的内容保存到文件: "filtered-swagger.json"
+原始路径数量: 150, 保留路径数量: 45, 移除路径数量: 105
+```
+
+### Input/Output Format
+The script processes standard Swagger/OpenAPI JSON documents and preserves the complete document structure while filtering only the `paths` object. All other components (info, servers, components, etc.) remain unchanged.
