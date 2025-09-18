@@ -207,7 +207,7 @@ alias srv-overview='() {
 
   echo "=== CPU Info ==="
   if command -v lscpu >/dev/null 2>&1; then
-    lscpu | grep -E "^CPU\(s\)|^Model name|^Architecture|^Thread|^Core|^Socket"
+    LC_ALL=C lscpu | grep -E "^CPU\(s\)|^Model name|^Architecture|^Thread|^Core|^Socket"
   else
     echo "CPU: $(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "CPU info not available")"
     echo "Cores: $(sysctl -n hw.ncpu 2>/dev/null || echo "Core info not available")"
