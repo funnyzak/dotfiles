@@ -133,8 +133,16 @@ _markdown_convert_single_file() {
 
 # Main document conversion function
 alias md-convert='() {
-    echo -e "Convert various document formats to Markdown using markitdown.\nUsage:\n md-convert [options] <file_or_dir:current_dir> [more_files_or_dirs...]"
-    echo -e "Options:\n -o, --output <dir>  Output directory (default: same as input)\n -f, --format <list> File formats to process (default: all supported)\n -r, --recursive     Process directories recursively\n -v, --verbose       Show detailed conversion progress\n -e, --show-errors   Show detailed error messages\n -q, --quiet         Suppress progress messages\n -h, --help          Show help message"
+    echo "Convert various document formats to Markdown using markitdown."
+    echo "Usage: md-convert [options] <file_or_dir:current_dir> [more_files_or_dirs...]"
+    echo "Options:"
+    echo " -o, --output <dir>  Output directory (default: same as input)"
+    echo " -f, --format <list> File formats to process (default: all supported)"
+    echo " -r, --recursive     Process directories recursively"
+    echo " -v, --verbose       Show detailed conversion progress"
+    echo " -e, --show-errors   Show detailed error messages"
+    echo " -q, --quiet         Suppress progress messages"
+    echo " -h, --help          Show help message"
 
     if ! _markdown_check_markitdown; then
         return 1
@@ -149,8 +157,14 @@ alias md-convert='() {
         current_arg="$1"
         case "$current_arg" in
             -h|--help)
-                echo -e "\nSupported formats: $(_markdown_get_supported_extensions)"
-                echo -e "\nExamples:\n md-convert document.pdf\n md-convert -o ./output docs/\n md-convert -f pdf,docx ./docs\n md-convert -r -v -f pdf ./docs"
+                echo ""
+                echo "Supported formats: $(_markdown_get_supported_extensions)"
+                echo ""
+                echo "Examples:"
+                echo " md-convert document.pdf"
+                echo " md-convert -o ./output docs/"
+                echo " md-convert -f pdf,docx ./docs"
+                echo " md-convert -r -v -f pdf ./docs"
                 return 0
                 ;;
             -o|--output)
@@ -344,6 +358,7 @@ alias md-help='() {
     echo
     echo "Available Commands:"
     echo "  md-convert   - Convert documents to Markdown format"
+    echo "  md-toc       - Extract table of contents from markdown file"
     echo "  md-help      - Show this help information"
     echo "  md-aliases   - Quick help (alias for md-help)"
     echo "  md-version   - Show markitdown version"
@@ -373,6 +388,23 @@ alias md-help='() {
     echo "  md-convert -f pdf,docx ./docs"
     echo "  md-convert -r -v -f pdf ./docs"
     echo "  md-convert -e document.pdf"
+    echo
+    echo "Table of Contents Function: md-toc"
+    echo "--------------------------------"
+    echo "Extract and display table of contents from markdown files."
+    echo
+    echo "Usage: md-toc <markdown_file> [options]"
+    echo
+    echo "Options:"
+    echo "  -n, --numbered     Show numbered headings (1.1, 1.2, etc.)"
+    echo "  -d, --depth <num>  Maximum heading depth to show (1-6, default: 6)"
+    echo "  -l, --links        Include anchor links in output"
+    echo "  -h, --help         Show help message"
+    echo
+    echo "Examples:"
+    echo "  md-toc README.md"
+    echo "  md-toc -n -d 3 document.md"
+    echo "  md-toc -l -n README.md"
     echo
     echo "Installation:"
     echo "  pip install \"markitdown[all]\""
@@ -475,3 +507,156 @@ alias md-check='() {
 
     return 0
 }' # Check markitdown installation and show configuration
+
+# Extract table of contents from markdown file
+alias md-toc='() {
+    echo "Extract table of contents from markdown file."
+    echo "Usage: md-toc <markdown_file> [options]"
+    echo "Options:"
+    echo " -n, --numbered     Show numbered headings"
+    echo " -d, --depth <num>   Maximum heading depth to show (default: 6)"
+    echo " -l, --links         Include anchor links in output"
+    echo " -h, --help          Show help message"
+
+    if [ $# -eq 0 ]; then
+        echo "Error: Markdown file path is required." >&2
+        return 1
+    fi
+
+    local markdown_file="" numbered="false" max_depth="6" include_links="false"
+    local current_arg
+
+    # Parse arguments
+    while [ $# -gt 0 ]; do
+        current_arg="$1"
+        case "$current_arg" in
+            -h|--help)
+                echo ""
+                echo "Examples:"
+                echo " md-toc README.md"
+                echo " md-toc -n -d 3 document.md"
+                echo " md-toc -l -n README.md"
+                return 0
+                ;;
+            -n|--numbered)
+                numbered="true"
+                shift
+                ;;
+            -d|--depth)
+                if [ -z "$2" ] || ! [[ "$2" =~ ^[1-6]$ ]]; then
+                    echo "Error: Depth must be a number between 1 and 6" >&2
+                    return 1
+                fi
+                max_depth="$2"
+                shift 2
+                ;;
+            -l|--links)
+                include_links="true"
+                shift
+                ;;
+            -*)
+                echo "Error: Unknown option: $current_arg" >&2
+                return 1
+                ;;
+            *)
+                if [ -z "$markdown_file" ]; then
+                    markdown_file="$current_arg"
+                else
+                    echo "Error: Multiple files specified. Only one file is supported." >&2
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    # Validate markdown file
+    if ! _markdown_validate_file "$markdown_file"; then
+        return 1
+    fi
+
+    # Check if file contains markdown content
+    if ! grep -q "^#" "$markdown_file" 2>/dev/null; then
+        echo "Warning: No markdown headings found in $markdown_file" >&2
+        return 0
+    fi
+
+    echo "Table of Contents for: $markdown_file"
+    echo "======================================"
+    echo
+
+    # Use a simple approach with grep and sed
+    local temp_file
+    temp_file=$(mktemp)
+    grep "^#" "$markdown_file" > "$temp_file"
+
+    local level_numbers=()
+    for i in {1..6}; do
+        level_numbers[$i]=0
+    done
+
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^# ]]; then
+            # Count # characters
+            local level=$(echo "$line" | sed "s/^\(#*\).*/\1/" | wc -c)
+            level=$((level - 1))
+
+            if [ $level -gt $max_depth ]; then
+                continue
+            fi
+
+            # Extract heading text
+            local heading_text=$(echo "$line" | sed "s/^#* *//")
+
+            if [ -z "$heading_text" ]; then
+                continue
+            fi
+
+            # Reset counters for deeper levels
+            for i in $(seq $((level + 1)) 6); do
+                level_numbers[$i]=0
+            done
+
+            # Increment counter for current level
+            level_numbers[$level]=$((level_numbers[$level] + 1))
+
+            # Create indentation
+            local indent=""
+            for i in $(seq 2 $level); do
+                indent="${indent}  "
+            done
+
+            # Create anchor link if requested
+            if [ "$include_links" = "true" ]; then
+                local anchor_link=$(echo "$heading_text" | tr "[:upper:]" "[:lower:]" | sed "s/[^a-z0-9]/-/g" | sed "s/--*/-/g" | sed "s/^-\|-$//g")
+                if [ -n "$anchor_link" ]; then
+                    heading_text="[$heading_text](#$anchor_link)"
+                fi
+            fi
+
+            # Format output
+            if [ "$numbered" = "true" ]; then
+                local number_string=""
+                for i in $(seq 1 $level); do
+                    if [ $i -eq 1 ]; then
+                        number_string="${level_numbers[$i]}"
+                    else
+                        number_string="${number_string}.${level_numbers[$i]}"
+                    fi
+                done
+                echo "${indent}${number_string}. ${heading_text}"
+            else
+                local dash_count=$((level * 2))
+                local dashes=""
+                for i in $(seq 1 $dash_count); do
+                    dashes="${dashes}-"
+                done
+                echo "${indent}${dashes} ${heading_text}"
+            fi
+        fi
+    done < "$temp_file"
+
+    rm -f "$temp_file"
+    echo
+    echo "Total headings found: $(grep -c "^#" "$markdown_file")"
+}' # Extract table of contents from markdown file
