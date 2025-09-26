@@ -8,7 +8,7 @@ _check_command_claudecode_aliases() {
 }
 
 alias cc-usage='() {
-  if ! _check_command_claudecode_aliases ccusage; then
+  if ! _check_command_claudecode_aliases npx ccusage; then
     return 1
   fi
   npx ccusage $@

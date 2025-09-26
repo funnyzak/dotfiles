@@ -1,0 +1,81 @@
+{
+  "permissions": {
+    "allow": [
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "comment": "任务完成通知 - 使用默认 claudecode 标签",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag claudecode",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "comment": "子任务完成通知 - 使用 subagent 标签",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag claudecode",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "comment": "需要确认的通知 - 使用 alert 标签",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag claudecode",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "comment": "会话开始通知 - 使用 session 标签",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag temp",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "comment": "会话结束通知 - 使用 session 标签",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag claudecode",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+  "examples": {
+    "comment": "不同标签用法示例",
+    "usage_examples": [
+      "默认标签: notify.py (使用 claudecode)",
+      "自定义标签: notify.py --tag myproject",
+      "简短参数: notify.py -t urgent",
+      "帮助信息: notify.py --help"
+    ],
+    "tag_suggestions": {
+      "claudecode": "默认标签，用于一般的 Claude Code 通知"
+    }
+  }
+}
