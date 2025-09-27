@@ -24,6 +24,11 @@ Claude Code Hook 通知脚本
     - 需确保已安装 apprise CLI
     - 可通过 apprise 配置文件或环境变量自定义通知渠道
 
+4. 来源信息配置（可选）：
+    - CLAUDE_HOOK_SOURCE_NAME 或 APPRISE_SOURCE_NAME：设置自定义来源名称
+    - 例如：export CLAUDE_HOOK_SOURCE_NAME="我的开发机"
+    - 脚本会自动获取主机名和IP地址，无需额外配置
+
 【使用方法】
 1. 标准用法（apprise方式，自动读取环境变量）：
     $ cat event.json | python3 notify.py
@@ -39,6 +44,10 @@ Claude Code Hook 通知脚本
     $ export APPRISE_NOTIFY_METHOD=curl
     $ export APPRISE_NOTIFY_URL="https://n.yycc.dev/notify/xxxx"
     $ cat event.json | python3 notify.py --tag urgent
+
+5. 设置自定义来源名称：
+    $ export CLAUDE_HOOK_SOURCE_NAME="Leon的MacBook Pro"
+    $ cat event.json | python3 notify.py
 
 【输入说明】
 通过 stdin 传入 JSON 格式的事件数据，脚本会自动格式化为通知内容。
@@ -59,6 +68,9 @@ Claude Code Hook 通知脚本
 【其他说明】
 - 环境变量统一使用 APPRISE_ 前缀，避免与其他脚本冲突。
 - 支持调试模式，设置 CLAUDE_HOOK_DEBUG 环境变量可输出原始事件数据。
+- 来源信息自动获取：主机名、本地IP地址、系统类型。
+- 支持通过 CLAUDE_HOOK_SOURCE_NAME 或 APPRISE_SOURCE_NAME 设置自定义来源名称。
+- 如果无法获取某些来源信息，将自动跳过，不影响通知发送。
 """
 
 import json
@@ -67,6 +79,8 @@ import os
 import subprocess
 import datetime
 import argparse
+import socket
+import platform
 from pathlib import Path
 
 def format_duration(seconds):
@@ -97,6 +111,51 @@ def get_project_name(cwd):
     """从工作目录获取项目名称"""
     return Path(cwd).name
 
+def get_source_info():
+    """获取来源相关信息：主机名、来源IP、自定义名称"""
+    source_info = {}
+
+    # 获取主机名
+    try:
+        hostname = socket.gethostname()
+        if hostname:
+            source_info['hostname'] = hostname
+    except Exception:
+        pass
+
+    # 获取来源IP（尝试连接外部地址获取本地IP）
+    try:
+        # 创建一个UDP socket连接到外部地址来获取本地IP
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            # 连接到Google DNS，不会实际发送数据
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            if local_ip and local_ip != '127.0.0.1':
+                source_info['source_ip'] = local_ip
+    except Exception:
+        # 如果上述方法失败，尝试获取hostname对应的IP
+        try:
+            local_ip = socket.gethostbyname(socket.gethostname())
+            if local_ip and local_ip != '127.0.0.1':
+                source_info['source_ip'] = local_ip
+        except Exception:
+            pass
+
+    # 获取自定义名称（从环境变量）
+    custom_name = os.getenv('CLAUDE_HOOK_SOURCE_NAME') or os.getenv('APPRISE_SOURCE_NAME')
+    if custom_name:
+        source_info['custom_name'] = custom_name
+
+    # 获取系统信息作为补充
+    try:
+        system_info = platform.system()
+        if system_info:
+            source_info['system'] = system_info
+    except Exception:
+        pass
+
+    return source_info
+
 def format_notification_message(hook_data):
     """格式化通知消息"""
     event_name = hook_data.get('hook_event_name', 'Unknown')
@@ -104,18 +163,36 @@ def format_notification_message(hook_data):
     cwd = hook_data.get('cwd', 'N/A')
     current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     project_name = get_project_name(cwd)
+    source_info = get_source_info()
 
     # 基本信息
     title = f"🤖 Claude Code - {event_name}"
+
+    # 如果有自定义名称，添加到标题中
+    if 'custom_name' in source_info:
+        title += f" [{source_info['custom_name']}]"
 
     content_lines = [
         f"📅 时间: {current_time}",
         f"🏷️ 会话ID: {session_id[:24]}...",
         f"📁 项目: {project_name}",
         f"📂 工作目录: {Path(cwd).name}",
-        f"🎯 事件类型: {event_name}",
-        ""
+        f"🎯 事件类型: {event_name}"
     ]
+
+    # 添加来源信息（如果可用）
+    source_lines = []
+    if 'hostname' in source_info:
+        source_lines.append(f"🖥️ 主机名: {source_info['hostname']}")
+    if 'source_ip' in source_info:
+        source_lines.append(f"🌐 来源IP: {source_info['source_ip']}")
+    if 'system' in source_info:
+        source_lines.append(f"💻 系统: {source_info['system']}")
+
+    if source_lines:
+        content_lines.extend(source_lines)
+
+    content_lines.append("")
 
     # 根据事件类型添加特定信息
     if event_name == "Stop":
@@ -196,6 +273,7 @@ def send_notification(title, content, tag='claudecode'):
         try:
             cmd = [
                 'curl', '-X', 'POST',
+                '-F', f'title={title}',
                 '-F', f'body={content}',
                 '-F', f'tags={tag}',
                 notify_url
