@@ -1008,6 +1008,195 @@ alias gdlrelease='() {
   done
 }'
 
+alias gh-to-ssh='() {
+  # Convert HTTPS GitHub URLs to SSH format recursively
+  echo -e "Convert HTTPS GitHub URLs to SSH format recursively.\nUsage:\n gh-to-ssh [search_directory:.] [--dry-run] [--verbose]"
+  echo -e "Examples:\n gh-to-ssh\n gh-to-ssh ~/projects --verbose\n gh-to-ssh . --dry-run"
+
+  local search_directory="${1:-.}"
+  local is_dry_run=false
+  local is_verbose=false
+  local converted_count=0
+  local total_repository_count=0
+  local converted_repositories=()
+  local failed_repositories=()
+
+  # Parse optional parameters
+  for argument in "$@"; do
+    case "$argument" in
+      --dry-run)
+        is_dry_run=true
+        ;;
+      --verbose)
+        is_verbose=true
+        ;;
+      -*)
+        echo "Error: Unknown option $argument" >&2
+        echo "Usage: gh-to-ssh [search_directory:.] [--dry-run] [--verbose]" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  # Validate search directory
+  if [[ ! -d "$search_directory" ]]; then
+    echo "Error: Directory \"$search_directory\" does not exist" >&2
+    return 1
+  fi
+
+  # Check if git is available
+  if ! command -v git >/dev/null 2>&1; then
+    echo "Error: Git is not installed or not in PATH" >&2
+    return 1
+  fi
+
+  # Check if find command is available
+  if ! command -v find >/dev/null 2>&1; then
+    echo "Error: find command is not available" >&2
+    return 1
+  fi
+
+  # Check if sed command is available
+  if ! command -v sed >/dev/null 2>&1; then
+    echo "Error: sed command is not available" >&2
+    return 1
+  fi
+
+  echo "Searching for Git repositories in: $search_directory"
+  if [[ "$is_dry_run" == "true" ]]; then
+    echo "DRY RUN MODE - No changes will be made"
+  fi
+  echo "----------------------------------------"
+
+  # Find all .git directories and process them
+  while IFS= read -r -d "" git_directory; do
+    local repository_path
+    repository_path=$(dirname "$git_directory")
+
+    # Skip if not a valid git repository
+    if [[ ! -d "$git_directory" ]] || [[ ! -f "$git_directory/config" ]]; then
+      if [[ "$is_verbose" == "true" ]]; then
+        echo "Warning: Skipping invalid git directory: $git_directory" >&2
+      fi
+      continue
+    fi
+
+    total_repository_count=$((total_repository_count + 1))
+
+    # Get current remote URL with error handling
+    local current_remote_url
+    if ! current_remote_url=$(cd "$repository_path" && git remote get-url origin 2>/dev/null); then
+      if [[ "$is_verbose" == "true" ]]; then
+        echo "Warning: Failed to get remote URL for repository: $repository_path" >&2
+      fi
+      continue
+    fi
+
+    # Validate that we got a non-empty URL
+    if [[ -z "$current_remote_url" ]]; then
+      if [[ "$is_verbose" == "true" ]]; then
+        echo "Warning: Empty remote URL for repository: $repository_path" >&2
+      fi
+      continue
+    fi
+
+    # Check if URL is HTTPS GitHub format
+    if [[ "$current_remote_url" =~ ^https://github\.com/ ]]; then
+      # Convert HTTPS to SSH format
+      local ssh_remote_url
+      ssh_remote_url=$(echo "$current_remote_url" | sed "s|^https://github\.com/|git@github.com:|")
+
+      # Validate the conversion was successful
+      if [[ -z "$ssh_remote_url" ]] || [[ "$ssh_remote_url" == "$current_remote_url" ]]; then
+        echo "Error: Failed to convert URL format for repository: $repository_path" >&2
+        failed_repositories+=("$repository_path")
+        continue
+      fi
+
+      if [[ "$is_verbose" == "true" ]]; then
+        echo "Repository: $repository_path"
+        echo "  Current URL: $current_remote_url"
+        echo "  New URL: $ssh_remote_url"
+      fi
+
+      if [[ "$is_dry_run" == "true" ]]; then
+        echo "Would convert: $repository_path"
+        echo "  $current_remote_url -> $ssh_remote_url"
+        converted_repositories+=("$repository_path")
+        converted_count=$((converted_count + 1))
+      else
+        # Convert to SSH with proper error handling
+        if (cd "$repository_path" && git remote set-url origin "$ssh_remote_url") 2>/dev/null; then
+          # Verify the change was successful
+          local verification_url
+          if verification_url=$(cd "$repository_path" && git remote get-url origin 2>/dev/null) && [[ "$verification_url" == "$ssh_remote_url" ]]; then
+            converted_count=$((converted_count + 1))
+            converted_repositories+=("$repository_path")
+            echo "✓ Converted: $repository_path"
+            if [[ "$is_verbose" == "true" ]]; then
+              echo "  $current_remote_url -> $ssh_remote_url"
+            fi
+          else
+            failed_repositories+=("$repository_path")
+            echo "✗ Error: Verification failed for repository: $repository_path" >&2
+          fi
+        else
+          failed_repositories+=("$repository_path")
+          echo "✗ Error: Failed to set remote URL for repository: $repository_path" >&2
+        fi
+      fi
+    elif [[ "$is_verbose" == "true" ]]; then
+      echo "Skipped: $repository_path (not HTTPS GitHub URL: $current_remote_url)"
+    fi
+  done < <(find "$search_directory" -name ".git" -type d -print0 2>/dev/null)
+
+  # Check if find command succeeded
+  if [[ $? -ne 0 ]]; then
+    echo "Error: Failed to search for git repositories in directory: $search_directory" >&2
+    return 1
+  fi
+
+  echo "----------------------------------------"
+  echo "Summary:"
+  echo "  Total repositories found: $total_repository_count"
+  if [[ "$is_dry_run" == "true" ]]; then
+    echo "  Would convert: $converted_count repositories"
+  else
+    echo "  Successfully converted: $converted_count repositories"
+    if [[ ${#failed_repositories[@]} -gt 0 ]]; then
+      echo "  Failed to convert: ${#failed_repositories[@]} repositories"
+    fi
+  fi
+
+  # List converted repositories
+  if [[ ${#converted_repositories[@]} -gt 0 ]]; then
+    echo ""
+    if [[ "$is_dry_run" == "true" ]]; then
+      echo "Repositories that would be converted:"
+    else
+      echo "Successfully converted repositories:"
+    fi
+    for repository in "${converted_repositories[@]}"; do
+      echo "  ✓ $repository"
+    done
+  fi
+
+  # List failed repositories
+  if [[ ${#failed_repositories[@]} -gt 0 ]]; then
+    echo ""
+    echo "Failed to convert repositories:"
+    for repository in "${failed_repositories[@]}"; do
+      echo "  ✗ $repository"
+    done
+    return 1
+  fi
+
+  return 0
+}' # Convert HTTPS GitHub URLs to SSH format recursively
+
+
+
+
 # Help function for Git aliases
 alias git-help='() {
   echo "Git Management Aliases Help"
@@ -1063,6 +1252,7 @@ alias git-help='() {
   echo "  gdlbranch         - Download GitHub repository branch"
   echo "  gdltag            - Download GitHub repository tag"
   echo "  gdlrelease        - Download GitHub project release assets"
+  echo "  gh-to-ssh         - Convert HTTPS GitHub URLs to SSH format recursively"
   echo ""
   echo "  git-help          - Display this help message"
 }' # Display help for Git management aliases
