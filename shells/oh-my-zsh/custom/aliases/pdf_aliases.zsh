@@ -1,14 +1,32 @@
 # Description: PDF related aliases for conversion, compression, encryption, and manipulation.
 
 # Helper Functions
+_show_error_pdf_aliases() {
+  echo "$1" >&2
+  return 1
+}
+
+_show_usage_pdf_aliases() {
+  echo -e "$1"
+  return 0
+}
+
+_check_command_pdf_aliases() {
+  if ! command -v "$1" &> /dev/null; then
+    T "Error: Required command '$1' not found. Please install it first."
+    return 1
+  fi
+  return 0
+}
+
 _validate_pdf_path() {
   if [ ! -f "$1" ]; then
-    echo "Error: File \"$1\" does not exist or is not a regular file" >&2
+    _show_error_pdf_aliases "Error: File \"$1\" does not exist or is not a regular file"
     return 1
   fi
 
   if [[ "${1##*.}" != "pdf" ]]; then
-    echo "Error: File \"$1\" is not a PDF file" >&2
+    _show_error_pdf_aliases "Error: File \"$1\" is not a PDF file"
     return 1
   fi
 
@@ -17,7 +35,7 @@ _validate_pdf_path() {
 
 _validate_directory() {
   if [ ! -d "$1" ]; then
-    echo "Error: Directory \"$1\" does not exist" >&2
+    _show_error_pdf_aliases "Error: Directory \"$1\" does not exist"
     return 1
   fi
 
@@ -27,23 +45,22 @@ _validate_directory() {
 # PDF Information
 alias pdf-info='() {
   if [ $# -eq 0 ]; then
-    echo "Display PDF file information.\nUsage:\n pdf-info <pdf_path>"
+    _show_usage_pdf_aliases "Display PDF file information.\nUsage:\n pdf-info <pdf_path>"
     return 1
   fi
-  pdf_path=$1
+  local pdf_path="$1"
 
   if ! _validate_pdf_path "$pdf_path"; then
     return 1
   fi
 
-  if ! command -v pdfinfo &> /dev/null; then
-    echo "Error: pdfinfo not found, please install poppler-utils first" >&2
+  if ! _check_command_pdf_aliases pdfinfo; then
     return 1
   fi
 
   echo "Fetching information for PDF \"$pdf_path\"..."
   if ! pdfinfo "$pdf_path"; then
-    echo "Error: Could not get PDF information" >&2
+    _show_error_pdf_aliases "Could not get PDF information"
     return 1
   fi
 }' # Display PDF file information using pdfinfo
@@ -51,12 +68,16 @@ alias pdf-info='() {
 # PDF to Image Conversion
 alias pdf-to-images='() {
   if [ $# -eq 0 ]; then
-    echo "Convert PDF to images.\nUsage:\n pdf-to-images <pdf_path>"
+    _show_usage_pdf_aliases "Convert PDF to images.\nUsage:\n pdf-to-images <pdf_path>"
     return 1
   fi
-  pdf_path=$1
+  local pdf_path="$1"
 
   if ! _validate_pdf_path "$pdf_path"; then
+    return 1
+  fi
+
+  if ! _check_command_pdf_aliases pdf2pic; then
     return 1
   fi
 
@@ -64,7 +85,7 @@ alias pdf-to-images='() {
   if pdf2pic -i "$@"; then
     echo "Conversion complete"
   else
-    echo "Error: Conversion failed, please check if pdf2pic is installed correctly" >&2
+    _show_error_pdf_aliases "Conversion failed, please check if pdf2pic is installed correctly"
     return 1
   fi
 }' # Convert PDF to images using pdf2pic
@@ -104,11 +125,63 @@ alias pdf-batch-to-images='(){
 
 alias pdf-to-jpg='(){
   if [ $# -eq 0 ]; then
-    echo "Convert PDF to JPG images (using ImageMagick).\nUsage:\n pdf_to_jpg <pdf_path> [resolution=300]"
+    echo "Convert PDF to JPG images (using ImageMagick).\nUsage:\n pdf-to-jpg <pdf_path> [options]"
+    echo "Options:"
+    echo "  -r, --resolution <dpi>   Image resolution in DPI (default: 300)"
+    echo "  -o, --output <path>     Output directory path (default: pdf file directory)"
+    echo "  -h, --help              Show this help message"
+    echo "\nExamples:"
+    echo "  pdf-to-jpg document.pdf"
+    echo "  pdf-to-jpg document.pdf --resolution 600"
+    echo "  pdf-to-jpg document.pdf -r 150 -o ./output"
     return 1
   fi
-  pdf_path=$1
-  density=${2:-300}
+
+  # Parse arguments
+  local pdf_path=""
+  local resolution="300"
+  local output_dir=""
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -r|--resolution)
+        resolution="$2"
+        shift 2
+        ;;
+      -o|--output)
+        output_dir="$2"
+        shift 2
+        ;;
+      -h|--help)
+        echo "Convert PDF to JPG images (using ImageMagick).\nUsage:\n pdf-to-jpg <pdf_path> [options]"
+        echo "Options:"
+        echo "  -r, --resolution <dpi>   Image resolution in DPI (default: 300)"
+        echo "  -o, --output <path>     Output directory path (default: pdf file directory)"
+        echo "  -h, --help              Show this help message"
+        echo "\nExamples:"
+        echo "  pdf-to-jpg document.pdf"
+        echo "  pdf-to-jpg document.pdf --resolution 600"
+        echo "  pdf-to-jpg document.pdf -r 150 -o ./output"
+        return 0
+        ;;
+      *)
+        if [ -z "$pdf_path" ]; then
+          pdf_path="$1"
+        else
+          echo "Error: Unknown option or multiple PDF paths provided: \"$1\"" >&2
+          echo "Use --help to see usage information" >&2
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [ -z "$pdf_path" ]; then
+    echo "Error: PDF path is required" >&2
+    echo "Use --help to see usage information" >&2
+    return 1
+  fi
 
   if ! _validate_pdf_path "$pdf_path"; then
     return 1
@@ -119,16 +192,25 @@ alias pdf-to-jpg='(){
     return 1
   fi
 
-  output_prefix="$(basename "$pdf_path" .pdf)"
-  echo "Converting PDF \"$pdf_path\" to JPG images with ${density}DPI resolution using ImageMagick..."
+  # Set default output directory if not provided
+  if [ -z "$output_dir" ]; then
+    output_dir="$(dirname "$pdf_path")/$(basename "$pdf_path" .pdf)"
+    echo "Output directory not provided, using pdf file directory: $output_dir"
+  fi
 
-  if magick -density "$density" "$pdf_path" "${output_prefix}_%02d.jpg"; then
-    echo "Conversion complete, exported as ${output_prefix}_%02d.jpg"
+  # Create output directory if it does exist
+  mkdir -p "$output_dir"
+
+  local output_prefix="$(basename $pdf_path .pdf)"
+  echo "Converting PDF \"$pdf_path\" to JPG images with ${resolution}DPI resolution using ImageMagick..."
+
+  if magick -density "$resolution" "$pdf_path" "${output_dir}/${output_prefix}_%02d.jpg"; then
+    echo "Conversion complete, exported as ${output_dir}/${output_prefix}_%02d.jpg"
   else
     echo "Error: Conversion failed" >&2
     return 1
   fi
-}'  # Convert PDF to JPG images using ImageMagick
+}'  # Convert PDF to JPG images using ImageMagick with named parameters
 
 # PDF Compression
 alias pdf-compress='(){
@@ -372,14 +454,75 @@ alias pdf-rotate='() {
 
 # PDF Extract Pages
 alias pdf-extract='() {
-  if [ $# -lt 3 ]; then
-    echo "Extract pages from PDF file.\nUsage:\n pdf-extract <pdf_path> <start_page> <end_page> [output_path]"
+  if [ $# -lt 1 ]; then
+    echo "Extract pages from PDF file.\nUsage:\n pdf-extract <pdf_path> [options]"
+    echo "Options:"
+    echo "  -s, --start <page>        Start page number (required)"
+    echo "  -e, --end <page>          End page number (required)"
+    echo "  -o, --output <path>       Output PDF file path (default: auto-generated)"
+    echo "  -h, --help               Show this help message"
+    echo "\nExamples:"
+    echo "  pdf-extract document.pdf --start 5 --end 10"
+    echo "  pdf-extract document.pdf -s 1 -e 3 -o extracted.pdf"
     return 1
   fi
-  pdf_path=$1
-  start_page=$2
-  end_page=$3
-  output_path="${4:-${pdf_path%.*}_p${start_page}-${end_page}.pdf}"
+
+  # Parse arguments
+  local pdf_path=""
+  local start_page=""
+  local end_page=""
+  local output_path=""
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -s|--start)
+        start_page="$2"
+        shift 2
+        ;;
+      -e|--end)
+        end_page="$2"
+        shift 2
+        ;;
+      -o|--output)
+        output_path="$2"
+        shift 2
+        ;;
+      -h|--help)
+        echo "Extract pages from PDF file.\nUsage:\n pdf-extract <pdf_path> [options]"
+        echo "Options:"
+        echo "  -s, --start <page>        Start page number (required)"
+        echo "  -e, --end <page>          End page number (required)"
+        echo "  -o, --output <path>       Output PDF file path (default: auto-generated)"
+        echo "  -h, --help               Show this help message"
+        echo "\nExamples:"
+        echo "  pdf-extract document.pdf --start 5 --end 10"
+        echo "  pdf-extract document.pdf -s 1 -e 3 -o extracted.pdf"
+        return 0
+        ;;
+      *)
+        if [ -z "$pdf_path" ]; then
+          pdf_path="$1"
+        else
+          echo "Error: Unknown option or multiple PDF paths provided: \"$1\"" >&2
+          echo "Use --help to see usage information" >&2
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [ -z "$pdf_path" ]; then
+    echo "Error: PDF path is required" >&2
+    echo "Use --help to see usage information" >&2
+    return 1
+  fi
+
+  if [ -z "$start_page" ] || [ -z "$end_page" ]; then
+    echo "Error: Both start page (-s/--start) and end page (-e/--end) are required" >&2
+    echo "Use --help to see usage information" >&2
+    return 1
+  fi
 
   if ! _validate_pdf_path "$pdf_path"; then
     return 1
@@ -395,6 +538,11 @@ alias pdf-extract='() {
     return 1
   fi
 
+  # Generate output path if not provided
+  if [ -z "$output_path" ]; then
+    output_path="${pdf_path%.*}_p${start_page}-${end_page}.pdf"
+  fi
+
   echo "Extracting pages $start_page-$end_page from \"$pdf_path\"..."
   if pdftk "$pdf_path" cat $start_page-$end_page output "$output_path"; then
     echo "Extraction complete: \"$output_path\""
@@ -402,7 +550,7 @@ alias pdf-extract='() {
     echo "Error: Extraction failed" >&2
     return 1
   fi
-}' # Extract page range from PDF file using pdftk
+}' # Extract page range from PDF file using pdftk with named parameters
 
 # PDF to Text
 # PDF to Image-based PDF Conversion

@@ -37,8 +37,6 @@ _check_file_exists_filesystem_aliases() {
 # Basic file operations
 alias rmi='rm -i' # Interactive removal - prompts before deleting files
 
-alias fs-rm-interactive='rm -i' # Interactive removal - prompts before deleting files
-
 alias rmdir='() {
   if ! _validate_params_filesystem_aliases "Remove directory recursively.\nUsage:\n rmdir <directory_path>"; then
     return 1
@@ -83,12 +81,52 @@ alias fs-backup='() {
 
 # File search by size
 alias fs-find-big='() {
-  if ! _validate_params_filesystem_aliases "Find large files.\nUsage:\n fs-find-big <size_in_MB:10> [directory_path:.]"; then
+  if [ $# -eq 0 ]; then
+    echo "Find large files.\nUsage:\n fs-find-big [options]"
+    echo "Options:"
+    echo "  -s, --size <MB>          Minimum file size in MB (default: 10)"
+    echo "  -d, --directory <path>   Directory path to search (default: current directory)"
+    echo "  -h, --help               Show this help message"
+    echo "\nExamples:"
+    echo "  fs-find-big"
+    echo "  fs-find-big --size 50"
+    echo "  fs-find-big -s 100 -d /path/to/search"
     return 1
   fi
 
-  size=${1:-10}
-  dir_path=${2:-.}
+  # Parse arguments
+  local size="10"
+  local dir_path="."
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -s|--size)
+        size="$2"
+        shift 2
+        ;;
+      -d|--directory)
+        dir_path="$2"
+        shift 2
+        ;;
+      -h|--help)
+        echo "Find large files.\nUsage:\n fs-find-big [options]"
+        echo "Options:"
+        echo "  -s, --size <MB>          Minimum file size in MB (default: 10)"
+        echo "  -d, --directory <path>   Directory path to search (default: current directory)"
+        echo "  -h, --help               Show this help message"
+        echo "\nExamples:"
+        echo "  fs-find-big"
+        echo "  fs-find-big --size 50"
+        echo "  fs-find-big -s 100 -d /path/to/search"
+        return 0
+        ;;
+      *)
+        echo "Error: Unknown option: \"$1\"" >&2
+        echo "Use --help to see usage information" >&2
+        return 1
+        ;;
+    esac
+  done
 
   if [ ! -d "$dir_path" ]; then
     echo "Error: Directory \"$dir_path\" does not exist." >&2
@@ -100,15 +138,55 @@ alias fs-find-big='() {
 
   count=$(find "$dir_path" -type f -size +${size}M | wc -l | tr -d " ")
   echo -e "\nFound $count files larger than ${size}MB in \"$dir_path\"."
-}' # Find files larger than specified size in MB
+}' # Find files larger than specified size in MB with named parameters
 
 alias fs-find-small='() {
-  if ! _validate_params_filesystem_aliases "Find small files.\nUsage:\n fs-find-small <size_in_MB:1> [directory_path:.]"; then
+  if [ $# -eq 0 ]; then
+    echo "Find small files.\nUsage:\n fs-find-small [options]"
+    echo "Options:"
+    echo "  -s, --size <MB>          Maximum file size in MB (default: 1)"
+    echo "  -d, --directory <path>   Directory path to search (default: current directory)"
+    echo "  -h, --help               Show this help message"
+    echo "\nExamples:"
+    echo "  fs-find-small"
+    echo "  fs-find-small --size 5"
+    echo "  fs-find-small -s 10 -d /path/to/search"
     return 1
   fi
 
-  size=${1:-1}
-  dir_path=${2:-.}
+  # Parse arguments
+  local size="1"
+  local dir_path="."
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -s|--size)
+        size="$2"
+        shift 2
+        ;;
+      -d|--directory)
+        dir_path="$2"
+        shift 2
+        ;;
+      -h|--help)
+        echo "Find small files.\nUsage:\n fs-find-small [options]"
+        echo "Options:"
+        echo "  -s, --size <MB>          Maximum file size in MB (default: 1)"
+        echo "  -d, --directory <path>   Directory path to search (default: current directory)"
+        echo "  -h, --help               Show this help message"
+        echo "\nExamples:"
+        echo "  fs-find-small"
+        echo "  fs-find-small --size 5"
+        echo "  fs-find-small -s 10 -d /path/to/search"
+        return 0
+        ;;
+      *)
+        echo "Error: Unknown option: \"$1\"" >&2
+        echo "Use --help to see usage information" >&2
+        return 1
+        ;;
+    esac
+  done
 
   if [ ! -d "$dir_path" ]; then
     echo "Error: Directory \"$dir_path\" does not exist." >&2
@@ -120,7 +198,7 @@ alias fs-find-small='() {
 
   count=$(find "$dir_path" -type f -size -${size}M | wc -l | tr -d " ")
   echo -e "\nFound $count files smaller than ${size}MB in \"$dir_path\"."
-}' # Find files smaller than specified size in MB
+}' # Find files smaller than specified size in MB with named parameters
 
 # File and directory counting
 alias fs-count-files='() {

@@ -93,16 +93,72 @@ alias _image_aliases_magick_cmd='() {
 # --------------------------------
 
 alias img-resize='() {
-  echo "Resize image to specified dimensions."
-  echo "Usage: img-resize <image_path> [size:200x] [quality:80]"
-
   if [ $# -eq 0 ]; then
+    echo "Resize image to specified dimensions."
+    echo "Usage: img-resize <image_path> [options]"
+    echo "Options:"
+    echo "  -s, --size <dimensions>   Target dimensions (default: 200x)"
+    echo "  -q, --quality <percent>   Image quality (default: 80)"
+    echo "  -h, --help               Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  img-resize photo.jpg"
+    echo "  img-resize photo.jpg --size 300x300"
+    echo "  img-resize photo.jpg -s 800x600 -q 90"
     return 0
   fi
 
-  _image_aliases_validate_file "$1" || return 1
-  _image_resize "$1" "${2:-200x}" "${3:-80}"
-}' # Resize image to specified dimensions
+  # Parse arguments
+  local image_path=""
+  local size="200x"
+  local quality="80"
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -s|--size)
+        size="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -h|--help)
+        echo "Resize image to specified dimensions."
+        echo "Usage: img-resize <image_path> [options]"
+        echo "Options:"
+        echo "  -s, --size <dimensions>   Target dimensions (default: 200x)"
+        echo "  -q, --quality <percent>   Image quality (default: 80)"
+        echo "  -h, --help               Show this help message"
+        echo ""
+        echo "Examples:"
+        echo "  img-resize photo.jpg"
+        echo "  img-resize photo.jpg --size 300x300"
+        echo "  img-resize photo.jpg -s 800x600 -q 90"
+        return 0
+        ;;
+      *)
+        if [ -z "$image_path" ]; then
+          image_path="$1"
+        else
+          echo "Error: Unknown option or multiple image paths provided: \"$1\"" >&2
+          echo "Use --help to see usage information" >&2
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [ -z "$image_path" ]; then
+    echo "Error: Image path is required" >&2
+    echo "Use --help to see usage information" >&2
+    return 1
+  fi
+
+  _image_aliases_validate_file "$image_path" || return 1
+  _image_resize "$image_path" "$size" "$quality"
+}' # Resize image to specified dimensions with named parameters
 
 alias img-resize-dir='() {
   echo -e "Batch resize images in directory and all subdirectories.\nUsage:\n img-resize-dir <source_dir> <size> [quality:100]\nAll output images will be saved in a mirrored subfolder structure under <source_dir>/<size>/"
@@ -732,7 +788,7 @@ alias img-dir-to-pdf='() {
       page_geometry="792x1224"
       ;;
     *)
-      echo "Warning: Unknown page size '$page_size', using A4 as default"
+      echo "Warning: Unknown page size \"$page_size\", using A4 as default"
       page_geometry="595x842"
       ;;
   esac
@@ -806,7 +862,7 @@ alias img-to-pdf='() {
       page_geometry="792x1224"
       ;;
     *)
-      echo "Warning: Unknown page size '$page_size', using A4 as default"
+      echo "Warning: Unknown page size \"$page_size\", using A4 as default"
       page_geometry="595x842"
       ;;
   esac
@@ -1675,7 +1731,7 @@ alias img-rename-sequential='() {
     count=$((count+1))
   done
 
-  echo "Renamed $((count-1-errors)) files with prefix '$prefix'"
+  echo "Renamed $((count-1-errors)) files with prefix \"$prefix\""
   [ $errors -eq 0 ] || return 1
 }' # Rename images in a directory with sequential numbering
 
