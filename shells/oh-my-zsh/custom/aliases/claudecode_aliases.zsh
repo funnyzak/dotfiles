@@ -7,6 +7,14 @@ _check_command_claudecode_aliases() {
   return 0
 }
 
+alias cc-free='() {
+  claude --dangerously-skip-permissions $@
+}'
+
+alias ccr-free='() {
+  ccr code --permission-mode bypassPermissions
+}'
+
 alias cc-usage='() {
   if ! _check_command_claudecode_aliases npx ccusage; then
     return 1
@@ -24,6 +32,8 @@ alias cc-monitor='() {
 alias cc-help='() {
   echo "Claude Code"
   echo "Usage:"
+  echo "  cc-free - Claude Code bypass permission"
+  echo "  ccr-free - Claude Code Run bypass permission"
   echo "  cc-usage"
   echo "  cc-monitor"
 }'
