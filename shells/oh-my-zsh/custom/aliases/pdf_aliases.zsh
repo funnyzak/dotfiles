@@ -122,7 +122,7 @@ alias pdf-to-jpg='(){
   output_prefix="$(basename "$pdf_path" .pdf)"
   echo "Converting PDF \"$pdf_path\" to JPG images with ${density}DPI resolution using ImageMagick..."
 
-  if magick convert -density "$density" "$pdf_path" "${output_prefix}_%02d.jpg"; then
+  if magick -density "$density" "$pdf_path" "${output_prefix}_%02d.jpg"; then
     echo "Conversion complete, exported as ${output_prefix}_%02d.jpg"
   else
     echo "Error: Conversion failed" >&2
@@ -405,6 +405,331 @@ alias pdf-extract='() {
 }' # Extract page range from PDF file using pdftk
 
 # PDF to Text
+# PDF to Image-based PDF Conversion
+alias pdf-to-image-pdf='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert PDF to image-based PDF.\nUsage:\n pdf-to-image-pdf <pdf_path> [options]"
+    echo "Options:"
+    echo "  -d, --density <dpi>     Image resolution in DPI (default: 300)"
+    echo "  -o, --output <path>     Output PDF file path (default: auto-generated)"
+    echo "  -f, --format <format>   Image format: png|jpg|jpeg (default: png)"
+    echo "  -h, --help              Show this help message"
+    echo "\nExamples:"
+    echo "  # Basic conversion with default settings (300 DPI, PNG format)"
+    echo "  pdf-to-image-pdf document.pdf"
+    echo ""
+    echo "  # High quality conversion (600 DPI)"
+    echo "  pdf-to-image-pdf document.pdf --density 600"
+    echo ""
+    echo "  # Specify custom output path"
+    echo "  pdf-to-image-pdf document.pdf --output /path/to/output.pdf"
+    echo ""
+    echo "  # Use JPG format for smaller file size"
+    echo "  pdf-to-image-pdf document.pdf --format jpg"
+    echo ""
+    echo "  # Multiple options - order doesnt matter"
+    echo "  pdf-to-image-pdf document.pdf --format jpg --density 150"
+    echo "  pdf-to-image-pdf document.pdf -d 600 -o /path/to/print.pdf -f png"
+    echo ""
+    echo "  # Low quality but very small file size"
+    echo "  pdf-to-image-pdf document.pdf --density 150 --format jpg"
+    return 1
+  fi
+
+  # Parse arguments
+  local pdf_path=""
+  local density="300"
+  local output_path=""
+  local format="png"
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -d|--density)
+        density="$2"
+        shift 2
+        ;;
+      -o|--output)
+        output_path="$2"
+        shift 2
+        ;;
+      -f|--format)
+        format="$2"
+        shift 2
+        ;;
+      -h|--help)
+        echo "Convert PDF to image-based PDF.\nUsage:\n pdf-to-image-pdf <pdf_path> [options]"
+        echo "Options:"
+        echo "  -d, --density <dpi>     Image resolution in DPI (default: 300)"
+        echo "  -o, --output <path>     Output PDF file path (default: auto-generated)"
+        echo "  -f, --format <format>   Image format: png|jpg|jpeg (default: png)"
+        echo "  -h, --help              Show this help message"
+        echo "\nExamples:"
+        echo "  # Basic conversion with default settings (300 DPI, PNG format)"
+        echo "  pdf-to-image-pdf document.pdf"
+        echo ""
+        echo "  # High quality conversion (600 DPI)"
+        echo "  pdf-to-image-pdf document.pdf --density 600"
+        echo ""
+        echo "  # Specify custom output path"
+        echo "  pdf-to-image-pdf document.pdf --output /path/to/output.pdf"
+        echo ""
+        echo "  # Use JPG format for smaller file size"
+        echo "  pdf-to-image-pdf document.pdf --format jpg"
+        echo ""
+        echo "  # Multiple options - order doesnt matter"
+        echo "  pdf-to-image-pdf document.pdf --format jpg --density 150"
+        echo "  pdf-to-image-pdf document.pdf -d 600 -o /path/to/print.pdf -f png"
+        echo ""
+        echo "  # Low quality but very small file size"
+        echo "  pdf-to-image-pdf document.pdf --density 150 --format jpg"
+        return 0
+        ;;
+      -*)
+        echo "Error: Unknown option \"$1\"" >&2
+        echo "Use --help to see available options" >&2
+        return 1
+        ;;
+      *)
+        if [ -z "$pdf_path" ]; then
+          pdf_path="$1"
+        else
+          echo "Error: Multiple PDF paths provided or unrecognized argument: \"$1\"" >&2
+          echo "Use --help to see usage information" >&2
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [ -z "$pdf_path" ]; then
+    echo "Error: PDF path is required" >&2
+    echo "Use --help to see usage information" >&2
+    return 1
+  fi
+
+  if ! _validate_pdf_path "$pdf_path"; then
+    return 1
+  fi
+
+  if ! [[ "$format" =~ ^(png|jpg|jpeg)$ ]]; then
+    echo "Error: Invalid format \"$format\". Must be png, jpg, or jpeg" >&2
+    return 1
+  fi
+
+  if ! command -v magick &> /dev/null; then
+    echo "Error: ImageMagick not found, please install it first" >&2
+    return 1
+  fi
+
+  # Generate output path if not provided
+  if [ -z "$output_path" ]; then
+    local filename="$(basename "$pdf_path" .pdf)"
+    output_path="$(dirname "$pdf_path")/${filename}_image_${density}dpi.pdf"
+  fi
+
+  local temp_dir
+  if ! temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/pdf_to_image_XXXXXX"); then
+    echo "Error: Failed to create temporary directory" >&2
+    return 1
+  fi
+
+  echo "Converting PDF \"$pdf_path\" to image-based PDF with ${density}DPI resolution..."
+
+  # Step 1: Convert PDF to images
+  if ! magick -density "$density" "$pdf_path" "$temp_dir/page_%04d.$format"; then
+    echo "Error: Failed to convert PDF to images" >&2
+    rm -rf "$temp_dir"
+    return 1
+  fi
+
+  # Step 2: Merge images back to PDF
+  if ! magick "$temp_dir/page_*.$format" "$output_path"; then
+    echo "Error: Failed to merge images to PDF" >&2
+    rm -rf "$temp_dir"
+    return 1
+  fi
+
+  # Cleanup
+  rm -rf "$temp_dir"
+
+  if [ -f "$output_path" ]; then
+    local original_size=$(du -h "$pdf_path" | cut -f1)
+    local new_size=$(du -h "$output_path" | cut -f1)
+    echo "Conversion complete: \"$output_path\""
+    echo "Original size: $original_size, Image-based PDF size: $new_size"
+  else
+    echo "Error: Output file not generated" >&2
+    return 1
+  fi
+}' # Convert PDF to image-based PDF using ImageMagick
+
+alias pdf-batch-to-image-pdf='() {
+  if [ $# -eq 0 ]; then
+    echo "Batch convert PDF files to image-based PDFs.\nUsage:\n pdf-batch-to-image-pdf <directory_path> [options]"
+    echo "Options:"
+    echo "  -d, --density <dpi>     Image resolution in DPI (default: 300)"
+    echo "  -f, --format <format>   Image format: png|jpg|jpeg (default: png)"
+    echo "  -h, --help              Show this help message"
+    echo "\nExamples:"
+    echo "  # Batch convert all PDFs in current directory (default: 300 DPI, PNG)"
+    echo "  pdf-batch-to-image-pdf ."
+    echo ""
+    echo "  # Batch convert with high quality (600 DPI, PNG format)"
+    echo "  pdf-batch-to-image-pdf ./documents --density 600 --format png"
+    echo ""
+    echo "  # Batch convert with small file size (150 DPI, JPG format)"
+    echo "  pdf-batch-to-image-pdf ./documents --density 150 --format jpg"
+    echo ""
+    echo "  # Batch convert for web viewing (200 DPI, JPG format)"
+    echo "  pdf-batch-to-image-pdf ./web_docs -d 200 -f jpeg"
+    echo ""
+    echo "  # Batch convert for archive purposes (400 DPI, PNG format)"
+    echo "  pdf-batch-to-image-pdf ./archive --density 400 --format png"
+    echo ""
+    echo "  # Options can be in any order"
+    echo "  pdf-batch-to-image-pdf ./docs --format jpg --density 200"
+    echo "  pdf-batch-to-image-pdf ./docs -f png -d 600"
+    return 1
+  fi
+
+  # Parse arguments
+  local dir_path=""
+  local density="300"
+  local format="png"
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -d|--density)
+        density="$2"
+        shift 2
+        ;;
+      -f|--format)
+        format="$2"
+        shift 2
+        ;;
+      -h|--help)
+        echo "Batch convert PDF files to image-based PDFs.\nUsage:\n pdf-batch-to-image-pdf <directory_path> [options]"
+        echo "Options:"
+        echo "  -d, --density <dpi>     Image resolution in DPI (default: 300)"
+        echo "  -f, --format <format>   Image format: png|jpg|jpeg (default: png)"
+        echo "  -h, --help              Show this help message"
+        echo "\nExamples:"
+        echo "  # Batch convert all PDFs in current directory (default: 300 DPI, PNG)"
+        echo "  pdf-batch-to-image-pdf ."
+        echo ""
+        echo "  # Batch convert with high quality (600 DPI, PNG format)"
+        echo "  pdf-batch-to-image-pdf ./documents --density 600 --format png"
+        echo ""
+        echo "  # Batch convert with small file size (150 DPI, JPG format)"
+        echo "  pdf-batch-to-image-pdf ./documents --density 150 --format jpg"
+        echo ""
+        echo "  # Batch convert for web viewing (200 DPI, JPG format)"
+        echo "  pdf-batch-to-image-pdf ./web_docs -d 200 -f jpeg"
+        echo ""
+        echo "  # Batch convert for archive purposes (400 DPI, PNG format)"
+        echo "  pdf-batch-to-image-pdf ./archive --density 400 --format png"
+        echo ""
+        echo "  # Options can be in any order"
+        echo "  pdf-batch-to-image-pdf ./docs --format jpg --density 200"
+        echo "  pdf-batch-to-image-pdf ./docs -f png -d 600"
+        return 0
+        ;;
+      -*)
+        echo "Error: Unknown option \"$1\"" >&2
+        echo "Use --help to see available options" >&2
+        return 1
+        ;;
+      *)
+        if [ -z "$dir_path" ]; then
+          dir_path="$1"
+        else
+          echo "Error: Multiple directory paths provided or unrecognized argument: \"$1\"" >&2
+          echo "Use --help to see usage information" >&2
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [ -z "$dir_path" ]; then
+    echo "Error: Directory path is required" >&2
+    echo "Use --help to see usage information" >&2
+    return 1
+  fi
+
+  if ! _validate_directory "$dir_path"; then
+    return 1
+  fi
+
+  if ! [[ "$format" =~ ^(png|jpg|jpeg)$ ]]; then
+    echo "Error: Invalid format \"$format\". Must be png, jpg, or jpeg" >&2
+    return 1
+  fi
+
+  if ! command -v magick &> /dev/null; then
+    echo "Error: ImageMagick not found, please install it first" >&2
+    return 1
+  fi
+
+  local output_dir="${dir_path}/image_pdfs_${density}dpi"
+  mkdir -p "$output_dir"
+
+  local pdf_count=$(find "$dir_path" -type f -name "*.pdf" | wc -l | tr -d " ")
+
+  if [ "$pdf_count" -eq 0 ]; then
+    echo "Warning: No PDF files found in \"$dir_path\""
+    rmdir "$output_dir" 2>/dev/null
+    return 0
+  fi
+
+  echo "Converting $pdf_count PDF files to image-based PDFs with ${density}DPI resolution..."
+  local success_count=0
+
+  for file in $(find "$dir_path" -type f -name "*.pdf" -not -path "$output_dir/*"); do
+    local filename="$(basename "$file" .pdf)"
+    local output_file="$output_dir/${filename}_image_${density}dpi.pdf"
+    local temp_dir
+    if ! temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/pdf_to_image_${filename}_XXXXXX"); then
+      echo "Error: Failed to create temporary directory for \"$file\"" >&2
+      continue
+    fi
+
+    echo "Processing: \"$file\""
+
+    # Step 1: Convert PDF to images
+    if ! magick -density "$density" "$file" "$temp_dir/page_%04d.$format"; then
+      echo "Error: Failed to convert \"$file\" to images" >&2
+      rm -rf "$temp_dir"
+      continue
+    fi
+
+    # Step 2: Merge images back to PDF
+    if ! magick "$temp_dir/page_*.$format" "$output_file"; then
+      echo "Error: Failed to merge images to PDF for \"$file\"" >&2
+      rm -rf "$temp_dir"
+      continue
+    fi
+
+    # Cleanup and report
+    rm -rf "$temp_dir"
+
+    if [ -f "$output_file" ]; then
+      local original_size=$(du -h "$file" | cut -f1)
+      local new_size=$(du -h "$output_file" | cut -f1)
+      echo "Converted: \"$file\" (${original_size} → ${new_size})"
+      success_count=$((success_count + 1))
+    else
+      echo "Error: Output file not generated for \"$file\"" >&2
+    fi
+  done
+
+  echo "Batch conversion complete: Successfully converted $success_count/$pdf_count files"
+  echo "Image-based PDFs are saved in: \"$output_dir\""
+}' # Batch convert PDF files to image-based PDFs
+
+# PDF to Text
 alias pdf-to-text='() {
   if [ $# -eq 0 ]; then
     echo "Extract text from PDF file.\nUsage:\n pdf-to-text <pdf_path> [output_path]"
@@ -435,16 +760,18 @@ alias pdf-to-text='() {
 alias pdf-help='() {
   echo "PDF Manipulation Aliases Help\n"
   echo "Available commands:"
-  echo "  pdf-info           - Display PDF file information"
-  echo "  pdf-to-images      - Convert PDF to images"
-  echo "  pdf-to-jpg         - Convert PDF to JPG images"
-  echo "  pdf-compress       - Compress PDF file"
-  echo "  pdf-batch-compress - Batch compress PDF files"
-  echo "  pdf-encrypt        - Add password protection to PDF"
-  echo "  pdf-merge         - Merge multiple PDF files"
-  echo "  pdf-split         - Split PDF into separate pages"
-  echo "  pdf-rotate        - Rotate all pages in PDF file"
-  echo "  pdf-extract       - Extract page range from PDF"
-  echo "  pdf-to-text       - Extract text from PDF file"
+  echo "  pdf-info               - Display PDF file information"
+  echo "  pdf-to-images          - Convert PDF to images"
+  echo "  pdf-to-jpg             - Convert PDF to JPG images"
+  echo "  pdf-to-image-pdf       - Convert PDF to image-based PDF"
+  echo "  pdf-batch-to-image-pdf - Batch convert PDFs to image-based PDFs"
+  echo "  pdf-compress           - Compress PDF file"
+  echo "  pdf-batch-compress     - Batch compress PDF files"
+  echo "  pdf-encrypt            - Add password protection to PDF"
+  echo "  pdf-merge             - Merge multiple PDF files"
+  echo "  pdf-split             - Split PDF into separate pages"
+  echo "  pdf-rotate            - Rotate all pages in PDF file"
+  echo "  pdf-extract           - Extract page range from PDF"
+  echo "  pdf-to-text           - Extract text from PDF file"
   echo "\nUse <command> without arguments to see detailed usage information."
 }' # Show help information for PDF aliases

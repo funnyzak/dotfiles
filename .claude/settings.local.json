@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(bash:*)",
+      "Bash(zsh:*)",
+      "Bash(source:*)",
+      "Bash(pdf-watermark:*)",
+      "Bash(chmod:*)",
+      "Bash(/tmp/test_watermark.sh:*)"
     ],
     "deny": [],
     "ask": []
