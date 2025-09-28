@@ -274,7 +274,7 @@ alias zsh-upgrade-config='() {
   echo "Changes applied. Please restart your terminal for the changes to take effect."
 }'
 
-install-x-cmd='() {
+alias install-x-cmd='() {
   echo "Installing x-cmd..."
   wget -O- https://get.x-cmd.com | sh
 }'
