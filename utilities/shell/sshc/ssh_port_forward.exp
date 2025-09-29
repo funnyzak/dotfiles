@@ -1,0 +1,628 @@
+#!/usr/bin/expect -f
+# SSH Port Forward Expect Script
+# Supports multiple port forwarding with server configuration file
+
+# Configuration variables with defaults
+set config_file "$env(HOME)/.ssh/port_forward.conf"
+set timeout 300
+set max_attempts 5
+set no_color 0
+set keep_alive 1
+set alive_interval 15
+set alive_count 10
+set default_shell ""
+set connection_timeout 60
+set tcp_keep_alive 1
+set idle_timeout 0
+
+# Override with environment variables if set
+if {[info exists env(PORT_FORWARD_CONFIG)]} {
+    set config_file $env(PORT_FORWARD_CONFIG)
+}
+if {[info exists env(SSH_TIMEOUT)]} {
+    set timeout $env(SSH_TIMEOUT)
+}
+if {[info exists env(SSH_MAX_ATTEMPTS)]} {
+    set max_attempts $env(SSH_MAX_ATTEMPTS)
+}
+if {[info exists env(SSH_NO_COLOR)]} {
+    set no_color 1
+}
+if {[info exists env(SSH_KEEP_ALIVE)]} {
+    set keep_alive $env(SSH_KEEP_ALIVE)
+}
+if {[info exists env(SSH_ALIVE_INTERVAL)]} {
+    set alive_interval $env(SSH_ALIVE_INTERVAL)
+}
+if {[info exists env(SSH_ALIVE_COUNT)]} {
+    set alive_count $env(SSH_ALIVE_COUNT)
+}
+if {[info exists env(SSH_DEFAULT_SHELL)]} {
+    set default_shell $env(SSH_DEFAULT_SHELL)
+}
+if {[info exists env(SSH_CONNECTION_TIMEOUT)]} {
+    set connection_timeout $env(SSH_CONNECTION_TIMEOUT)
+}
+if {[info exists env(SSH_TCP_KEEP_ALIVE)]} {
+    set tcp_keep_alive $env(SSH_TCP_KEEP_ALIVE)
+}
+if {[info exists env(SSH_IDLE_TIMEOUT)]} {
+    set idle_timeout $env(SSH_IDLE_TIMEOUT)
+}
+
+# Color codes for output
+if {$no_color == 0} {
+    set color_red "\033\[31m"
+    set color_green "\033\[32m"
+    set color_yellow "\033\[33m"
+    set color_blue "\033\[34m"
+    set color_magenta "\033\[35m"
+    set color_cyan "\033\[36m"
+    set color_reset "\033\[0m"
+    set color_bold "\033\[1m"
+} else {
+    set color_red ""
+    set color_green ""
+    set color_yellow ""
+    set color_blue ""
+    set color_magenta ""
+    set color_cyan ""
+    set color_reset ""
+    set color_bold ""
+}
+
+# Helper function to print colored output
+proc print_color {color text} {
+    global color_reset
+    puts "$color$text$color_reset"
+}
+
+# Helper function to print error
+proc print_error {text} {
+    global color_red
+    print_color $color_red "ERROR: $text"
+}
+
+# Helper function to print success
+proc print_success {text} {
+    global color_green
+    print_color $color_green "SUCCESS: $text"
+}
+
+# Helper function to print info
+proc print_info {text} {
+    global color_blue
+    print_color $color_blue "INFO: $text"
+}
+
+# Helper function to print warning
+proc print_warning {text} {
+    global color_yellow
+    print_color $color_yellow "WARNING: $text"
+}
+
+# Function to check if a port is in use
+proc check_port_in_use {port} {
+    # Use netstat or lsof to check if port is in use
+    if {[catch {exec lsof -i :$port} result]} {
+        # Port is not in use
+        return 0
+    } else {
+        # Port is in use
+        return 1
+    }
+}
+
+# Function to find available port starting from a base port
+proc find_available_port {base_port} {
+    set port $base_port
+    while {[check_port_in_use $port] && $port < [expr {$base_port + 100}]} {
+        incr port
+    }
+    if {$port >= [expr {$base_port + 100}]} {
+        return -1
+    }
+    return $port
+}
+
+# Function to validate and suggest alternative ports
+proc validate_port_mappings {mappings} {
+    set valid_mappings {}
+    set has_conflicts 0
+
+    foreach mapping $mappings {
+        lassign $mapping local_port remote_port
+
+        if {[check_port_in_use $local_port]} {
+            set has_conflicts 1
+            print_warning "Port $local_port is already in use"
+
+            # Try to find an alternative port
+            set alt_port [find_available_port $local_port]
+            if {$alt_port != -1} {
+                print_info "Suggesting alternative port: $alt_port instead of $local_port"
+                print_info "You can:"
+                print_info "  1. Kill the process using port $local_port"
+                print_info "  2. Use port $alt_port instead"
+                print_info "  3. Choose a different port"
+            }
+        } else {
+            lappend valid_mappings $mapping
+        }
+    }
+
+    if {$has_conflicts} {
+        print_error "Port conflicts detected. Please resolve them before continuing."
+        print_info "To see what's using the ports, run: lsof -i :PORT_NUMBER"
+        print_info "To kill a process: kill -9 PID"
+        return {}
+    }
+
+    return $valid_mappings
+}
+
+# Expand home directory in path (~)
+# This function handles path expansion for key file paths
+proc expand_path {path} {
+    global ::env
+
+    if {[string match "~/*" $path]} {
+        # Handle ~/path format
+        return [file join $::env(HOME) [string range $path 2 end]]
+    } elseif {$path eq "~"} {
+        # Handle ~ by itself
+        return $::env(HOME)
+    } elseif {[string match "~*/*" $path]} {
+        # Handle ~user/path format
+        set username [string range $path 1 [expr {[string first "/" $path] - 1}]]
+        set rest [string range $path [expr {[string first "/" $path] + 1}] end]
+        # Note: This is a simplified approach. For full implementation,
+        # you would need to use platform-specific methods to get user home directories.
+        return "/home/$username/$rest"
+    }
+    return $path
+}
+
+# Function to parse port mappings
+proc parse_port_mappings {mappings} {
+    set port_pairs {}
+    set mappings [string trim $mappings]
+
+    if {$mappings == ""} {
+        return $port_pairs
+    }
+
+    print_info "Parsing port mappings: $mappings"
+
+    foreach mapping [split $mappings ","] {
+        set mapping [string trim $mapping]
+        if {$mapping != ""} {
+            set parts [split $mapping ":"]
+            if {[llength $parts] == 2} {
+                set local_port [string trim [lindex $parts 0]]
+                set remote_port [string trim [lindex $parts 1]]
+                if {$local_port != "" && $remote_port != "" && [string is integer $local_port] && [string is integer $remote_port]} {
+                    lappend port_pairs [list $local_port $remote_port]
+                    print_info "Added port mapping: $local_port -> $remote_port"
+                } else {
+                    print_warning "Invalid port mapping format: $mapping (ports must be integers)"
+                }
+            } else {
+                print_warning "Invalid port mapping format: $mapping (expected format: local_port:remote_port)"
+            }
+        }
+    }
+
+    print_info "Total port mappings parsed: [llength $port_pairs]"
+    return $port_pairs
+}
+
+# Function to load server configuration
+proc load_server_config {config_file} {
+    set servers {}
+
+    if {![file exists $config_file]} {
+        print_error "Configuration file not found: $config_file"
+        print_info "Please create the configuration file or set PORT_FORWARD_CONFIG environment variable"
+        return $servers
+    }
+
+    set file_handle [open $config_file r]
+    while {[gets $file_handle line] >= 0} {
+        set line [string trim $line]
+
+        # Skip empty lines and comments
+        if {$line == "" || [string index $line 0] == "#"} {
+            continue
+        }
+
+        # Parse CSV format
+        set parts [split $line ","]
+        if {[llength $parts] >= 8} {
+            set server_id [string trim [lindex $parts 0]]
+            set server_name [string trim [lindex $parts 1]]
+            set host [string trim [lindex $parts 2]]
+            set port [string trim [lindex $parts 3]]
+            set user [string trim [lindex $parts 4]]
+            set auth_type [string trim [lindex $parts 5]]
+            set auth_value [string trim [lindex $parts 6]]
+
+            # Collect all port mapping fields (from index 7 onwards)
+            set port_mappings_list {}
+            for {set i 7} {$i < [llength $parts]} {incr i} {
+                set mapping [string trim [lindex $parts $i]]
+                if {$mapping != ""} {
+                    lappend port_mappings_list $mapping
+                }
+            }
+
+            # Join all port mappings with comma
+            set port_mappings [join $port_mappings_list ","]
+
+            # Parse port mappings
+            set mappings [parse_port_mappings $port_mappings]
+
+            lappend servers [list $server_id $server_name $host $port $user $auth_type $auth_value $mappings]
+        }
+    }
+    close $file_handle
+
+    return $servers
+}
+
+# Function to display server list
+proc display_servers {servers} {
+    global color_bold color_cyan color_reset color_id color_host color_name
+
+    if {[llength $servers] == 0} {
+        print_error "No servers found in configuration file"
+        return
+    }
+
+    print_color $color_bold "\nAvailable servers for port forwarding:"
+    print_color $color_bold "=========================================="
+
+    # Display server list with numbering
+    set idx 1
+    foreach server $servers {
+        lassign $server server_id server_name host port user auth_type auth_value mappings
+
+        print_color $color_cyan "\n[format "%2d" $idx]  ID: $server_id"
+        puts "Name: $server_name"
+        puts "Host: $host:$port"
+        puts "User: $user"
+        puts "Auth: $auth_type"
+
+        if {[llength $mappings] > 0} {
+            puts "Port Mappings:"
+            foreach mapping $mappings {
+                lassign $mapping local_port remote_port
+                puts "  Local:$local_port -> Remote:$remote_port"
+            }
+        } else {
+            puts "Port Mappings: None configured"
+        }
+        incr idx
+    }
+    puts ""
+}
+
+# Function to find server by ID or number
+proc find_server_by_id {servers target_id} {
+    # Check if ID is an integer (server number)
+    if {[string is integer $target_id]} {
+        set index [expr {$target_id - 1}]
+        if {$index >= 0 && $index < [llength $servers]} {
+            return [lindex $servers $index]
+        }
+    } else {
+        # Original behavior for string IDs
+        foreach server $servers {
+            lassign $server server_id server_name host port user auth_type auth_value mappings
+            if {$server_id == $target_id} {
+                return $server
+            }
+        }
+    }
+    return {}
+}
+
+# Function to build SSH command with port forwarding
+proc build_ssh_command {server} {
+    global keep_alive alive_interval alive_count connection_timeout tcp_keep_alive idle_timeout
+
+    lassign $server server_id server_name host port user auth_type auth_value mappings
+
+    # Build SSH command with proper argument list
+    set ssh_cmd [list ssh]
+
+    # Add port if not default
+    if {$port != "22"} {
+        lappend ssh_cmd -p $port
+    }
+
+    # Add connection stability options
+    lappend ssh_cmd -o "StrictHostKeyChecking=no"
+    lappend ssh_cmd -o "UserKnownHostsFile=/dev/null"
+    lappend ssh_cmd -o "ConnectTimeout=$connection_timeout"
+    lappend ssh_cmd -o "TCPKeepAlive=yes"
+    lappend ssh_cmd -o "Compression=yes"
+    lappend ssh_cmd -o "ExitOnForwardFailure=no"
+
+    # Add keep-alive options for connection persistence
+    lappend ssh_cmd -o "ServerAliveInterval=$alive_interval"
+    lappend ssh_cmd -o "ServerAliveCountMax=$alive_count"
+
+    # Additional stability options
+    lappend ssh_cmd -o "BatchMode=no"
+    lappend ssh_cmd -o "GSSAPIAuthentication=no"
+
+    # Add authentication options
+    if {$auth_type == "key"} {
+        set key_file [expand_path $auth_value]
+        lappend ssh_cmd -o "PubkeyAuthentication=yes"
+        lappend ssh_cmd -i $key_file
+    } else {
+        lappend ssh_cmd -o "PasswordAuthentication=yes"
+    }
+
+    # Add port forwarding options
+    foreach mapping $mappings {
+        lassign $mapping local_port remote_port
+        lappend ssh_cmd -L "$local_port:localhost:$remote_port"
+    }
+
+    # Add user@host as the final argument
+    lappend ssh_cmd "$user@$host"
+
+    return $ssh_cmd
+}
+
+# Function to handle authentication
+proc handle_authentication {auth_type auth_value} {
+    if {$auth_type == "password"} {
+        # For password authentication, we'll prompt the user
+        print_info "Password authentication required"
+        stty -echo
+        expect_user -re "(.*)\n"
+        set password $expect_out(1,string)
+        stty echo
+        puts ""
+        return $password
+    } elseif {$auth_type == "key"} {
+        # For key authentication, check if key file exists
+        set key_file [expand_path $auth_value]
+        if {![file exists $key_file]} {
+            print_error "SSH key file not found: $key_file"
+            return ""
+        }
+        return ""
+    }
+    return ""
+}
+
+# =========================================================================
+# MAIN PROGRAM
+# =========================================================================
+
+print_color $color_bold "SSH Port Forward Tool"
+print_color $color_bold "===================="
+
+# Load server configuration
+set servers [load_server_config $config_file]
+
+# Check for command-line argument or environment variable for server ID
+if {[llength $argv] > 0} {
+    set target_server_id [lindex $argv 0]
+} elseif {[info exists ::env(TARGET_SERVER_ID)]} {
+    set target_server_id $::env(TARGET_SERVER_ID)
+} elseif {[info exists ::env(TARGET_SERVER_NUM)] && [string is integer $::env(TARGET_SERVER_NUM)]} {
+    # Support for numeric server selection via environment variable
+    set target_server_id $::env(TARGET_SERVER_NUM)
+} else {
+    set target_server_id ""
+}
+
+# If no target server specified, show list and prompt
+if {$target_server_id == ""} {
+    display_servers $servers
+
+    if {[llength $servers] == 0} {
+        exit 1
+    }
+
+    print_info "Enter server ID or number to connect (or 'q' to quit): "
+    gets stdin target_server_id
+
+    if {$target_server_id == "q" || $target_server_id == "quit"} {
+        print_info "Exiting..."
+        exit 0
+    }
+}
+
+# Find the target server
+set target_server [find_server_by_id $servers $target_server_id]
+if {[llength $target_server] == 0} {
+    print_error "Server not found: $target_server_id"
+    exit 1
+}
+
+lassign $target_server server_id server_name host port user auth_type auth_value mappings
+
+print_info "Connecting to: $server_name ($host:$port)"
+print_info "User: $user"
+
+if {[llength $mappings] > 0} {
+    print_info "Checking port mappings:"
+    foreach mapping $mappings {
+        lassign $mapping local_port remote_port
+        print_info "  Local:$local_port -> Remote:$remote_port"
+    }
+
+    # Validate port mappings before attempting connection
+    set valid_mappings [validate_port_mappings $mappings]
+    if {[llength $valid_mappings] == 0} {
+        print_error "Cannot proceed due to port conflicts"
+        exit 1
+    }
+
+    # Update mappings with validated ones
+    set mappings $valid_mappings
+    set target_server [list $server_id $server_name $host $port $user $auth_type $auth_value $mappings]
+} else {
+    print_warning "No port mappings configured for this server"
+}
+
+# Build SSH command
+set ssh_cmd [build_ssh_command $target_server]
+print_info "SSH Command: [join $ssh_cmd " "]"
+
+# Handle authentication
+set password [handle_authentication $auth_type $auth_value]
+
+# Start SSH connection
+print_info "Starting SSH connection..."
+
+set attempt 1
+while {$attempt <= $max_attempts} {
+    if {$attempt > 1} {
+        print_warning "Retry attempt $attempt of $max_attempts"
+    }
+
+    eval spawn $ssh_cmd
+
+    expect {
+        timeout {
+            print_error "Connection timeout after ${timeout} seconds"
+            print_info "This might be due to network issues, server load, or firewall restrictions"
+            catch {close}
+            catch {wait}
+            incr attempt
+            if {$attempt <= $max_attempts} {
+                print_info "Waiting 5 seconds before retry..."
+                after 5000
+            }
+            continue
+        }
+        "Are you sure you want to continue connecting" {
+            send "yes\r"
+            exp_continue
+        }
+        "password:" {
+            if {$password != ""} {
+                send "$password\r"
+            } else {
+                print_error "Password required but not provided"
+                catch {close}
+                catch {wait}
+                exit 1
+            }
+            exp_continue
+        }
+        "Permission denied" {
+            print_error "Authentication failed - check username and password/key"
+            catch {close}
+            catch {wait}
+            incr attempt
+            continue
+        }
+        -re "bind.*Address already in use" {
+            print_error "Port forwarding failed - local port already in use"
+            print_info "Please check and free up the conflicting ports, or use different ports"
+            catch {close}
+            catch {wait}
+            exit 1
+        }
+        "channel_setup_fwd_listener_tcpip: cannot listen to port" {
+            print_error "Cannot bind to local port for forwarding"
+            print_info "The port might be in use by another process"
+            catch {close}
+            catch {wait}
+            exit 1
+        }
+        "Could not request local forwarding" {
+            print_error "Local port forwarding request failed"
+            print_info "Check if the ports are available and not blocked by firewall"
+            catch {close}
+            catch {wait}
+            exit 1
+        }
+        "Connection refused" {
+            print_error "Connection refused - server may be down or port blocked"
+            catch {close}
+            catch {wait}
+            incr attempt
+            continue
+        }
+        "No route to host" {
+            print_error "No route to host - check network connectivity and host address"
+            catch {close}
+            catch {wait}
+            incr attempt
+            continue
+        }
+        "Name or service not known" {
+            print_error "Hostname not found - check host address"
+            catch {close}
+            catch {wait}
+            incr attempt
+            continue
+        }
+        "$ " {
+            print_success "Connected successfully!"
+
+            # Switch to default shell if specified
+            if {$default_shell != ""} {
+                send "$default_shell\r"
+                expect "$ "
+            }
+
+            # Show port forwarding status
+            if {[llength $mappings] > 0} {
+                print_info "Port forwarding active:"
+                foreach mapping $mappings {
+                    lassign $mapping local_port remote_port
+                    print_info "  Local:$local_port -> Remote:$remote_port"
+                }
+            }
+
+            # Interactive mode
+            interact
+            break
+        }
+        "# " {
+            print_success "Connected successfully!"
+
+            # Switch to default shell if specified
+            if {$default_shell != ""} {
+                send "$default_shell\r"
+                expect "$ "
+            }
+
+            # Show port forwarding status
+            if {[llength $mappings] > 0} {
+                print_info "Port forwarding active:"
+                foreach mapping $mappings {
+                    lassign $mapping local_port remote_port
+                    print_info "  Local:$local_port -> Remote:$remote_port"
+                }
+            }
+
+            # Interactive mode
+            interact
+            break
+        }
+        eof {
+            print_error "Connection failed"
+            catch {close}
+            catch {wait}
+            incr attempt
+            continue
+        }
+    }
+}
+
+if {$attempt > $max_attempts} {
+    print_error "Failed to connect after $max_attempts attempts"
+    exit 1
+}
