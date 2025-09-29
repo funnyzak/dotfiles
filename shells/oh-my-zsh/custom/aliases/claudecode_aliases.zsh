@@ -8,11 +8,11 @@ _check_command_claudecode_aliases() {
 }
 
 alias cc-free='() {
-  claude --dangerously-skip-permissions $@
+  IS_SANDBOX=1 claude --dangerously-skip-permissions $@
 }'
 
 alias ccr-free='() {
-  ccr code --permission-mode bypassPermissions
+  IS_SANDBOX=1 ccr code --permission-mode bypassPermissions
 }'
 
 alias cc-usage='() {
