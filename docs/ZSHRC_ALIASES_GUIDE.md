@@ -18,8 +18,9 @@ alias function_name='() { ... }'
 - **No single quotes** in function body code
 - Use double quotes `"` for all strings
 - Escape double quotes with backslash: `\"`
-- Escape single quotes in words: `couldn"t` instead of `couldn't`
+- Escape single quotes in words: `couldn"t` instead of `couldn't`, `it"s` instead of `it's`， `don"t` instead of `don't`， `you"ll` instead of `you'll` etc.
 - Example: `echo \"Hello, World!\"` instead of `echo 'Hello, World!'`
+- `grep "pattern"` instead of `grep 'pattern'` etc.
 
 ### Variable Usage
 - **Local variables only** - no global variables
