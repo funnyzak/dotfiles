@@ -313,15 +313,41 @@ alias gpushbr='() {
     return 1
   fi
 
-  remote=${2:-origin}
-  branch=${1:-$(_git_current_branch)}
+  echo -e "Push current or specified branch to remote.\nUsage:\n gpushbr [branch:current] [-r remote:origin]"
 
-  if [ $# -eq 0 ]; then
-    echo "Push branch to remote.\nUsage:\n gpushbr [branch:current] [remote:origin]"
+  local branch_name=""
+  local remote_name="origin"
+
+  # Parse arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -r)
+        if [ $# -lt 2 ]; then
+          echo "Error: -r option requires a remote name" >&2
+          return 1
+        fi
+        remote_name="$2"
+        shift 2
+        ;;
+      *)
+        if [ -z "$branch_name" ]; then
+          branch_name="$1"
+        else
+          echo "Error: Multiple branch names specified" >&2
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Use current branch if no branch specified
+  if [ -z "$branch_name" ]; then
+    branch_name=$(_git_current_branch)
   fi
 
-  echo "Pushing branch ${branch} to ${remote}"
-  git push "${remote}" "${branch}"
+  echo "Pushing branch ${branch_name} to ${remote_name}"
+  git push "${remote_name}" "${branch_name}"
 }'
 
 # Set current branch to track remote
@@ -330,10 +356,32 @@ alias gtrack='() {
     return 1
   fi
 
-  current_branch=$(_git_current_branch)
+  echo -e "Set current branch to track remote.\nUsage:\n gtrack [-r remote:origin]"
 
-  echo "Setting upstream tracking branch"
-  git branch --set-upstream-to=origin/$current_branch $current_branch
+  local remote_name="origin"
+
+  # Parse arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -r)
+        if [ $# -lt 2 ]; then
+          echo "Error: -r option requires a remote name" >&2
+          return 1
+        fi
+        remote_name="$2"
+        shift 2
+        ;;
+      *)
+        echo "Error: Unknown argument $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  local current_branch=$(_git_current_branch)
+
+  echo "Setting upstream tracking branch for ${current_branch} to ${remote_name}/${current_branch}"
+  git branch --set-upstream-to="${remote_name}/${current_branch}" "${current_branch}"
 }'
 
 # Push all branches to remote
@@ -342,8 +390,30 @@ alias gpushall='() {
     return 1
   fi
 
-  echo "Pushing all branches to remote"
-  git push --all
+  echo -e "Push all branches to remote.\nUsage:\n gpushall [-r remote:origin]"
+
+  local remote_name="origin"
+
+  # Parse arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -r)
+        if [ $# -lt 2 ]; then
+          echo "Error: -r option requires a remote name" >&2
+          return 1
+        fi
+        remote_name="$2"
+        shift 2
+        ;;
+      *)
+        echo "Error: Unknown argument $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  echo "Pushing all branches to ${remote_name}"
+  git push --all "${remote_name}"
 }'
 
 # Push all tags to remote
@@ -352,8 +422,30 @@ alias gpushtags='() {
     return 1
   fi
 
-  echo "Pushing all tags to remote"
-  git push --tags
+  echo -e "Push all tags to remote.\nUsage:\n gpushtags [-r remote:origin]"
+
+  local remote_name="origin"
+
+  # Parse arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -r)
+        if [ $# -lt 2 ]; then
+          echo "Error: -r option requires a remote name" >&2
+          return 1
+        fi
+        remote_name="$2"
+        shift 2
+        ;;
+      *)
+        echo "Error: Unknown argument $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  echo "Pushing all tags to ${remote_name}"
+  git push --tags "${remote_name}"
 }'
 
 # Force push all tags to remote
@@ -362,8 +454,30 @@ alias gpushtagsf='() {
     return 1
   fi
 
-  echo "Force pushing all tags to remote"
-  git push --tags --force
+  echo -e "Force push all tags to remote.\nUsage:\n gpushtagsf [-r remote:origin]"
+
+  local remote_name="origin"
+
+  # Parse arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -r)
+        if [ $# -lt 2 ]; then
+          echo "Error: -r option requires a remote name" >&2
+          return 1
+        fi
+        remote_name="$2"
+        shift 2
+        ;;
+      *)
+        echo "Error: Unknown argument $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  echo "Force pushing all tags to ${remote_name}"
+  git push --tags --force "${remote_name}"
 }'
 
 # Push current branch to all remotes
@@ -803,23 +917,115 @@ alias grmtag='() {
   fi
 
   if [ $# -eq 0 ]; then
-    echo "Remove Git tag.\nUsage:\n grmtag <tag_name>"
+    echo -e "Remove Git tag locally and optionally from remote.\nUsage:\n grmtag <tag_name> [-r] [remote_name:origin]"
+    echo -e "Examples:\n grmtag v1.0.0\n grmtag v1.0.0 -r\n grmtag v1.0.0 -r upstream"
     return 1
   fi
 
-  echo "Removing tag $1"
-  git tag -d "$1" &&
-  git push origin :refs/tags/"$1"
+  local tag_name="$1"
+  local remove_remote=false
+  local remote_name="origin"
+
+  # Parse arguments
+  shift
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -r)
+        remove_remote=true
+        shift
+        ;;
+      *)
+        if [ "$remove_remote" = true ]; then
+          remote_name="$1"
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Remove local tag
+  echo "Removing local tag: $tag_name"
+  if ! git tag -d "$tag_name"; then
+    echo "Error: Failed to remove local tag $tag_name" >&2
+    return 1
+  fi
+
+  # Remove remote tag if requested
+  if [ "$remove_remote" = true ]; then
+    echo "Removing remote tag: $tag_name from $remote_name"
+    if ! git push "$remote_name" :refs/tags/"$tag_name"; then
+      echo "Error: Failed to remove remote tag $tag_name from $remote_name" >&2
+      return 1
+    fi
+  fi
+
+  echo "Tag $tag_name removed successfully"
 }'
 
-# Remove all local tags
 alias grmalltags='() {
   if ! _git_check_command || ! _git_check_repository; then
     return 1
   fi
 
-  echo "Removing all Git tags"
-  git tag -l | xargs git tag -d
+  if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    echo -e "Remove all Git tags locally and optionally from remote.\nUsage:\n grmalltags [-r] [remote_name:origin]"
+    echo -e "Examples:\n grmalltags\n grmalltags -r\n grmalltags -r upstream"
+    return 0
+  fi
+
+  local remove_remote=false
+  local remote_name="origin"
+
+  # Parse arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -r)
+        remove_remote=true
+        shift
+        ;;
+      *)
+        if [ "$remove_remote" = true ]; then
+          remote_name="$1"
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Get all local tags
+  local tags
+  tags=$(git tag -l)
+
+  if [ -z "$tags" ]; then
+    echo "No tags found in repository"
+    return 0
+  fi
+
+  echo "Removing all local tags..."
+  if ! echo "$tags" | xargs git tag -d; then
+    echo "Error: Failed to remove some local tags" >&2
+    return 1
+  fi
+
+  # Remove remote tags if requested
+  if [ "$remove_remote" = true ]; then
+    echo "Removing all remote tags from $remote_name..."
+    local failed_tags=""
+
+    echo "$tags" | while read -r tag; do
+      if [ -n "$tag" ]; then
+        if ! git push "$remote_name" ":refs/tags/$tag" 2>/dev/null; then
+          failed_tags="$failed_tags $tag"
+        fi
+      fi
+    done
+
+    if [ -n "$failed_tags" ]; then
+      echo "Warning: Failed to remove some remote tags:$failed_tags" >&2
+    fi
+  fi
+
+  echo "All tags removed successfully"
 }'
 
 #===================================
@@ -1207,6 +1413,10 @@ alias git-help='() {
   echo "  gst               - Check repository status"
   echo "  gcmt              - Commit changes"
   echo "  gpush             - Push to remote repository"
+  echo "  gtag              - Create and push tag"
+  echo "  gltags            - List all tags"
+  echo "  grmtag            - Remove local and remote tag"
+  echo "  grmalltags        - Remove all local and remote tags"
   echo ""
   echo "  Branch operations:"
   echo "  gbranch           - Create and switch to new branch"
