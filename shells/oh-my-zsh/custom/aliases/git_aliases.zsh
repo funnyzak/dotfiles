@@ -1132,14 +1132,14 @@ alias ginit='() {
 #===================================
 
 # Download GitHub repository branch
-alias gdlbranch='() {
+alias gh-dl-branch='() {
   if ! command -v wget &> /dev/null; then
     echo "Error: wget command not found. Please install it first." >&2
     return 1
   fi
 
   if [ $# -eq 0 ]; then
-    echo "Download GitHub project branch.\nUsage:\n gdlbranch <repository> [branch:main]"
+    echo "Download GitHub project branch.\nUsage:\n gh-dl-branch <repository> [branch:main]"
     return 1
   fi
 
@@ -1153,14 +1153,14 @@ alias gdlbranch='() {
 }'
 
 # Download GitHub repository tag
-alias gdltag='() {
+alias gh-dl-tag='() {
   if ! command -v wget &> /dev/null; then
     echo "Error: wget command not found. Please install it first." >&2
     return 1
   fi
 
   if [ $# -eq 0 ]; then
-    echo "Download GitHub project tag.\nUsage:\n gdltag <repository> [tag:v1.0.0]"
+    echo "Download GitHub project tag.\nUsage:\n gh-dl-tag <repository> [tag:v1.0.0]"
     return 1
   fi
 
@@ -1174,14 +1174,14 @@ alias gdltag='() {
 }'
 
 # Download GitHub repository release assets
-alias gdlrelease='() {
+alias gh-dl-release='() {
   if ! command -v curl &> /dev/null || ! command -v jq &> /dev/null; then
     echo "Error: curl or jq command not found. Please install them first." >&2
     return 1
   fi
 
   if [ $# -lt 1 ]; then
-    echo "Download GitHub project release assets.\nUsage:\n gdlrelease <repository> [version:latest] [save_path]"
+    echo "Download GitHub project release assets.\nUsage:\n gh-dl-release <repository> [version:latest] [save_path]"
     return 1
   fi
 
@@ -1459,9 +1459,9 @@ alias git-help='() {
   echo "  GitHub operations:"
   echo "  ghcreate          - Create GitHub repository"
   echo "  ginit             - Initialize a new Git repository"
-  echo "  gdlbranch         - Download GitHub repository branch"
-  echo "  gdltag            - Download GitHub repository tag"
-  echo "  gdlrelease        - Download GitHub project release assets"
+  echo "  gh-dl-branch         - Download GitHub repository branch"
+  echo "  gh-dl-tag            - Download GitHub repository tag"
+  echo "  gh-dl-release        - Download GitHub project release assets"
   echo "  gh-to-ssh         - Convert HTTPS GitHub URLs to SSH format recursively"
   echo ""
   echo "  git-help          - Display this help message"
