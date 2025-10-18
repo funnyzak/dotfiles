@@ -127,51 +127,9 @@ alias chsh-bash='() {
 
 # Process management
 # -----------------------------
-# alias kill-port='() {
-#   echo -e "Kill process using specific port.\nUsage:\n  kill-port <port_number>"
 
-#   if [ -z "$1" ]; then
-#     echo "Error: Port number is required" >&2
-#     return 1
-#   fi
 
-#   if ! [[ "$1" =~ ^[0-9]+$ ]]; then
-#     echo "Error: Port must be a number" >&2
-#     return 1
-#   fi
 
-#   local port="$1"
-#   local pid
-
-#   # Check if we're on Linux or Mac
-#   if command -v lsof >/dev/null 2>&1; then
-#     pid=$(lsof -i:$port -t)
-#   elif command -v netstat >/dev/null 2>&1; then
-#     # Fallback to netstat if lsof is not available
-#     pid=$(netstat -tuln | grep ":$port " | awk "{print \$7}" | cut -d/ -f1)
-#   else
-#     echo "Error: Neither lsof nor netstat found" >&2
-#     return 1
-#   fi
-
-#   if [ -z "$pid" ]; then
-#     echo "No process found using port $port"
-#     return 0
-#   fi
-
-#   echo "Found process(es) using port $port: $pid"
-#   echo "Killing process(es)..."
-
-#   for p in $pid; do
-#     kill -9 "$p"
-#     if [ $? -eq 0 ]; then
-#       echo "Process $p killed successfully"
-#     else
-#       echo "Error: Failed to kill process $p" >&2
-#       return 1
-#     fi
-#   done
-# }' # Kill process using specific port
 alias kill-pid='() {
   echo -e "Kill process by PID.\nUsage:\n  kill-pid <pid_number>"
 
@@ -869,6 +827,191 @@ alias kill-keyword='() {
   fi
 }' # Kill processes matching a keyword
 
+alias list-ports='() {
+  echo -e "List network ports and processes using them.\nUsage:\n  list-ports [port_number] [--all|-a] [--tcp|-t] [--udp|-u] [--listening|-l] [--verbose|-v]"
+  echo "Options:"
+  echo "  --all, -a         Show all ports (default: listening ports only)"
+  echo "  --tcp, -t         Show TCP ports only"
+  echo "  --udp, -u         Show UDP ports only"
+  echo "  --listening, -l   Show listening ports only (default)"
+  echo "  --verbose, -v     Show detailed process information"
+  echo ""
+  echo "Examples:"
+  echo "  list-ports                    # Show all listening ports"
+  echo "  list-ports 8080               # Show processes using port 8080"
+  echo "  list-ports --tcp --verbose    # Show detailed TCP listening ports"
+  echo "  list-ports --all --udp        # Show all UDP ports"
+  echo ""
+
+  local show_all=0
+  local show_tcp=0
+  local show_udp=0
+  local show_listening=1
+  local verbose=0
+  local specific_port=""
+
+  # Process arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --all|-a)
+        show_all=1
+        show_listening=0
+        shift
+        ;;
+      --tcp|-t)
+        show_tcp=1
+        shift
+        ;;
+      --udp|-u)
+        show_udp=1
+        shift
+        ;;
+      --listening|-l)
+        show_listening=1
+        show_all=0
+        shift
+        ;;
+      --verbose|-v)
+        verbose=1
+        shift
+        ;;
+      *)
+        # Check if its a number (port number)
+        if [[ "$1" =~ ^[0-9]+$ ]]; then
+          specific_port="$1"
+        else
+          echo "Error: Unknown option $1" >&2
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # If specific port is requested, show only that port
+  if [ -n "$specific_port" ]; then
+    echo "Checking port $specific_port..."
+    echo ""
+
+    # Check if lsof is available
+    if command -v lsof >/dev/null 2>&1; then
+      local port_info=$(lsof -i:$specific_port 2>/dev/null)
+
+      if [ -z "$port_info" ]; then
+        echo "No processes found using port $specific_port"
+        return 0
+      fi
+
+      echo "Processes using port $specific_port:"
+      echo "$port_info"
+
+      if [ "$verbose" -eq 1 ]; then
+        echo ""
+        echo "Detailed process information:"
+        local pids=$(echo "$port_info" | tail -n +2 | awk "{print \$2}")
+        for pid in $pids; do
+          if [ -n "$pid" ] && [[ "$pid" =~ ^[0-9]+$ ]]; then
+            echo "PID $pid details:"
+            ps -p "$pid" -o pid,ppid,user,command 2>/dev/null || echo "Process $pid not found"
+            echo ""
+          fi
+        done
+      fi
+    else
+      echo "Error: lsof command not found. Please install lsof to use this feature." >&2
+      return 1
+    fi
+    return 0
+  fi
+
+  # Build netstat command based on options
+  local netstat_cmd="netstat -tuln"
+  local lsof_cmd="lsof -i"
+
+  # Add protocol filters
+  if [ "$show_tcp" -eq 1 ] && [ "$show_udp" -eq 0 ]; then
+    netstat_cmd="$netstat_cmd -t"
+    lsof_cmd="$lsof_cmd -i tcp"
+  elif [ "$show_udp" -eq 1 ] && [ "$show_tcp" -eq 0 ]; then
+    netstat_cmd="$netstat_cmd -u"
+    lsof_cmd="$lsof_cmd -i udp"
+  fi
+
+  # Add listening filter
+  if [ "$show_listening" -eq 1 ] && [ "$show_all" -eq 0 ]; then
+    netstat_cmd="$netstat_cmd | grep LISTEN"
+    lsof_cmd="$lsof_cmd | grep LISTEN"
+  fi
+
+  echo "Network Port Information"
+  echo "======================="
+  echo ""
+
+  # Try lsof first (more detailed)
+  if command -v lsof >/dev/null 2>&1; then
+    echo "Using lsof for detailed port information:"
+    echo ""
+
+    local lsof_output
+    if [ "$show_listening" -eq 1 ] && [ "$show_all" -eq 0 ]; then
+      lsof_output=$(lsof -i -P | grep LISTEN)
+    else
+      lsof_output=$(lsof -i -P)
+    fi
+
+    if [ -z "$lsof_output" ]; then
+      echo "No network connections found"
+    else
+      # Format output nicely
+      echo "COMMAND     PID   USER   FD   TYPE DEVICE SIZE/OFF NODE NAME"
+      echo "------------------------------------------------------------"
+      echo "$lsof_output" | while read -r line; do
+        echo "$line"
+      done
+    fi
+
+    if [ "$verbose" -eq 1 ]; then
+      echo ""
+      echo "Process details:"
+      local pids=$(echo "$lsof_output" | awk "{print \$2}" | sort -u)
+      for pid in $pids; do
+        if [ -n "$pid" ] && [[ "$pid" =~ ^[0-9]+$ ]]; then
+          echo "PID $pid:"
+          ps -p "$pid" -o pid,ppid,user,command 2>/dev/null | tail -n +2
+          echo ""
+        fi
+      done
+    fi
+
+  # Fallback to netstat
+  elif command -v netstat >/dev/null 2>&1; then
+    echo "Using netstat for port information:"
+    echo ""
+
+    local netstat_output
+    if [ "$show_listening" -eq 1 ] && [ "$show_all" -eq 0 ]; then
+      netstat_output=$(eval "$netstat_cmd | grep LISTEN")
+    else
+      netstat_output=$(eval "$netstat_cmd")
+    fi
+
+    if [ -z "$netstat_output" ]; then
+      echo "No network connections found"
+    else
+      echo "Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name"
+      echo "----------------------------------------------------------------------------------------"
+      echo "$netstat_output"
+    fi
+
+  else
+    echo "Error: Neither lsof nor netstat found. Please install one of them." >&2
+    return 1
+  fi
+
+  echo ""
+  echo "Port listing complete."
+}' # List network ports and processes using them
+
 alias srv-frpc='() {
   curl -sSL https://gitee.com/funnyzak/frpc/raw/main/frpc.sh | bash -s "$@"
 }'
@@ -1053,6 +1196,7 @@ alias srv-help='() {
   echo "  kill-pid          - Kill process by PID"
   echo "  kill-ports        - Kill processes using specific ports"
   echo "  kill-keyword      - Kill processes matching a keyword"
+  echo "  list-ports        - List network ports and processes using them"
   echo ""
   echo "  System information and monitoring:"
   echo "  srv-overview      - Show system overview"
