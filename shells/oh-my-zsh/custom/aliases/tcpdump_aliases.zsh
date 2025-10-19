@@ -93,357 +93,96 @@ _tcpdump_ip_proto() {
 # ------------------------------
 
 alias tcpd-basic='() {
-  echo -e "Basic tcpdump with IP addresses and filtering options.\nUsage:\n tcpd-basic [--source-ip ip] [--dest-ip ip] [--min-size size] [--max-size size] [--port port] [--interface interface] [--data-only] [--count] [--help]"
-  echo ""
+  echo "Basic tcpdump with IP addresses."
+  echo "Usage: tcpd-basic [options]"
   echo "Options:"
-  echo "  --source-ip ip      Filter by source IP address"
-  echo "  --dest-ip ip        Filter by destination IP address"
-  echo "  --min-size size     Filter packets with minimum size (bytes)"
-  echo "  --max-size size     Filter packets with maximum size (bytes)"
-  echo "  --port port         Filter by port number"
-  echo "  --interface iface   Network interface (default: any)"
-  echo "  --data-only         Show only packets with data payload"
-  echo "  --count             Count packets instead of displaying content"
-  echo "  --help              Show this help message"
-  echo ""
-  echo "Examples:"
-  echo "  tcpd-basic --source-ip 192.168.1.100 --port 80"
-  echo "  tcpd-basic --min-size 1000 --data-only"
-  echo "  tcpd-basic --dest-ip 10.0.0.1 --interface eth0"
-
-  # Check for help flag
-  if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-    return 0
-  fi
+  echo "  -d      Show only packets with data payload (no TCP control packets)"
+  echo "  -c      Count packets rather than showing their content"
 
   # Check if tcpdump is installed
   _tcpdump_check_installed || return 1
 
-  # Initialize variables
-  local source_ip=""
-  local dest_ip=""
-  local min_size=""
-  local max_size=""
-  local port_filter=""
-  local interface_name="any"
+  # Parse options
   local data_only=false
   local count_only=false
-  local filter_parts=()
-  local options="-nS"
+  local OPTIND=1
 
-  # Parse named parameters
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      --source-ip)
-        source_ip="$2"
-        shift 2
-        ;;
-      --dest-ip)
-        dest_ip="$2"
-        shift 2
-        ;;
-      --min-size)
-        min_size="$2"
-        shift 2
-        ;;
-      --max-size)
-        max_size="$2"
-        shift 2
-        ;;
-      --port)
-        port_filter="$2"
-        shift 2
-        ;;
-      --interface|-i)
-        interface_name="$2"
-        shift 2
-        ;;
-      --data-only|-d)
-        data_only=true
-        shift
-        ;;
-      --count|-c)
-        count_only=true
-        shift
-        ;;
-      *)
-        echo "Error: Unknown option: $1" >&2
-        echo "Use --help for usage information." >&2
-        return 1
-        ;;
+  while getopts ":dc" opt; do
+    case "$opt" in
+      d) data_only=true ;;
+      c) count_only=true ;;
+      \?) _tcpdump_error "Invalid option: -$OPTARG"; return 1 ;;
     esac
   done
+  shift $((OPTIND-1))
 
-  # Validate IP addresses
-  if [ -n "$source_ip" ]; then
-    if [[ "$source_ip" != *.*.*.* ]]; then
-      echo "Error: Invalid source IP format: $source_ip" >&2
-      return 1
-    fi
-    filter_parts+=("src $source_ip")
-  fi
+  local filter=""
+  local options="-nS"
 
-  if [ -n "$dest_ip" ]; then
-    if [[ "$dest_ip" != *.*.*.* ]]; then
-      echo "Error: Invalid destination IP format: $dest_ip" >&2
-      return 1
-    fi
-    filter_parts+=("dst $dest_ip")
-  fi
-
-  # Validate size parameters
-  if [ -n "$min_size" ]; then
-    if ! [[ "$min_size" =~ ^[0-9]+$ ]]; then
-      echo "Error: Invalid minimum size: $min_size. Must be a number." >&2
-      return 1
-    fi
-    filter_parts+=("greater $min_size")
-  fi
-
-  if [ -n "$max_size" ]; then
-    if ! [[ "$max_size" =~ ^[0-9]+$ ]]; then
-      echo "Error: Invalid maximum size: $max_size. Must be a number." >&2
-      return 1
-    fi
-    filter_parts+=("less $max_size")
-  fi
-
-  # Validate port
-  if [ -n "$port_filter" ]; then
-    if ! [[ "$port_filter" =~ ^[0-9]+$ ]]; then
-      echo "Error: Invalid port number: $port_filter. Must be a number." >&2
-      return 1
-    fi
-    filter_parts+=("port $port_filter")
-  fi
-
-  # Add data payload filter
   if [ "$data_only" = true ]; then
-    filter_parts+=("$_TCPDUMP_DATA_FILTER")
+    filter="$_TCPDUMP_DATA_FILTER"
+    echo "Running basic tcpdump with data payload only..."
+  else
+    echo "Running basic tcpdump..."
   fi
 
-  # Build final filter
-  local final_filter=""
-  if [ ${#filter_parts[@]} -gt 0 ]; then
-    final_filter=$(IFS=" and "; echo "${filter_parts[*]}")
-  fi
-
-  # Set count option
   if [ "$count_only" = true ]; then
     options="$options -c 0"
     echo "Counting packets instead of displaying content..."
   fi
 
-  # Display what we are monitoring
-  echo "Running basic tcpdump..."
-  [ -n "$source_ip" ] && echo "  Source IP: $source_ip"
-  [ -n "$dest_ip" ] && echo "  Destination IP: $dest_ip"
-  [ -n "$min_size" ] && echo "  Minimum size: $min_size bytes"
-  [ -n "$max_size" ] && echo "  Maximum size: $max_size bytes"
-  [ -n "$port_filter" ] && echo "  Port: $port_filter"
-  [ "$data_only" = true ] && echo "  Data payload only: yes"
-  [ "$count_only" = true ] && echo "  Count mode: yes"
-  echo "  Interface: $interface_name"
-
-  # Execute tcpdump
-  if [ -n "$final_filter" ]; then
-    sudo tcpdump -i "$interface_name" $options "$final_filter"
+  if [ -n "$filter" ]; then
+    sudo tcpdump $options "$filter"
   else
-    sudo tcpdump -i "$interface_name" $options
+    sudo tcpdump $options
   fi
-}' # Enhanced basic tcpdump with IP and size filtering options
+}' # Listen to all ports, directly display IP addresses
 
 alias tcpd-detail='() {
-  echo -e "Detailed tcpdump with verbose output and advanced filtering.\nUsage:\n tcpd-detail [--source-ip ip] [--dest-ip ip] [--min-size size] [--max-size size] [--port port] [--interface interface] [--protocol proto] [--data-only] [--count count] [--help]"
-  echo ""
+  echo "Detailed tcpdump with verbose output."
+  echo "Usage: tcpd-detail [options]"
   echo "Options:"
-  echo "  --source-ip ip      Filter by source IP address"
-  echo "  --dest-ip ip        Filter by destination IP address"
-  echo "  --min-size size     Filter packets with minimum size (bytes)"
-  echo "  --max-size size     Filter packets with maximum size (bytes)"
-  echo "  --port port         Filter by port number"
-  echo "  --interface iface   Network interface (default: any)"
-  echo "  --protocol proto    Filter by protocol (tcp, udp, icmp, ip)"
-  echo "  --data-only         Show only packets with data payload"
-  echo "  --count count       Show only specified number of packets"
-  echo "  --help              Show this help message"
-  echo ""
-  echo "Examples:"
-  echo "  tcpd-detail --source-ip 192.168.1.100 --protocol tcp"
-  echo "  tcpd-detail --port 443 --min-size 500 --count 20"
-  echo "  tcpd-detail --dest-ip 10.0.0.0/24 --interface eth0"
-
-  # Check for help flag
-  if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-    return 0
-  fi
+  echo "  -d      Show only packets with data payload (no TCP control packets)"
+  echo "  -c <count:10>  Show only specified number of packets"
 
   # Check if tcpdump is installed
   _tcpdump_check_installed || return 1
 
-  # Initialize variables
-  local source_ip=""
-  local dest_ip=""
-  local min_size=""
-  local max_size=""
-  local port_filter=""
-  local interface_name="any"
-  local protocol_filter=""
+  # Parse options
   local data_only=false
   local packet_count=""
-  local filter_parts=()
-  local options="-nnvvS"
+  local OPTIND=1
 
-  # Parse named parameters
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      --source-ip)
-        source_ip="$2"
-        shift 2
-        ;;
-      --dest-ip)
-        dest_ip="$2"
-        shift 2
-        ;;
-      --min-size)
-        min_size="$2"
-        shift 2
-        ;;
-      --max-size)
-        max_size="$2"
-        shift 2
-        ;;
-      --port)
-        port_filter="$2"
-        shift 2
-        ;;
-      --interface|-i)
-        interface_name="$2"
-        shift 2
-        ;;
-      --protocol)
-        protocol_filter="$2"
-        shift 2
-        ;;
-      --data-only|-d)
-        data_only=true
-        shift
-        ;;
-      --count|-c)
-        packet_count="$2"
-        shift 2
-        ;;
-      *)
-        echo "Error: Unknown option: $1" >&2
-        echo "Use --help for usage information." >&2
-        return 1
-        ;;
+  while getopts ":dc:" opt; do
+    case "$opt" in
+      d) data_only=true ;;
+      c) packet_count="$OPTARG" ;;
+      \?) _tcpdump_error "Invalid option: -$OPTARG"; return 1 ;;
     esac
   done
+  shift $((OPTIND-1))
 
-  # Validate IP addresses and CIDR notation
-  if [ -n "$source_ip" ]; then
-    if [[ "$source_ip" != *.*.*.* ]] && [[ "$source_ip" != *.*.*.*/* ]]; then
-      echo "Error: Invalid source IP/network format: $source_ip" >&2
-      return 1
-    fi
-    if echo "$source_ip" | grep -q "/"; then
-      filter_parts+=("src net $source_ip")
-    else
-      filter_parts+=("src $source_ip")
-    fi
-  fi
+  local filter=""
+  local options="-nnvvS"
 
-  if [ -n "$dest_ip" ]; then
-    if [[ "$dest_ip" != *.*.*.* ]] && [[ "$dest_ip" != *.*.*.*/* ]]; then
-      echo "Error: Invalid destination IP/network format: $dest_ip" >&2
-      return 1
-    fi
-    if echo "$dest_ip" | grep -q "/"; then
-      filter_parts+=("dst net $dest_ip")
-    else
-      filter_parts+=("dst $dest_ip")
-    fi
-  fi
-
-  # Validate size parameters
-  if [ -n "$min_size" ]; then
-    if ! [[ "$min_size" =~ ^[0-9]+$ ]]; then
-      echo "Error: Invalid minimum size: $min_size. Must be a number." >&2
-      return 1
-    fi
-    filter_parts+=("greater $min_size")
-  fi
-
-  if [ -n "$max_size" ]; then
-    if ! [[ "$max_size" =~ ^[0-9]+$ ]]; then
-      echo "Error: Invalid maximum size: $max_size. Must be a number." >&2
-      return 1
-    fi
-    filter_parts+=("less $max_size")
-  fi
-
-  # Validate port
-  if [ -n "$port_filter" ]; then
-    if ! [[ "$port_filter" =~ ^[0-9]+$ ]]; then
-      echo "Error: Invalid port number: $port_filter. Must be a number." >&2
-      return 1
-    fi
-    filter_parts+=("port $port_filter")
-  fi
-
-  # Validate protocol
-  if [ -n "$protocol_filter" ]; then
-    case "$protocol_filter" in
-      tcp|udp|icmp|ip)
-        filter_parts+=("$protocol_filter")
-        ;;
-      *)
-        echo "Error: Invalid protocol: $protocol_filter. Use tcp, udp, icmp, or ip" >&2
-        return 1
-        ;;
-    esac
-  fi
-
-  # Validate packet count
-  if [ -n "$packet_count" ]; then
-    if ! [[ "$packet_count" =~ ^[0-9]+$ ]]; then
-      echo "Error: Invalid packet count: $packet_count. Must be a number." >&2
-      return 1
-    fi
-    options="$options -c $packet_count"
-  fi
-
-  # Add data payload filter
   if [ "$data_only" = true ]; then
-    filter_parts+=("$_TCPDUMP_DATA_FILTER")
-  fi
-
-  # Build final filter
-  local final_filter=""
-  if [ ${#filter_parts[@]} -gt 0 ]; then
-    final_filter=$(IFS=" and "; echo "${filter_parts[*]}")
-  fi
-
-  # Display what we are monitoring
-  echo "Running detailed tcpdump with verbose output..."
-  [ -n "$source_ip" ] && echo "  Source IP/Network: $source_ip"
-  [ -n "$dest_ip" ] && echo "  Destination IP/Network: $dest_ip"
-  [ -n "$min_size" ] && echo "  Minimum size: $min_size bytes"
-  [ -n "$max_size" ] && echo "  Maximum size: $max_size bytes"
-  [ -n "$port_filter" ] && echo "  Port: $port_filter"
-  [ -n "$protocol_filter" ] && echo "  Protocol: $protocol_filter"
-  [ "$data_only" = true ] && echo "  Data payload only: yes"
-  [ -n "$packet_count" ] && echo "  Packet count: $packet_count"
-  echo "  Interface: $interface_name"
-
-  # Execute tcpdump
-  if [ -n "$final_filter" ]; then
-    sudo tcpdump -i "$interface_name" $options "$final_filter"
+    filter="$_TCPDUMP_DATA_FILTER"
+    echo "Running detailed tcpdump with data payload only..."
   else
-    sudo tcpdump -i "$interface_name" $options
+    echo "Running detailed tcpdump..."
   fi
-}' # Enhanced detailed tcpdump with advanced filtering options
+
+  if [ -n "$packet_count" ]; then
+    options="$options -c $packet_count"
+    echo "Limiting output to $packet_count packets..."
+  fi
+
+  if [ -n "$filter" ]; then
+    sudo tcpdump $options "$filter"
+  else
+    sudo tcpdump $options
+  fi
+}' # Display detailed data packets with tos, ttl, checksum
 
 alias tcpd-full='() {
   echo "Full tcpdump with hex and ascii output."
@@ -564,165 +303,54 @@ alias tcpd-iface='() {
 # ----------------------
 
 alias tcpd-port='() {
-  echo -e "Monitor specific port with advanced filtering options.\nUsage:\n tcpd-port <port_number> [--source-ip ip] [--dest-ip ip] [--min-size size] [--max-size size] [--interface interface] [--data-only] [--verbose] [--hex] [--count count] [--help]"
-  echo ""
-  echo "Required:"
-  echo "  port_number         Port number to monitor"
-  echo ""
+  echo "Monitor specific port and interface."
+  echo "Usage: tcpd-port [port_number] [interface_name:any] [options]"
+  echo "Example: tcpd-port 80 eth0 -d"
   echo "Options:"
-  echo "  --source-ip ip      Filter by source IP address"
-  echo "  --dest-ip ip        Filter by destination IP address"
-  echo "  --min-size size     Filter packets with minimum size (bytes)"
-  echo "  --max-size size     Filter packets with maximum size (bytes)"
-  echo "  --interface iface   Network interface (default: any)"
-  echo "  --data-only         Show only packets with data payload"
-  echo "  --verbose           Verbose output with more details"
-  echo "  --hex               Show hex and ASCII dump"
-  echo "  --count count       Show only specified number of packets"
-  echo "  --help              Show this help message"
-  echo ""
-  echo "Examples:"
-  echo "  tcpd-port 80 --source-ip 192.168.1.100 --verbose"
-  echo "  tcpd-port 443 --min-size 1000 --hex --count 50"
-  echo "  tcpd-port 22 --dest-ip 10.0.0.0/24 --interface eth0"
-
-  # Check for help flag
-  [ "$1" = "--help" ] || [ "$1" = "-h" ] && return 0
+  echo "  -d      Show only packets with data payload (no control packets)"
+  echo "  -v      Verbose output"
+  echo "  -x      Show hex and ASCII dump"
+  echo "  -c <count:10>  Show only specified number of packets"
 
   # Check if tcpdump is installed
   _tcpdump_check_installed || return 1
 
-  # Initialize variables
-  local port_number=""
-  local source_ip=""
-  local dest_ip=""
-  local min_size=""
-  local max_size=""
-  local interface_name="any"
+  # Parse options
   local data_only=false
   local verbose=false
   local hex_ascii=false
   local packet_count=""
-  local filter_parts=()
-  local options=""
+  local OPTIND=1
 
-  # Parse named parameters
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      --source-ip)
-        source_ip="$2"
-        shift 2
-        ;;
-      --dest-ip)
-        dest_ip="$2"
-        shift 2
-        ;;
-      --min-size)
-        min_size="$2"
-        shift 2
-        ;;
-      --max-size)
-        max_size="$2"
-        shift 2
-        ;;
-      --interface|-i)
-        interface_name="$2"
-        shift 2
-        ;;
-      --data-only|-d)
-        data_only=true
-        shift
-        ;;
-      --verbose|-v)
-        verbose=true
-        shift
-        ;;
-      --hex|-x)
-        hex_ascii=true
-        shift
-        ;;
-      --count|-c)
-        packet_count="$2"
-        shift 2
-        ;;
-      *)
-        # If parameter looks like a port number and port is not set
-        if [ -z "$port_number" ] && [[ "$1" =~ ^[0-9]+$ ]]; then
-          port_number="$1"
-          shift
-        else
-          echo "Error: Unknown option or missing port number: $1" >&2
-          echo "Use --help for usage information." >&2
-          return 1
-        fi
-        ;;
+  while getopts ":dvxc:" opt; do
+    case "$opt" in
+      d) data_only=true ;;
+      v) verbose=true ;;
+      x) hex_ascii=true ;;
+      c) packet_count="$OPTARG" ;;
+      \?) _tcpdump_error "Invalid option: -$OPTARG"; return 1 ;;
     esac
   done
+  shift $((OPTIND-1))
 
-  # Verify required port number
+  # Set default values
+  local port_number="${1}"
+  local interface_name="${2:-any}"
+
+  # Verify parameters
   if [ -z "$port_number" ]; then
-    echo "Error: Port number is required. Please provide a port number." >&2
+    _tcpdump_error "No port specified. Please provide a port number."
     return 1
   fi
 
   # Validate port number
-  if ! [[ "$port_number" =~ ^[0-9]+$ ]] || [ "$port_number" -lt 1 ] || [ "$port_number" -gt 65535 ]; then
-    echo "Error: Invalid port number: $port_number. Must be between 1 and 65535." >&2
+  if ! [[ "$port_number" =~ ^[0-9]+$ ]]; then
+    _tcpdump_error "Invalid port number: $port_number. Must be a number."
     return 1
   fi
 
-  # Validate IP addresses and CIDR notation
-  if [ -n "$source_ip" ]; then
-    if [[ "$source_ip" != *.*.*.* ]] && [[ "$source_ip" != *.*.*.*/* ]]; then
-      echo "Error: Invalid source IP/network format: $source_ip" >&2
-      return 1
-    fi
-    if echo "$source_ip" | grep -q "/"; then
-      filter_parts+=("src net $source_ip")
-    else
-      filter_parts+=("src $source_ip")
-    fi
-  fi
-
-  if [ -n "$dest_ip" ]; then
-    if [[ "$dest_ip" != *.*.*.* ]] && [[ "$dest_ip" != *.*.*.*/* ]]; then
-      echo "Error: Invalid destination IP/network format: $dest_ip" >&2
-      return 1
-    fi
-    if echo "$dest_ip" | grep -q "/"; then
-      filter_parts+=("dst net $dest_ip")
-    else
-      filter_parts+=("dst $dest_ip")
-    fi
-  fi
-
-  # Validate size parameters
-  if [ -n "$min_size" ]; then
-    if ! [[ "$min_size" =~ ^[0-9]+$ ]]; then
-      echo "Error: Invalid minimum size: $min_size. Must be a number." >&2
-      return 1
-    fi
-    filter_parts+=("greater $min_size")
-  fi
-
-  if [ -n "$max_size" ]; then
-    if ! [[ "$max_size" =~ ^[0-9]+$ ]]; then
-      echo "Error: Invalid maximum size: $max_size. Must be a number." >&2
-      return 1
-    fi
-    filter_parts+=("less $max_size")
-  fi
-
-  # Validate packet count
-  if [ -n "$packet_count" ]; then
-    if ! [[ "$packet_count" =~ ^[0-9]+$ ]]; then
-      echo "Error: Invalid packet count: $packet_count. Must be a number." >&2
-      return 1
-    fi
-    options="$options -c $packet_count"
-  fi
-
-  # Build tcpdump options
+  # Build options string
+  local options=""
   if [ "$verbose" = true ]; then
     options="$options -nvv"
   else
@@ -733,30 +361,22 @@ alias tcpd-port='() {
     options="$options -XS"
   fi
 
-  # Add port filter and data payload filter
-  filter_parts+=("port $port_number")
-  if [ "$data_only" = true ]; then
-    filter_parts+=("$_TCPDUMP_DATA_FILTER")
+  if [ -n "$packet_count" ]; then
+    options="$options -c $packet_count"
+    echo "Limiting output to $packet_count packets..."
   fi
 
-  # Build final filter
-  local final_filter=$(IFS=" and "; echo "${filter_parts[*]}")
+  # Build filter
+  local filter="port $port_number"
+  if [ "$data_only" = true ]; then
+    filter="$filter and $_TCPDUMP_DATA_FILTER"
+    echo "Monitoring port $port_number on interface $interface_name (data packets only)"
+  else
+    echo "Monitoring port $port_number on interface $interface_name"
+  fi
 
-  # Display what we are monitoring
-  echo "Monitoring port $port_number..."
-  [ -n "$source_ip" ] && echo "  Source IP/Network: $source_ip"
-  [ -n "$dest_ip" ] && echo "  Destination IP/Network: $dest_ip"
-  [ -n "$min_size" ] && echo "  Minimum size: $min_size bytes"
-  [ -n "$max_size" ] && echo "  Maximum size: $max_size bytes"
-  [ "$data_only" = true ] && echo "  Data payload only: yes"
-  [ "$verbose" = true ] && echo "  Verbose output: yes"
-  [ "$hex_ascii" = true ] && echo "  Hex/ASCII dump: yes"
-  [ -n "$packet_count" ] && echo "  Packet count: $packet_count"
-  echo "  Interface: $interface_name"
-
-  # Execute tcpdump
-  sudo tcpdump -i "$interface_name" $options "$final_filter"
-}' # Enhanced port monitoring with advanced filtering options
+  sudo tcpdump -i "$interface_name" $options "$filter"
+}' # Filter by specified port and interface
 
 alias tcpd-port-detail='() {
   echo "Monitor specific port and interface with detailed output."
@@ -1757,38 +1377,30 @@ alias tcpd-tcp-retransmit='() {
 # ---------------------
 
 alias tcpd-help='() {
-  echo -e "tcpdump aliases help guide - Enhanced with Advanced Filtering\n------------------------------------------------------"
+  echo "tcpdump aliases help guide"
+  echo "-------------------------"
   echo ""
-  echo "Enhanced Basic Commands (with IP/Size filtering):"
-  echo "  tcpd-basic        - Basic packet capturing with advanced filtering"
-  echo "                      Options: --source-ip ip, --dest-ip ip, --min-size size,"
-  echo "                               --max-size size, --port port, --interface iface,"
-  echo "                               --data-only, --count, --help"
-  echo "                      Example: tcpd-basic --source-ip 192.168.1.100 --port 80"
+  echo "Basic Commands:"
+  echo "  tcpd-basic        - Basic packet capturing with IP addresses"
+  echo "                      Options: -d (data payload only), -c (count packets)"
   echo "  tcpd-detail       - Detailed packet capturing with verbose output"
-  echo "                      Options: --source-ip ip, --dest-ip ip, --min-size size,"
-  echo "                               --max-size size, --port port, --interface iface,"
-  echo "                               --protocol proto, --data-only, --count count, --help"
-  echo "                      Example: tcpd-detail --dest-ip 10.0.0.0/24 --protocol tcp"
+  echo "                      Options: -d (data payload only), -c (packet count)"
   echo "  tcpd-full         - Full packet capturing with hex and ascii output"
   echo "                      Options: -d (data payload only), -c (packet count), -s (snap length)"
   echo ""
-  echo "Enhanced Port Commands (with IP/Size filtering):"
-  echo "  tcpd-port         - Monitor specific port with advanced filtering"
-  echo "                      Usage: tcpd-port <port> [--source-ip ip] [--dest-ip ip]"
-  echo "                             [--min-size size] [--max-size size] [--interface iface]"
-  echo "                             [--data-only] [--verbose] [--hex] [--count count]"
-  echo "                      Example: tcpd-port 443 --source-ip 192.168.1.100 --min-size 1000"
+  echo "Interface Commands:"
+  echo "  tcpd-iface        - Monitor specific network interface"
+  echo "                      Options: -d (data payload only), -v (verbose), -x (hex+ASCII)"
+  echo ""
+  echo "Port Commands:"
+  echo "  tcpd-port         - Monitor specific interface and port"
+  echo "                      Options: -d (data payload only), -v (verbose), -x (hex+ASCII)"
   echo "  tcpd-port-detail  - Monitor interface and port with detailed output"
   echo "                      Options: -d (data payload only), -c (packet count), -a (ASCII only)"
   echo "  tcpd-any-port     - Monitor any interface for specific port"
   echo "                      Options: -v (verbose), -x (hex+ASCII), -a (ASCII only)"
   echo "  tcpd-src-port     - Monitor traffic from source IP to port"
   echo "  tcpd-portrange    - Monitor port range with size filter"
-  echo ""
-  echo "Interface Commands:"
-  echo "  tcpd-iface        - Monitor specific network interface"
-  echo "                      Options: -d (data payload only), -v (verbose), -x (hex+ASCII)"
   echo ""
   echo "Network Commands:"
   echo "  tcpd-network      - Monitor traffic between networks"
@@ -1828,17 +1440,5 @@ alias tcpd-help='() {
   echo "  tcpd-save         - Save packet capture to file"
   echo "  tcpd-read         - Read packet capture from file"
   echo ""
-  echo "New Filtering Features:"
-  echo "  • Source/Destination IP filtering with CIDR support (e.g., 192.168.1.0/24)"
-  echo "  • Packet size filtering (minimum/maximum bytes)"
-  echo "  • Protocol filtering (tcp, udp, icmp, ip)"
-  echo "  • Combined filters with logical AND operations"
-  echo "  • Comprehensive parameter validation"
-  echo ""
-  echo "Usage Examples:"
-  echo "  tcpd-basic --source-ip 192.168.1.100 --dest-ip 10.0.0.1 --min-size 1000"
-  echo "  tcpd-detail --protocol tcp --port 443 --max-size 5000 --count 100"
-  echo "  tcpd-port 80 --source-ip 192.168.1.0/24 --verbose --hex"
-  echo ""
-  echo "For more detailed help on each command, run: command_name --help"
-}' # Enhanced help information with new filtering features
+  echo "For more detailed help on each command, run the command without parameters."
+}' # Display help information for all tcpdump aliases
