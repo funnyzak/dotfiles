@@ -1099,6 +1099,121 @@ alias fs-clean-node-modules='() {
   fi
 }' # Clean up node_modules directories recursively
 
+# Delete files by age and type
+alias fs-del-files-by-age='() {
+  echo -e "Delete files older than specified minutes in a directory.\nUsage:\n  fs-del-files-by-age <directory_path> <minutes_ago> [file_extensions]\nExamples:\n  fs-del-files-by-age /tmp 60\n  fs-del-files-by-age /logs 1440 \"log,txt,tmp\"\n  fs-del-files-by-age . 30 \"jpg,png,gif\""
+
+  local target_dir="$1"
+  local minutes_ago="$2"
+  local extensions="$3"
+
+  # Parameter validation
+  if [ -z "$target_dir" ]; then
+    echo "Error: Directory path is required" >&2
+    return 1
+  fi
+
+  if [ -z "$minutes_ago" ]; then
+    echo "Error: Minutes ago parameter is required" >&2
+    return 1
+  fi
+
+  if [ ! -d "$target_dir" ]; then
+    echo "Error: Directory \"$target_dir\" does not exist" >&2
+    return 1
+  fi
+
+  # Validate minutes_ago is a positive integer
+  if ! echo "$minutes_ago" | grep -q "^[0-9]\+$"; then
+    echo "Error: Minutes ago must be a positive integer" >&2
+    return 1
+  fi
+
+  # Build find command
+  local find_cmd="find \"$target_dir\" -type f -mmin +$minutes_ago"
+
+  # Add extension filters if provided
+  if [ -n "$extensions" ]; then
+    local ext_filter=""
+    local first_ext=true
+
+    # Split extensions by comma and build OR conditions
+    echo "$extensions" | tr "," "\n" | while IFS= read -r ext; do
+      ext=$(echo "$ext" | sed "s/^\.//") # Remove leading dot if present
+      if [ "$first_ext" = true ]; then
+        ext_filter="\\( -name \"*.$ext\""
+        first_ext=false
+      else
+        ext_filter="$ext_filter -o -name \"*.$ext\""
+      fi
+    done
+    ext_filter="$ext_filter \\)"
+    find_cmd="$find_cmd $ext_filter"
+  fi
+
+  echo "Searching for files in \"$target_dir\" older than $minutes_ago minutes..."
+
+  # Count files first
+  local file_count
+  if [ -n "$extensions" ]; then
+    # Use a more complex approach for counting with extensions
+    file_count=$(eval "$find_cmd" 2>/dev/null | wc -l | tr -d " ")
+  else
+    file_count=$(find "$target_dir" -type f -mmin +$minutes_ago 2>/dev/null | wc -l | tr -d " ")
+  fi
+
+  if [ "$file_count" -eq 0 ]; then
+    echo "No files found matching the criteria"
+    return 0
+  fi
+
+  echo "Found $file_count files matching the criteria:"
+
+  # Show files to be deleted
+  if [ -n "$extensions" ]; then
+    eval "$find_cmd" 2>/dev/null | head -10
+  else
+    find "$target_dir" -type f -mmin +$minutes_ago 2>/dev/null | head -10
+  fi
+
+  if [ "$file_count" -gt 10 ]; then
+    echo "... and $((file_count - 10)) more files"
+  fi
+
+  echo ""
+  echo "Delete these $file_count files? (y/n)"
+  read -r confirm
+
+  if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+    echo "Deleting files..."
+
+    local deleted_count=0
+    if [ -n "$extensions" ]; then
+      # Delete files with extension filter
+      eval "$find_cmd" -delete 2>/dev/null
+      if [ $? -eq 0 ]; then
+        deleted_count=$file_count
+      fi
+    else
+      # Delete all files older than specified minutes
+      find "$target_dir" -type f -mmin +$minutes_ago -delete 2>/dev/null
+      if [ $? -eq 0 ]; then
+        deleted_count=$file_count
+      fi
+    fi
+
+    if [ $? -eq 0 ]; then
+      echo "Successfully deleted $deleted_count files"
+    else
+      echo "Error: Some files could not be deleted. Check permissions and try again." >&2
+      return 1
+    fi
+  else
+    echo "Operation cancelled"
+  fi
+}' # Delete files older than specified minutes with optional file type filtering
+
+
 # File system help function
 alias fs-help='() {
   echo "File System Aliases Help"
@@ -1131,6 +1246,7 @@ alias fs-help='() {
   echo "  fs-del-files-named        - Delete files containing specific string in filename"
   echo "  fs-del-files-with-ext     - Delete files with specific extension"
   echo "  fs-clean-node-modules     - Delete all node_modules directories recursively"
+  echo "  fs-del-files-by-age       - Delete files older than specified minutes with optional file type filtering"
   echo ""
   echo "Filename Modification:"
   echo "  fs-trim-filename-end      - Delete last n characters from filenames"
