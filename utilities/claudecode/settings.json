@@ -1,0 +1,178 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(grep -v \".html$\")",
+      "Bash(open:*)"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "comment": "用户提交提示时通知 - 使用 prompt 标签",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag cc-prompt",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "comment": "主任务完成通知 - 使用 completion 标签",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag cc-completion",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "comment": "子任务完成通知 - 使用 subagent 标签",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag cc-subagent",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "comment": "需要确认的通知 - 使用 alert 标签",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag cc-alert",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "comment": "会话开始通知 - 使用 session 标签",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "comment": "会话结束通知 - 使用 session 标签",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag cc-session",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "comment": "重要工具使用前通知 - 仅监控关键工具",
+        "matcher": "Bash|Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag cc-tool",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "comment": "文件操作完成后通知",
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag cc-file",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "comment": "对话压缩前通知",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/notify.py --tag cc-compact",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+  "examples": {
+    "comment": "不同标签用法示例和事件类型说明",
+    "usage_examples": [
+      "默认标签: notify.py (使用 claudecode)",
+      "自定义标签: notify.py --tag myproject",
+      "简短参数: notify.py -t urgent",
+      "指定通知方式: notify.py --notify-method curl",
+      "帮助信息: notify.py --help"
+    ],
+    "supported_events": {
+      "UserPromptSubmit": "用户提交提示时触发，包含完整的 prompt 内容",
+      "Stop": "主任务完成时触发，包含 stop_hook_active 状态",
+      "SubagentStop": "子任务完成时触发，包含子任务执行状态",
+      "Notification": "系统通知时触发，包含通知消息内容",
+      "SessionStart": "会话开始时触发，包含启动来源信息",
+      "SessionEnd": "会话结束时触发，包含结束原因",
+      "PreToolUse": "工具使用前触发，包含工具名称和输入参数",
+      "PostToolUse": "工具使用后触发，包含执行结果",
+      "PreCompact": "对话压缩前触发，包含触发方式和自定义指令"
+    },
+    "tag_categories": {
+      "cc-prompt": "用户输入提示通知",
+      "cc-completion": "主任务完成通知",
+      "cc-subagent": "子任务完成通知",
+      "cc-alert": "重要提醒或需要确认的通知",
+      "cc-session": "会话开始/结束通知",
+      "cc-tool": "工具使用前通知",
+      "cc-file": "文件操作完成通知",
+      "cc-compact": "对话压缩通知",
+      "claudecode": "默认标签，用于一般的 Claude Code 通知"
+    },
+    "configuration_notes": [
+      "所有事件都会传入完整的会话信息 (session_id, transcript_path)",
+      "某些事件 (如 Stop) 可能不包含 cwd 字段",
+      "PreToolUse/PostToolUse 支持 matcher 过滤特定工具",
+      "通知脚本支持 apprise 和 curl 两种发送方式",
+      "可通过环境变量 CLAUDE_HOOK_DEBUG 开启调试模式",
+      "自定义来源名称可通过 CLAUDE_HOOK_SOURCE_NAME 设置"
+    ],
+    "environment_variables": {
+      "APPRISE_NOTIFY_METHOD": "设置默认通知方式 (apprise 或 curl)",
+      "APPRISE_NOTIFY_URL": "设置 curl 通知的目标 URL",
+      "CLAUDE_HOOK_SOURCE_NAME": "设置自定义来源名称 (如 'Leon的MacBook Pro')",
+      "CLAUDE_HOOK_DEBUG": "设置为任意值启用调试模式，显示原始事件数据"
+    },
+    "setup_example": {
+      "bash_setup": [
+        "# 在 ~/.zshrc 或 ~/.bashrc 中添加:",
+        "export APPRISE_NOTIFY_METHOD=curl",
+        "export APPRISE_NOTIFY_URL='https://your-notify-service.com/webhook'",
+        "export CLAUDE_HOOK_SOURCE_NAME='开发机-$(hostname)'",
+        "# 可选：启用调试模式",
+        "# export CLAUDE_HOOK_DEBUG=1"
+      ]
+    }
+  }
+}
