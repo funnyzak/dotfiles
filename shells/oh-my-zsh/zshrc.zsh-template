@@ -1,0 +1,303 @@
+# If you come from bash you might have to change your $PATH.
+# export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
+
+# Path to your Oh My Zsh installation.
+export ZSH="$HOME/.oh-my-zsh"
+
+DISABLE_AUTO_UPDATE="true" # Disable auto-update
+
+# Set name of the theme to load --- if set to "random", it will
+# load a random theme each time Oh My Zsh is loaded, in which case,
+# to know which specific one was loaded, run: echo $RANDOM_THEME
+# See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
+# alanpeabody aussiegeek bira caddy
+ZSH_THEME="candy"
+
+# Set list of themes to pick from when loading at random
+# Setting this variable when ZSH_THEME=random will cause zsh to load
+# a theme from this variable instead of looking in $ZSH/themes/
+# If set to an empty array, this variable will have no effect.
+# ZSH_THEME_RANDOM_CANDIDATES=( "robbyrussell" "agnoster" )
+
+# Uncomment the following line to use case-sensitive completion.
+# CASE_SENSITIVE="true"
+
+# Uncomment the following line to use hyphen-insensitive completion.
+# Case-sensitive completion must be off. _ and - will be interchangeable.
+# HYPHEN_INSENSITIVE="true"
+
+# Uncomment one of the following lines to change the auto-update behavior
+# zstyle ':omz:update' mode disabled  # disable automatic updates
+# zstyle ':omz:update' mode auto      # update automatically without asking
+# zstyle ':omz:update' mode reminder  # just remind me to update when it's time
+
+# Uncomment the following line to change how often to auto-update (in days).
+# zstyle ':omz:update' frequency 13
+
+# Uncomment the following line if pasting URLs and other text is messed up.
+# DISABLE_MAGIC_FUNCTIONS="true"
+
+# Uncomment the following line to disable colors in ls.
+# DISABLE_LS_COLORS="true"
+
+# Uncomment the following line to disable auto-setting terminal title.
+# DISABLE_AUTO_TITLE="true"
+
+# Uncomment the following line to enable command auto-correction.
+# ENABLE_CORRECTION="true"
+
+# Uncomment the following line to display red dots whilst waiting for completion.
+# You can also set it to another string to have that shown instead of the default red dots.
+# e.g. COMPLETION_WAITING_DOTS="%F{yellow}waiting...%f"
+# Caution: this setting can cause issues with multiline prompts in zsh < 5.7.1 (see #5765)
+# COMPLETION_WAITING_DOTS="true"
+
+# Uncomment the following line if you want to disable marking untracked files
+# under VCS as dirty. This makes repository status check for large repositories
+# much, much faster.
+# DISABLE_UNTRACKED_FILES_DIRTY="true"
+
+# Uncomment the following line if you want to change the command execution time
+# stamp shown in the history command output.
+# You can set one of the optional three formats:
+# "mm/dd/yyyy"|"dd.mm.yyyy"|"yyyy-mm-dd"
+# or set a custom format using the strftime function format specifications,
+# see 'man strftime' for details.
+# HIST_STAMPS="mm/dd/yyyy"
+
+# Would you like to use another custom folder than $ZSH/custom?
+# ZSH_CUSTOM=/path/to/new-custom-folder
+
+# Which plugins would you like to load?
+# Standard plugins can be found in $ZSH/plugins/
+# Custom plugins may be added to $ZSH_CUSTOM/plugins/
+# Example format: plugins=(rails git textmate ruby lighthouse)
+# Add wisely, as too many plugins slow down shell startup.
+plugins=(git history z npm dotenv gitignore last-working-dir)
+
+source $ZSH/oh-my-zsh.sh
+
+# User configuration
+
+# export MANPATH="/usr/local/man:$MANPATH"
+
+# You may need to manually set your language environment
+# export LANG=en_US.UTF-8
+
+# Preferred editor for local and remote sessions
+# if [[ -n $SSH_CONNECTION ]]; then
+#   export EDITOR='vim'
+# else
+#   export EDITOR='nvim'
+# fi
+
+# Compilation flags
+# export ARCHFLAGS="-arch $(uname -m)"
+
+# Set personal aliases, overriding those provided by Oh My Zsh libs,
+# plugins, and themes. Aliases can be placed here, though Oh My Zsh
+# users are encouraged to define aliases within a top-level file in
+# the $ZSH_CUSTOM folder, with .zsh extension. Examples:
+# - $ZSH_CUSTOM/aliases.zsh
+# - $ZSH_CUSTOM/macos.zsh
+# For a full list of active aliases, run `alias`.
+#
+# Example aliases
+# alias zshconfig="mate ~/.zshrc"
+# alias ohmyzsh="mate ~/.oh-my-zsh"
+
+# Find and source all *.env files in home directory
+
+setopt nullglob
+for env_file in ~/.*.env; do
+  if [[ -f "$env_file" ]]; then
+    source "$env_file"
+  fi
+done
+unsetopt nullglob
+
+# Load environment variables from ~/.env last to give it highest priority
+if [[ -f ~/.env ]]; then
+  source ~/.env
+fi
+
+if [[ -d ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases ]]; then
+  setopt nullglob
+  for alias_file in ${ZSH:-$HOME/.oh-my-zsh}/custom/aliases/*_aliases.zsh; do
+    if [[ -r "$alias_file" ]]; then
+      source "$alias_file"
+    fi
+  done
+  unsetopt nullglob
+fi
+
+best_remote_url_prefix() {
+  local REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
+  local REMOTE_URL_PREFIX_CN="https://gitee.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
+
+  # Check if CN mirror is accessible
+  if curl -s --connect-timeout 2 "https://gitee.com" >/dev/null 2>&1; then
+    REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
+  fi
+
+  echo $REMOTE_URL_PREFIX
+}
+
+# Load zsh-autosuggestions and zsh-syntax-highlighting plugins
+_zsh_load_plugins() {
+  # Parse arguments for force option
+  local force=0
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -f|--force) force=1; shift ;;
+      *) shift ;;
+    esac
+  done
+
+  local ZSH_CUSTOM=${ZSH_CUSTOM:-$ZSH/custom}
+
+  # Define plugin variables using space-separated strings instead of arrays
+  local plugins="zsh-autosuggestions zsh-syntax-highlighting"
+  local plugin_files="zsh-autosuggestions.zsh zsh-syntax-highlighting.zsh"
+
+  # For colored message display
+  local RED="\033[0;31m"
+  local GREEN="\033[0;32m"
+  local YELLOW="\033[0;33m"
+  local NC="\033[0m"
+
+  if [[ ! -d "$ZSH_CUSTOM/plugins" ]]; then
+    mkdir -p "$ZSH_CUSTOM/plugins"
+  fi
+
+  # Temporary directory for downloads and extraction
+  local TEMP_DIR=$(mktemp -d)
+
+  # Split the space-separated strings and process each plugin
+  local plugin=""
+  local plugin_file=""
+  local i=1
+  for plugin in ${=plugins}; do
+    # Extract the corresponding plugin file using cut
+    plugin_file=$(echo $plugin_files | cut -d " " -f $i)
+    i=$((i+1))
+
+    local plugin_dir="$ZSH_CUSTOM/plugins/$plugin"
+    local plugin_path="$plugin_dir/$plugin_file"
+
+    # Check if plugin already exists and is valid
+    if [[ -d "$plugin_dir" && -f "$plugin_path" && -s "$plugin_path" ]]; then
+      source "$plugin_path"
+    elif [[ $force -eq 1 ]]; then
+      echo -e "${YELLOW}Plugin $plugin doesnt exist or is invalid, downloading...${NC}"
+
+      # Get best remote URL prefix
+      local remote_url="$(best_remote_url_prefix)templates/packages/zsh/plugins/${plugin}.tar.gz"
+      local tarball="$TEMP_DIR/${plugin}.tar.gz"
+
+      # Create plugin directory
+      mkdir -p "$plugin_dir"
+
+      # Download plugin
+      echo -e "${YELLOW}Downloading $plugin from $remote_url...${NC}"
+      if curl -sL --connect-timeout 10 --retry 3 "$remote_url" -o "$tarball"; then
+        echo -e "${GREEN}Successfully downloaded $plugin, extracting...${NC}"
+
+        # Extract plugin to plugin directory
+        if tar -xzf "$tarball" -C "$ZSH_CUSTOM/plugins"; then
+          echo -e "${GREEN}Successfully extracted $plugin, loading...${NC}"
+
+          # Check if extracted file exists
+          if [[ -f "$plugin_path" && -s "$plugin_path" ]]; then
+            source "$plugin_path"
+          else
+            echo -e "${RED}Cannot load $plugin: Extracted file $plugin_path doesn\"t exist or is empty${NC}"
+          fi
+        else
+          echo -e "${RED}Failed to extract $plugin${NC}"
+        fi
+      else
+        echo -e "${RED}Failed to download $plugin, please check your network or install manually${NC}"
+      fi
+    else
+      echo -e "${YELLOW}Plugin $plugin not found. Use \"zsh-load-plugins\" to download.${NC}"
+    fi
+  done
+
+  # Clean up temporary directory
+  rm -rf "$TEMP_DIR"
+}
+
+_zsh_load_plugins
+
+alias zsh-load-plugins='(){
+  echo "Force loading plugins..."
+  _zsh_load_plugins -f
+  echo "Plugins loaded successfully."
+}'
+
+# Install oh-my-zsh alias files from remote repository (Linux/macOS)
+alias omz-install-aliases='() {
+  echo "Installing oh-my-zsh alias files from remote repository..."
+  curl -fsSL "$(best_remote_url_prefix)shells/oh-my-zsh/tools/install_omz_aliases.sh" | bash -s -- "$@"
+}'
+
+# Upgrade oh-my-zsh configuration from remote repository
+alias zsh-upgrade-config='() {
+  local zsh_config_download_url="$(best_remote_url_prefix)shells/oh-my-zsh/zshrc.zsh-template"
+
+  if [[ "$1" == "--bak" ]]; then
+    local backup_file="$HOME/.zshrc.$(date +%Y%m%d%H%M%S).bak"
+    echo "Backing up current .zshrc to $backup_file..."
+    cp ~/.zshrc "$backup_file"
+    echo "Backup completed. You can restore it by running: cp $backup_file ~/.zshrc"
+  fi
+
+  echo "Upgrading oh-my-zsh configuration from remote repository..."
+  echo "Using template URL: $zsh_config_download_url"
+
+  local tmp_file=$(mktemp)
+  curl -fsSL "$zsh_config_download_url" > "$tmp_file"
+  if [[ $? -ne 0 ]]; then
+    echo "Failed to download the new .zshrc file. Please check your network connection."
+    rm -f "$tmp_file"
+    return 1
+  fi
+  echo "Downloaded new .zshrc file to $tmp_file"
+  echo "Backing up current .zshrc to ~/.zshrc.bak..."
+  cp ~/.zshrc ~/.zshrc.bak
+  echo "Backing up completed. You can restore it by running: cp ~/.zshrc.bak ~/.zshrc"
+  echo "Replacing current .zshrc with the new one..."
+  mv "$tmp_file" ~/.zshrc
+  echo "New .zshrc file installed. Please check the file for any customizations."
+  source ~/.zshrc
+  echo "Changes applied. Please restart your terminal for the changes to take effect."
+}'
+
+alias install-x-cmd='() {
+  echo "Installing x-cmd..."
+  wget -O- https://get.x-cmd.com | sh
+}'
+
+# boot up x-cmd.
+[ ! -f "$HOME/.x-cmd.root/X" ] || . "$HOME/.x-cmd.root/X" # boot up x-cmd.
+
+# bun completions
+[ -s "/root/.bun/_bun" ] && source "/root/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+if [ -d "$BUN_INSTALL/bin" ]; then
+  export PATH="$BUN_INSTALL/bin:$PATH"
+fi
+# bun end
+
+# pnpm
+export PNPM_HOME="/root/.local/share/pnpm"
+if [ -d "$PNPM_HOME" ]; then
+  case ":$PATH:" in
+    *":$PNPM_HOME:"*) ;;
+    *) export PATH="$PNPM_HOME:$PATH" ;;
+  esac
+fi
+# pnpm end
