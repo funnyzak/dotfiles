@@ -1795,11 +1795,40 @@ alias vdo-screenshot='() {
       return 1
     fi
 
+    # Check if count is greater than duration and adjust accordingly
+    if (( count > duration )); then
+      echo "Warning: Requested $count screenshots but video is only $duration seconds long"
+      echo "Adjusting to capture 1 screenshot per second (maximum $duration screenshots)"
+      count=$duration
+    fi
+
     # Calculate interval based on duration and count
-    local interval=$(( duration / (count + 1) ))
+    # Use floating point arithmetic to avoid integer division issues
+    local interval_float=$(echo "scale=2; $duration / ($count + 1)" | bc 2>/dev/null)
+
+    # Fallback to shell arithmetic if bc is not available
+    if [ -z "$interval_float" ]; then
+      local interval=$(( duration / (count + 1) ))
+      # Ensure minimum interval of 1 second to avoid duplicate timestamps
+      if (( interval < 1 )); then
+        interval=1
+      fi
+    fi
 
     for ((i=1; i<=count; i++)); do
-      local time_pos=$((interval * i))
+      local time_pos
+      if [ -n "$interval_float" ]; then
+        # Use bc for precise calculation
+        time_pos=$(echo "scale=0; $interval_float * $i" | bc)
+      else
+        time_pos=$((interval * i))
+      fi
+
+      # Ensure time_pos does not exceed video duration
+      if (( time_pos >= duration )); then
+        time_pos=$((duration - 1))
+      fi
+
       # Format timestamp in HH:MM:SS format (cross-platform compatible)
       local hours=$((time_pos/3600))
       local minutes=$(((time_pos%3600)/60))
