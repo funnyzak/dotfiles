@@ -1,206 +1,163 @@
-# Claude Code Assistant Configuration
+# CLAUDE.md - 开发指导
 
-This document provides essential information for Claude Code assistants working with this dotfiles repository.
+## 核心原则
 
-## Project Overview
+1. **使用中文回复**：除非特别要求，始终使用中文交流
+2. **任务完整性**：必须完成所有任务才能停止
+3. **代码质量**：遵循 SOLID、DRY 原则，确保代码清晰可维护
+4. **错误处理**：所有脚本必须包含适当的错误处理机制
+5. **模块化设计**：优先创建可复用的模块化组件
 
-This is a comprehensive dotfiles repository designed for centralized management of personal configuration scripts, system settings, utility scripts, and related documentation. The project facilitates backup, synchronization, and reuse of development environments and configurations for commonly used tools.
+## 开发规范
 
-**Key Characteristics:**
-- Personal use focused (may not be suitable for all users)
-- Multi-platform support with macOS/Linux emphasis
-- Shell-centric configuration management
-- Utility scripts for automation and productivity
-- Well-organized modular structure
+### 代码风格
+- **缩进**：2 空格（遵循 .editorconfig）
+- **行尾**：LF（Unix 风格）
+- **编码**：UTF-8
+- **文件结尾**：必须有换行符
+- **空格**：删除尾随空格
 
-## Directory Structure
+### Shell 脚本 (.sh)
+- 使用 `#!/bin/bash` 作为 shebang
+- 函数命名：`snake_case`
+- 环境变量：`UPPER_CASE`
+- 关键脚本使用 `set -e`
+- 复杂逻辑添加注释
 
-```
-dotfiles/
-├── shells/              # Shell configuration collection
-│   ├── oh-my-zsh/       # Oh My Zsh related configurations
-│   ├── zsh/             # Zsh configuration
-│   └── README.md
-├── system/              # Linux system setup scripts
-│   ├── config/          # System configuration files
-│   ├── automation/      # System automation scripts
-│   └── setup/           # System initialization scripts
-├── utilities/           # Utility tools organized by language
-│   ├── python/          # Python automation scripts
-│   ├── nodejs/          # Node.js utilities
-│   └── shell/           # Shell utility scripts
-├── docs/                # Documentation resources
-│   ├── help/            # Tool-specific help docs
-│   ├── command/         # Command documentation
-│   ├── general/         # General documentation
-│   ├── templates/       # Documentation templates
-│   └── ZSHRC_ALIASES_GUIDE.md  # Zsh aliases development guide
-├── templates/           # Configuration templates
-├── .github/             # GitHub workflows and configs
-├── .cursor/             # Cursor IDE configuration
-├── .editorconfig        # Editor configuration
-├── .gitignore           # Git ignore rules
-├── LICENSE              # MIT License
-└── README.md            # Main project documentation
-```
+### Zsh 配置 (.zsh)
+- 模块化组织：别名、函数、插件分离
+- 遵循 Oh My Zsh 约定
+- 使用描述性命名
+- **别名开发**：参考 [ZSHRC_ALIASES_GUIDE.md](docs/ZSHRC_ALIASES_GUIDE.md)
 
-## Code Style and Conventions
+### Python 脚本 (.py)
+- 遵循 PEP 8 规范
+- 包含函数和类的文档字符串
+- 使用虚拟环境（`.venv/`）
 
-### File Formatting
-- **Indentation**: 2 spaces for most files (per .editorconfig)
-- **Line Endings**: LF (Unix-style)
-- **Character Encoding**: UTF-8
-- **Final Newline**: Required for all files
-- **Trailing Whitespace**: Trimmed
+### 文档 (.md)
+- 使用 GitHub Flavored Markdown
+- 清晰的标题结构
+- 提供使用示例
 
-### Shell Scripts (.sh)
-- Use shebang `#!/bin/bash` for bash scripts
-- Follow existing naming conventions: `snake_case` for functions, `UPPER_CASE` for environment variables
-- Include comments for complex logic
-- Error handling with `set -e` for critical scripts
+## 常用子代理选择
 
-### Zsh Configuration (.zsh)
-- Modular organization with separate files for aliases, functions, plugins
-- Follow Oh My Zsh conventions when applicable
-- Use descriptive names for aliases and functions
-- **For alias development**: See [ZSHRC_ALIASES_GUIDE.md](docs/ZSHRC_ALIASES_GUIDE.md) for comprehensive guidelines
+### 核心开发代理
+- **通用开发**：`general-purpose` - 复杂问题研究和多步骤任务
+- **代码审查**：`code-reviewer` - 代码质量、安全性、可维护性审查
+- **文档更新**：`docs-updater` - 项目文档系统性更新
+- **测试自动化**：`test-automator` - 测试套件和 CI/CD 集成
 
-### Python Scripts (.py)
-- Follow PEP 8 style guidelines
-- Include docstrings for functions and classes
-- Use virtual environments (`.venv/` directory)
+### 专业领域代理
+- **Shell/脚本**：`python-pro`、`javascript-pro`
+- **前端开发**：`frontend-developer` - React 19、Next.js 15
+- **后端架构**：`backend-architect` - API 设计、微服务架构
+- **云架构**：`cloud-architect` - AWS/Azure/GCP 基础设施
+- **安全审计**：`security-auditor` - 漏洞评估、OWASP 合规性
 
-### Documentation (.md)
-- Use GitHub Flavored Markdown
-- Include clear headings and structure
-- Provide usage examples where applicable
+### 质量保障代理
+- **性能优化**：`performance-engineer` - 应用性能分析
+- **调试专家**：`debugger` - 错误解决、问题诊断
+- **架构审查**：`architect-review` - 架构一致性分析
 
-## Development Workflow
+## Shell 脚本开发规范
 
-### Common Commands
+### 函数格式
 ```bash
-# Test shell scripts
-bash system/setup/install_tools.sh
+#!/bin/bash
+# 功能描述
+function_name() {
+    local var1="$1"
+    local var2="$2"
 
-# Install Oh My Zsh configurations
+    # 参数验证
+    if [[ -z "$var1" ]]; then
+        echo "错误：缺少必需参数" >&2
+        return 1
+    fi
+
+    # 主要逻辑
+    # ...
+}
+```
+
+### 错误处理
+- 使用 `set -e` 退出脚本
+- 验证输入参数
+- 提供有意义的错误信息
+- 使用适当的退出码
+
+### 跨平台兼容性
+- 支持 macOS 和 Linux
+- 避免平台特定的命令
+- 测试不同环境下的兼容性
+
+## 文档管理规范
+
+### 基本原则
+- **优先复用**：更新现有文档而非创建新文档
+- **统一管理**：所有文档存储在统一文件夹中
+- **模块化组织**：按模块组织，维护文档索引
+- **简洁实用**：聚焦核心功能和使用方法
+- **禁用表情符号**：保持专业性
+
+### 文档组织
+- 创建前搜索现有相关文档
+- 按模块组织，保持清晰层级
+- 维护文档索引便于导航
+- 内容简洁实用，聚焦核心功能
+
+### 脚本管理
+- 可复用脚本：添加或更新脚本索引
+- 不可复用脚本：删除该脚本
+- 遵循模块化原则便于查找维护
+
+## 项目特有要求
+
+### dotfiles 项目特点
+- 个人使用导向，注重实用性
+- 多平台支持（macOS/Linux）
+- Shell 为中心的配置管理
+- 模块化组织结构
+
+### 开发工作流程
+- **测试**：`bash -n script.sh` 检查语法
+- **Git**：主分支 `main`，使用约定式提交
+- **文档**：功能变更后及时更新相关文档
+
+### 质量保证
+- 项目更新完成后，**必须**使用 `code-reviewer` 子代理进行审核
+- 项目更新完成后，**必须**使用 `docs-updater` 子代理维护项目文档
+
+## 快速参考
+
+### 常用命令
+```bash
+# 测试 Shell 脚本
+bash -n script.sh
+
+# 安装 Oh My Zsh 配置
 bash shells/oh-my-zsh/tools/install_omz.sh
 
-# Install aliases
+# 安装别名
 bash shells/oh-my-zsh/tools/install_omz_aliases.sh
 
-# Run Python utilities
+# 运行 Python 工具
 cd utilities/python && python script_name.py
 ```
 
-### Git Workflow
-- **Main Branch**: `main`
-- **Commit Style**: Conventional commits with prefix `chore:`, `feat:`, `fix:`, etc.
-- **Pull Requests**: Required for all changes
-- **Branch Protection**: Main branch protected
+### 添加新别名
+1. 参考 [ZSHRC_ALIASES_GUIDE.md](docs/ZSHRC_ALIASES_GUIDE.md)
+2. 在 `shells/oh-my-zsh/custom/aliases/` 创建文件
+3. 使用函数格式：`alias name='() { ... }'`
+4. 测试：`bash -n file.zsh` && `source ~/.zshrc`
 
-### Testing
-- Shell scripts: Test with `bash -n script.sh` for syntax
-- Python scripts: Use `python -m py_compile script.py` for syntax check
-- No automated test suite currently (manual testing only)
+### 详细指导索引
+- **Zsh 别名开发**：[docs/ZSHRC_ALIASES_GUIDE.md](docs/ZSHRC_ALIASES_GUIDE.md)
+- **项目文档**：[README.md](README.md)
+- **Shell 配置**：[shells/](shells/)
+- **实用工具**：[utilities/](utilities/)
 
-## Key Components
+---
 
-### Shell Configurations
-- **Oh My Zsh**: Comprehensive setup with custom aliases, plugins, themes
-- **Zsh**: Minimal configuration for lightweight setups
-- **SSH Configuration Helper (SSHC)**: Multi-server SSH management
-
-### System Scripts
-- **Installation Tools**: Automated setup of common development tools
-- **Configuration Management**: System-level configuration scripts
-- **Automation**: Daily backups, monitoring, scheduled tasks
-
-### Utilities
-- **Python**: Background removal, image processing, automation scripts
-- **Node.js**: JSON processing, file generation utilities
-- **Shell**: AList upload, MySQL backup, SSH tools
-
-## CDN Sources
-
-The project provides multiple CDN sources for remote script execution:
-- GitHub raw: `https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/`
-- Vercel: `https://idotfiles.vercel.app`
-- Gitee: `https://gitee.com/funnyzak/dotfiles/raw/main/`
-- jsdelivr: `https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/`
-
-## Security Considerations
-
-- Never commit private keys, passwords, or sensitive configuration
-- Use environment variables for sensitive data
-- SSH keys should be managed separately (excluded via .gitignore)
-- Database credentials should be externalized
-
-## External Dependencies
-
-### Shell Dependencies
-- `bash` (required for most scripts)
-- `zsh` (for Zsh configurations)
-- `curl` or `wget` (for remote installations)
-- `git` (for version control operations)
-
-### Python Dependencies
-- Managed via `requirements.txt` or `Pipfile`
-- Use virtual environments
-- Key packages: `requests`, `Pillow`, `opencv-python`
-
-### Node.js Dependencies
-- Managed via `package.json`
-- Use `npm` or `yarn` for package management
-
-## Common Tasks
-
-### Adding New Aliases
-1. **Read the guidelines**: Review [ZSHRC_ALIASES_GUIDE.md](docs/ZSHRC_ALIASES_GUIDE.md) for comprehensive development standards
-2. Create new file in `shells/oh-my-zsh/custom/aliases/` following naming pattern: `category_aliases.zsh`
-3. **Follow strict conventions**:
-   - Use function format: `alias name='() { ... }'`
-   - No single quotes in function body (use double quotes with escaping)
-   - Include comprehensive error handling and usage information
-   - Use local variables only
-   - Test cross-platform compatibility (macOS/Linux)
-4. Test with `bash -n file.zsh` and `source ~/.zshrc`
-5. **Cursor IDE integration**: The `.cursor/rules/zshrc.aliases.mdc` file automatically applies these standards when editing alias files
-
-### Creating New Utilities
-1. Choose appropriate language directory (`utilities/python/`, `utilities/shell/`, etc.)
-2. Include README.md with usage instructions
-3. Add to main utilities documentation
-
-### Updating Documentation
-1. Update relevant README.md files
-2. Follow existing documentation structure
-3. Include examples and usage instructions
-
-## Related Projects
-
-- [cli-cheatsheets](https://github.com/funnyzak/cli-cheatsheets)
-- [frpc](https://github.com/funnyzak/frpc)
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Development Tools and Integration
-
-### Cursor IDE Integration
-- **Alias Development**: The `.cursor/rules/zshrc.aliases.mdc` file automatically applies zshrc alias development standards when editing files matching `shells/oh-my-zsh/custom/aliases/*.zsh`
-- **Automatic Quality Control**: Ensures all aliases follow the comprehensive guidelines documented in [ZSHRC_ALIASES_GUIDE.md](docs/ZSHRC_ALIASES_GUIDE.md)
-
-### Specialized Documentation
-- **Zsh Aliases Guide**: Comprehensive guidelines for creating high-quality shell alias functions
-- **Code Standards**: Enforced conventions for error handling, parameter validation, and cross-platform compatibility
-
-## Notes for Claude Code
-
-- This is a personal dotfiles repository - modifications should respect the personal use case
-- Shell scripts should be defensive and handle errors appropriately
-- Remote installation scripts should include multiple CDN options
-- Documentation should be comprehensive and include practical examples
-- Modular organization is preferred over monolithic configurations
-- Cross-platform compatibility (macOS/Linux) is important where applicable
-- **For alias development**: Always consult [ZSHRC_ALIASES_GUIDE.md](docs/ZSHRC_ALIASES_GUIDE.md) for detailed standards and best practices
+**注意**：这是一个个人 dotfiles 仓库，修改时请考虑个人使用场景。所有脚本应具备防御性编程思维，远程安装脚本应包含多个 CDN 选项。

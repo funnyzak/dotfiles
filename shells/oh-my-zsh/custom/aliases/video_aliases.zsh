@@ -31,6 +31,247 @@ _vdo_check_ffmpeg() {
   return 0
 }
 
+# Helper function to validate image watermark file
+_vdo_validate_image() {
+  if [[ ! -f "$1" ]]; then
+    echo "Error: Image file \"$1\" does not exist" >&2
+    return 1
+  fi
+
+  # Check if file is a supported image format (PNG priority)
+  if [[ ! "$1" =~ \.(png|jpg|jpeg|gif|bmp|webp)$ ]]; then
+    echo "Error: Unsupported image format. Supported formats: PNG, JPG, JPEG, GIF, BMP, WEBP" >&2
+    return 1
+  fi
+
+  return 0
+}
+
+# Helper function to check for required dependencies
+_vdo_check_dependencies() {
+  # Check for bc command for numeric validation
+  if ! command -v bc &> /dev/null; then
+    echo "Warning: bc command not found. Some numeric validations may be limited" >&2
+  fi
+  return 0
+}
+
+# Helper function to calculate watermark position for overlay filter (nine-grid + percentage offset)
+_vdo_calculate_watermark_position() {
+  local position="$1"
+  local offset_x="$2"
+  local offset_y="$3"
+
+  # Default position values
+  local pos_x="10"
+  local pos_y="10"
+
+  # Calculate base position based on nine-grid system
+  case "$position" in
+    "topleft")
+      pos_x="$offset_x"
+      pos_y="$offset_y"
+      ;;
+    "top-center"|"topcenter")
+      pos_x="(main_w-overlay_w)/2"
+      pos_y="$offset_y"
+      ;;
+    "topright")
+      pos_x="main_w-overlay_w-$offset_x"
+      pos_y="$offset_y"
+      ;;
+    "left")
+      pos_x="$offset_x"
+      pos_y="(main_h-overlay_h)/2"
+      ;;
+    "center")
+      pos_x="(main_w-overlay_w)/2"
+      pos_y="(main_h-overlay_h)/2"
+      ;;
+    "right")
+      pos_x="main_w-overlay_w-$offset_x"
+      pos_y="(main_h-overlay_h)/2"
+      ;;
+    "bottomleft")
+      pos_x="$offset_x"
+      pos_y="main_h-overlay_h-$offset_y"
+      ;;
+    "bottom-center"|"bottomcenter")
+      pos_x="(main_w-overlay_w)/2"
+      pos_y="main_h-overlay_h-$offset_y"
+      ;;
+    "bottomright")
+      pos_x="main_w-overlay_w-$offset_x"
+      pos_y="main_h-overlay_h-$offset_y"
+      ;;
+    *)
+      echo "Error: Invalid position \"$position\". Valid positions: topleft, top-center, topright, left, center, right, bottomleft, bottom-center, bottomright" >&2
+      return 1
+      ;;
+  esac
+
+  echo "$pos_x:$pos_y"
+  return 0
+}
+
+# Helper function to calculate text position for drawtext filter
+_vdo_calculate_text_position() {
+  local position="$1"
+  local offset_x="$2"
+  local offset_y="$3"
+
+  # Default position values
+  local pos_x="10"
+  local pos_y="10"
+
+  # Calculate base position based on nine-grid system
+  case "$position" in
+    "topleft")
+      pos_x="$offset_x"
+      pos_y="$offset_y"
+      ;;
+    "top-center"|"topcenter")
+      pos_x="(w-text_w)/2"
+      pos_y="$offset_y"
+      ;;
+    "topright")
+      pos_x="w-text_w-$offset_x"
+      pos_y="$offset_y"
+      ;;
+    "left")
+      pos_x="$offset_x"
+      pos_y="(h-text_h)/2"
+      ;;
+    "center")
+      pos_x="(w-text_w)/2"
+      pos_y="(h-text_h)/2"
+      ;;
+    "right")
+      pos_x="w-text_w-$offset_x"
+      pos_y="(h-text_h)/2"
+      ;;
+    "bottomleft")
+      pos_x="$offset_x"
+      pos_y="h-text_h-$offset_y"
+      ;;
+    "bottom-center"|"bottomcenter")
+      pos_x="(w-text_w)/2"
+      pos_y="h-text_h-$offset_y"
+      ;;
+    "bottomright")
+      pos_x="w-text_w-$offset_x"
+      pos_y="h-text_h-$offset_y"
+      ;;
+    *)
+      echo "Error: Invalid position \"$position\". Valid positions: topleft, top-center, topright, left, center, right, bottomleft, bottom-center, bottomright" >&2
+      return 1
+      ;;
+  esac
+
+  echo "x=$pos_x:y=$pos_y"
+  return 0
+}
+
+# Helper function to build watermark FFmpeg command
+_vdo_build_watermark_command() {
+  local input_file="$1"
+  local watermark_file="$2"
+  local watermark_text="$3"
+  local position="$4"
+  local offset_x="$5"
+  local offset_y="$6"
+  local scale="$7"
+  local opacity="$8"
+  local rotate="$9"
+  local font_family="${10}"
+  local font_size="${11}"
+  local font_color="${12}"
+  local output_file="${13}"
+
+  local ffmpeg_cmd="ffmpeg -i \"$input_file\""
+
+  if [ -n "$watermark_file" ]; then
+    # Image watermark - calculate position for overlay
+    local overlay_position
+    overlay_position=$(_vdo_calculate_watermark_position "$position" "$offset_x" "$offset_y") || return 1
+
+    ffmpeg_cmd="$ffmpeg_cmd -i \"$watermark_file\""
+
+    # Build filter chain for image watermark
+    local filter="[1:v]scale=iw*$scale:ih*$scale"
+
+    # Apply opacity first (if needed)
+    if [[ "$opacity" != "1.0" ]]; then
+      filter="${filter},format=yuva420p,colorchannelmixer=aa=$opacity"
+    fi
+
+    # Apply rotation (if needed)
+    if [[ "$rotate" != "0" ]]; then
+      filter="${filter},rotate=$rotate*PI/180:ow=rotw($rotate):oh=roth($rotate)"
+    fi
+
+    # Apply overlay
+    filter="${filter}[wm];[0:v][wm]overlay=$overlay_position:format=auto,format=yuv420p"
+
+    ffmpeg_cmd="$ffmpeg_cmd -filter_complex \"$filter\" -map \"[v]\" -map \"[a]?\""
+  else
+    # Text watermark - build position directly in the function
+    local pos_x="10"
+    local pos_y="10"
+
+    case "$position" in
+      "topleft")
+        pos_x="$offset_x"
+        pos_y="$offset_y"
+        ;;
+      "top-center"|"topcenter")
+        pos_x="(w-text_w)/2"
+        pos_y="$offset_y"
+        ;;
+      "topright")
+        pos_x="w-text_w-$offset_x"
+        pos_y="$offset_y"
+        ;;
+      "left")
+        pos_x="$offset_x"
+        pos_y="(h-text_h)/2"
+        ;;
+      "center")
+        pos_x="(w-text_w)/2"
+        pos_y="(h-text_h)/2"
+        ;;
+      "right")
+        pos_x="w-text_w-$offset_x"
+        pos_y="(h-text_h)/2"
+        ;;
+      "bottomleft")
+        pos_x="$offset_x"
+        pos_y="h-text_h-$offset_y"
+        ;;
+      "bottom-center"|"bottomcenter")
+        pos_x="(w-text_w)/2"
+        pos_y="h-text_h-$offset_y"
+        ;;
+      "bottomright")
+        pos_x="w-text_w-$offset_x"
+        pos_y="h-text_h-$offset_y"
+        ;;
+      *)
+        echo "Error: Invalid position \"$position\"" >&2
+        return 1
+        ;;
+    esac
+
+    # Build text filter with explicit position parameters using printf
+    local text_filter
+    text_filter=$(printf "drawtext=text='%s':fontfile='%s':fontsize=%s:fontcolor='%s':x=%s:y=%s:shadowx=2:shadowy=2:shadowcolor=black@0.5" "$watermark_text" "$font_family" "$font_size" "$font_color" "$pos_x" "$pos_y")
+    ffmpeg_cmd="$ffmpeg_cmd -vf \"$text_filter\""
+  fi
+
+  ffmpeg_cmd="$ffmpeg_cmd -c:v libx264 -c:a aac -y \"$output_file\""
+  echo "$ffmpeg_cmd"
+}
+
 #------------------------------------------------------------------------------
 # Video File Merging
 #------------------------------------------------------------------------------
@@ -1397,118 +1638,6 @@ alias vdo-slow-down='() {
 }' # Slow down video playback
 
 #------------------------------------------------------------------------------
-# Video Watermark & Overlay
-#------------------------------------------------------------------------------
-
-alias vdo-add-watermark='() {
-  echo "Add a watermark image to a video."
-  echo "Usage:"
-  echo "  vdo-add-watermark <video_file_path> <watermark_image> <position:bottomright>"
-  echo "Positions: topleft, topright, bottomleft, bottomright, center"
-
-  if [ $# -lt 2 ]; then
-    return 1
-  fi
-
-  input_file="$1"
-  watermark_image="$2"
-  position="${3:-bottomright}"
-
-  _vdo_validate_file "$input_file" || return 1
-  _vdo_validate_file "$watermark_image" || return 1
-  _vdo_check_ffmpeg || return 1
-
-  output_file="${input_file%.*}_watermarked.mp4"
-
-  # Set position coordinates based on input position
-  case "$position" in
-    topleft)
-      overlay_position="10:10"
-      ;;
-    topright)
-      overlay_position="main_w-overlay_w-10:10"
-      ;;
-    bottomleft)
-      overlay_position="10:main_h-overlay_h-10"
-      ;;
-    bottomright)
-      overlay_position="main_w-overlay_w-10:main_h-overlay_h-10"
-      ;;
-    center)
-      overlay_position="(main_w-overlay_w)/2:(main_h-overlay_h)/2"
-      ;;
-    *)
-      echo "Error: Invalid position. Use topleft, topright, bottomleft, bottomright, or center" >&2
-      return 1
-      ;;
-  esac
-
-  echo "Adding watermark to $input_file at position $position..."
-
-  if ffmpeg -i "$input_file" -i "$watermark_image" -filter_complex "overlay=$overlay_position" -codec:a copy "$output_file"; then
-    echo "Watermark added, saved to $output_file"
-  else
-    echo "Error: Adding watermark failed" >&2
-    return 1
-  fi
-}' # Add image watermark to video
-
-alias vdo-add-text='() {
-  echo "Add a text watermark to a video."
-  echo "Usage:"
-  echo "  vdo-add-text <video_file_path> <text> <position:bottomright> <font_size:24> <color:white>"
-  echo "Positions: topleft, topright, bottomleft, bottomright, center"
-  echo "Colors: white, black, red, green, blue, yellow"
-
-  if [ $# -lt 2 ]; then
-    return 1
-  fi
-
-  input_file="$1"
-  text="$2"
-  position="${3:-bottomright}"
-  font_size="${4:-24}"
-  color="${5:-white}"
-
-  _vdo_validate_file "$input_file" || return 1
-  _vdo_check_ffmpeg || return 1
-
-  output_file="${input_file%.*}_text_watermarked.mp4"
-
-  # Set position coordinates based on input position
-  case "$position" in
-    topleft)
-      text_position="x=10:y=10"
-      ;;
-    topright)
-      text_position="x=w-tw-10:y=10"
-      ;;
-    bottomleft)
-      text_position="x=10:y=h-th-10"
-      ;;
-    bottomright)
-      text_position="x=w-tw-10:y=h-th-10"
-      ;;
-    center)
-      text_position="x=(w-tw)/2:y=(h-th)/2"
-      ;;
-    *)
-      echo "Error: Invalid position. Use topleft, topright, bottomleft, bottomright, or center" >&2
-      return 1
-      ;;
-  esac
-
-  echo "Adding text watermark \"$text\" to $input_file at position $position..."
-
-  if ffmpeg -i "$input_file" -vf "drawtext=fontfile=/System/Library/Fonts/Helvetica.ttc:text='$text':fontcolor=$color:fontsize=$font_size:$text_position" -codec:a copy "$output_file"; then
-    echo "Text watermark added, saved to $output_file"
-  else
-    echo "Error: Adding text watermark failed" >&2
-    return 1
-  fi
-}' # Add text watermark to video
-
-#------------------------------------------------------------------------------
 # Video Audio Processing
 #------------------------------------------------------------------------------
 
@@ -2423,6 +2552,279 @@ alias vdo-batch-rm-metadata='() {
 }' # Remove metadata from all video files in a directory
 
 #------------------------------------------------------------------------------
+# Video Watermarking
+#------------------------------------------------------------------------------
+
+alias vdo-add-watermark='() {
+  echo -e "Add watermark to video files (single or batch processing).\nUsage:\n  vdo-add-watermark <input_path> [options]\n\nImage Watermark:\n  -w, --watermark PATH     : Watermark image path (PNG format preferred)\n\nText Watermark:\n  -t, --text TEXT          : Watermark text content\n  --font-family FONT       : Font family (default: Arial)\n  --font-size SIZE         : Font size (default: 24)\n  --font-color COLOR       : Font color (default: white@0.8)\n\nCommon Options:\n  -p, --position POS       : Position (topleft/top-center/...+x,y%offset, default: bottomright+10,10)\n  -s, --scale SCALE        : Scale ratio (0.1-2.0, default: 0.2)\n  -o, --opacity OPACITY    : Opacity (0.1-1.0, default: 0.8)\n  -r, --rotate ANGLE       : Rotation angle (0-360 degrees, default: 0)\n  --output-dir DIR         : Output directory (default: ./watermarked)\n  --suffix SUFFIX          : Output file suffix (default: _wm)\n  --parallel               : Parallel processing (default: sequential)\n  -h, --help              : Show this help message\n\nExamples:\n  # Single file with image watermark\n  vdo-add-watermark video.mp4 -w logo.png -p bottomright+5,5\n  \n  # Batch text watermarking\n  vdo-add-watermark ./videos/ -t \"Copyright\" -p topleft+10,10 --opacity 0.6\n  \n  # Advanced parameters\n  vdo-add-watermark video.mp4 -w watermark.png -s 0.15 -o 0.7 -r 45 --output-dir ./output"
+
+  # Variables with default values
+  local input_path=""
+  local watermark_file=""
+  local watermark_text=""
+  local position="bottomright"
+  local offset_x="10"
+  local offset_y="10"
+  local scale="0.2"
+  local opacity="0.8"
+  local rotate="0"
+  local font_family="Arial"
+  local font_size="24"
+  local font_color="white@0.8"
+  local output_dir="./watermarked"
+  local suffix="_wm"
+  local parallel=false
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -w|--watermark)
+        watermark_file="$2"
+        shift 2
+        ;;
+      -t|--text)
+        watermark_text="$2"
+        shift 2
+        ;;
+      -p|--position)
+        local pos_input="$2"
+        # Parse position with offset (e.g., "bottomright+10,15")
+        # Extract position part before + and offsets after +
+        if [[ "$pos_input" =~ ^(.+)\+([0-9]+),([0-9]+)$ ]]; then
+          # Use bash/zsh compatible regex capture
+          position="${pos_input%+*}"
+          local offset_part="${pos_input#*+}"
+          offset_x="${offset_part%,*}"
+          offset_y="${offset_part#*,}"
+        else
+          position="$pos_input"
+        fi
+        shift 2
+        ;;
+      -s|--scale)
+        scale="$2"
+        shift 2
+        ;;
+      -o|--opacity)
+        opacity="$2"
+        shift 2
+        ;;
+      -r|--rotate)
+        rotate="$2"
+        shift 2
+        ;;
+      --font-family)
+        font_family="$2"
+        shift 2
+        ;;
+      --font-size)
+        font_size="$2"
+        shift 2
+        ;;
+      --font-color)
+        font_color="$2"
+        shift 2
+        ;;
+      --output-dir)
+        output_dir="$2"
+        shift 2
+        ;;
+      --suffix)
+        suffix="$2"
+        shift 2
+        ;;
+      --parallel)
+        parallel=true
+        shift
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the input path
+        if [ -z "$input_path" ]; then
+          input_path="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no input_path provided
+  if $show_help || [ -z "$input_path" ]; then
+    return 1
+  fi
+
+  # Validate watermark type
+  if [ -z "$watermark_file" ] && [ -z "$watermark_text" ]; then
+    echo "Error: Either watermark file (-w) or text (-t) must be specified" >&2
+    return 1
+  fi
+
+  if [ -n "$watermark_file" ] && [ -n "$watermark_text" ]; then
+    echo "Error: Cannot specify both image and text watermark" >&2
+    return 1
+  fi
+
+  # Validate parameters
+  if ! [[ "$scale" =~ ^[0-9]+(\.[0-9]+)?$ ]] || (( $(echo "$scale < 0.1 || $scale > 2.0" | bc -l 2>/dev/null || echo "1") )); then
+    echo "Error: Scale must be a number between 0.1 and 2.0" >&2
+    return 1
+  fi
+
+  if ! [[ "$opacity" =~ ^[0-9]+(\.[0-9]+)?$ ]] || (( $(echo "$opacity < 0.1 || $opacity > 1.0" | bc -l 2>/dev/null || echo "1") )); then
+    echo "Error: Opacity must be a number between 0.1 and 1.0" >&2
+    return 1
+  fi
+
+  if ! [[ "$rotate" =~ ^[0-9]+$ ]] || [ "$rotate" -lt 0 ] || [ "$rotate" -gt 360 ]; then
+    echo "Error: Rotation must be an integer between 0 and 360" >&2
+    return 1
+  fi
+
+  # Validate offset parameters
+  if ! [[ "$offset_x" =~ ^[0-9]+$ ]]; then
+    echo "Error: X offset must be a positive integer" >&2
+    return 1
+  fi
+
+  if ! [[ "$offset_y" =~ ^[0-9]+$ ]]; then
+    echo "Error: Y offset must be a positive integer" >&2
+    return 1
+  fi
+
+  # Validate font family for text watermark
+  if [ -n "$watermark_text" ]; then
+    # Check if font file exists (common font paths)
+    local font_paths=(
+      "/System/Library/Fonts/Arial.ttf"  # macOS
+      "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Linux
+      "/usr/share/fonts/TTF/DejaVuSans.ttf"  # Alternative Linux
+      "/Windows/Fonts/arial.ttf"  # Windows
+    )
+
+    local font_found=false
+    for font_path in "${font_paths[@]}"; do
+      if [[ -f "$font_path" ]]; then
+        font_family="$font_path"
+        font_found=true
+        break
+      fi
+    done
+
+    if ! $font_found; then
+      echo "Warning: Font file not found. Using default font. For text watermarks, ensure a valid font is available." >&2
+    fi
+  fi
+
+  _vdo_check_ffmpeg || return 1
+  _vdo_check_dependencies
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  # Process input path (file or directory)
+  if [[ -f "$input_path" ]]; then
+    # Single file processing
+    _vdo_validate_file "$input_path" || return 1
+
+    if [ -n "$watermark_file" ]; then
+      _vdo_validate_image "$watermark_file" || return 1
+    fi
+
+    local base_name=$(basename "$input_path")
+    local extension="${base_name##*.}"
+    # Preserve original file extension
+    local output_file="${output_dir}/${base_name%.*}${suffix}.${extension}"
+
+    echo "Adding watermark to $input_path..."
+    echo "  Output: $output_file"
+
+    # Build FFmpeg command using helper function
+    local ffmpeg_cmd
+    ffmpeg_cmd=$(_vdo_build_watermark_command "$input_path" "$watermark_file" "$watermark_text" "$position" "$offset_x" "$offset_y" "$scale" "$opacity" "$rotate" "$font_family" "$font_size" "$font_color" "$output_file")
+
+    # Execute command
+    if eval "$ffmpeg_cmd"; then
+      echo "Watermark added successfully: $output_file"
+    else
+      echo "Error: Failed to add watermark to $input_path" >&2
+      return 1
+    fi
+
+  elif [[ -d "$input_path" ]]; then
+    # Directory batch processing
+    _vdo_validate_dir "$input_path" || return 1
+
+    if [ -n "$watermark_file" ]; then
+      _vdo_validate_image "$watermark_file" || return 1
+    fi
+
+    # Find video files
+    local video_files=()
+    while IFS= read -r -d $'\0' file; do
+      video_files+=("$file")
+    done < <(find "$input_path" -maxdepth 1 -type f \( -iname "*.mp4" -o -iname "*.avi" -o -iname "*.mov" -o -iname "*.mkv" -o -iname "*.flv" -o -iname "*.wmv" \) -print0)
+
+    if [ ${#video_files[@]} -eq 0 ]; then
+      echo "Error: No video files found in $input_path" >&2
+      return 1
+    fi
+
+    echo "Processing ${#video_files[@]} video files..."
+
+    local success_count=0
+    local error_count=0
+
+    # Process each video file
+    for video_file in "${video_files[@]}"; do
+      local base_name=$(basename "$video_file")
+      local extension="${base_name##*.}"
+      # Preserve original file extension
+      local output_file="${output_dir}/${base_name%.*}${suffix}.${extension}"
+
+      echo "Processing $base_name..."
+
+      # Build FFmpeg command using helper function
+      local ffmpeg_cmd
+      ffmpeg_cmd=$(_vdo_build_watermark_command "$video_file" "$watermark_file" "$watermark_text" "$position" "$offset_x" "$offset_y" "$scale" "$opacity" "$rotate" "$font_family" "$font_size" "$font_color" "$output_file")
+
+      # Execute command
+      if eval "$ffmpeg_cmd"; then
+        echo "  ✓ Completed: $output_file"
+        ((success_count++))
+      else
+        echo "  ✗ Failed: $base_name" >&2
+        ((error_count++))
+      fi
+    done
+
+    # Print summary
+    echo ""
+    echo "Batch processing summary:"
+    echo "  Successfully processed: $success_count files"
+    echo "  Failed: $error_count files"
+    echo "Output files saved to: $output_dir"
+
+    # Return error if any errors occurred
+    if [ "$error_count" -gt 0 ]; then
+      return 1
+    fi
+
+  else
+    echo "Error: Input path \"$input_path\" is neither a file nor a directory" >&2
+    return 1
+  fi
+
+  return 0
+}' # Add watermark to video files (single or batch processing)
+
+#------------------------------------------------------------------------------
 # Video Help Function
 #------------------------------------------------------------------------------
 
@@ -2450,10 +2852,6 @@ alias vdo-help='() {
   echo "Speed Modification:"
   echo "  vdo-speed-up <file> <factor>   - Speed up video playback"
   echo "  vdo-slow-down <file> <factor>  - Slow down video playback"
-  echo ""
-  echo "Watermark & Overlay:"
-  echo "  vdo-add-watermark <file> <image> <pos> - Add image watermark to video"
-  echo "  vdo-add-text <file> <text> <pos> - Add text watermark to video"
   echo ""
   echo "Audio Processing:"
   echo "  vdo-remove-audio <file>              - Remove audio from video"
@@ -2493,6 +2891,9 @@ alias vdo-help='() {
   echo "  vdo-create-preview-grid <file> <cols>   - Create a grid of screenshots"
   echo "  vdo-screenshot <file> [options]         - Capture screenshots from a video"
   echo "  vdo-batch-screenshot <dir> [options]    - Capture screenshots from videos in a directory"
+  echo ""
+  echo "Video Watermarking:"
+  echo "  vdo-add-watermark <input> [options]     - Add watermark to video files (single or batch)"
   echo ""
   echo "For more detailed help on any command, run the command without arguments"
 }' # Display help information about all video commands
