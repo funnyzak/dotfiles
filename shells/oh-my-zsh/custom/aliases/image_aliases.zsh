@@ -204,114 +204,6 @@ alias img-resize-dir='() {
   [ $errors -eq 0 ] || return 1
 }' # Batch resize images in directory and all subdirectories, output to mirrored structure
 
-# --------------------------------
-# Preset Image Sizes
-# --------------------------------
-
-alias img-resize-24='() {
-  if [ $# -eq 0 ]; then
-    echo "Resize image(s) to 24px width."
-    echo "Usage: img-resize-24 <image_path> [more_files...]"
-    return 0
-  fi
-
-  local result_status=0
-  for img in "$@"; do
-    _image_aliases_validate_file "$img" || { result_status=1; continue; }
-    _image_resize "$img" "24x" "90"
-  done
-  return $result_status
-}' # Resize image(s) to 24px width
-
-alias img-resize-28='() {
-  if [ $# -eq 0 ]; then
-    echo "Resize image(s) to 28px width."
-    echo "Usage: img-resize-28 <image_path> [more_files...]"
-    return 0
-  fi
-
-  local result_status=0
-  for img in "$@"; do
-    _image_aliases_validate_file "$img" || { result_status=1; continue; }
-    _image_resize "$img" "28x" "90"
-  done
-  return $result_status
-}' # Resize image(s) to 28px width
-
-alias img-resize-50='() {
-  if [ $# -eq 0 ]; then
-    echo "Resize image(s) to 50px width."
-    echo "Usage: img-resize-50 <image_path> [more_files...]"
-    return 0
-  fi
-
-  local result_status=0
-  for img in "$@"; do
-    _image_aliases_validate_file "$img" || { result_status=1; continue; }
-    _image_resize "$img" "50x" "90"
-  done
-  return $result_status
-}' # Resize image(s) to 50px width
-
-alias img-resize-100='() {
-  if [ $# -eq 0 ]; then
-    echo "Resize image(s) to 100px width."
-    echo "Usage: img-resize-100 <image_path> [more_files...]"
-    return 0
-  fi
-
-  local result_status=0
-  for img in "$@"; do
-    _image_aliases_validate_file "$img" || { result_status=1; continue; }
-    _image_resize "$img" "100x" "90"
-  done
-  return $result_status
-}' # Resize image(s) to 100px width
-
-alias img-resize-200='() {
-  if [ $# -eq 0 ]; then
-    echo "Resize image(s) to 200px width."
-    echo "Usage: img-resize-200 <image_path> [more_files...]"
-    return 0
-  fi
-
-  local result_status=0
-  for img in "$@"; do
-    _image_aliases_validate_file "$img" || { result_status=1; continue; }
-    _image_resize "$img" "200x" "90"
-  done
-  return $result_status
-}' # Resize image(s) to 200px width
-
-alias img-resize-512='() {
-  if [ $# -eq 0 ]; then
-    echo "Resize image(s) to 512px width."
-    echo "Usage: img-resize-512 <image_path> [more_files...]"
-    return 0
-  fi
-
-  local result_status=0
-  for img in "$@"; do
-    _image_aliases_validate_file "$img" || { result_status=1; continue; }
-    _image_resize "$img" "512x" "90"
-  done
-  return $result_status
-}' # Resize image(s) to 512px width
-
-alias img-resize-1024='() {
-  if [ $# -eq 0 ]; then
-    echo "Resize image(s) to 1024px width."
-    echo "Usage: img-resize-1024 <image_path> [more_files...]"
-    return 0
-  fi
-
-  local result_status=0
-  for img in "$@"; do
-    _image_aliases_validate_file "$img" || { result_status=1; continue; }
-    _image_resize "$img" "1024x" "85"
-  done
-  return $result_status
-}' # Resize image(s) to 1024px width
 
 # --------------------------------
 # Format Conversion
@@ -1743,15 +1635,6 @@ alias image-help='() {
   echo "Basic Image Processing:"
   echo "  img-resize           - Resize image to specified dimensions"
   echo "  img-resize-dir       - Batch resize images in directory"
-  echo
-  echo "Preset Image Sizes:"
-  echo "  img-resize-24        - Resize image(s) to 24px width"
-  echo "  img-resize-28        - Resize image(s) to 28px width"
-  echo "  img-resize-50        - Resize image(s) to 50px width"
-  echo "  img-resize-100       - Resize image(s) to 100px width"
-  echo "  img-resize-200       - Resize image(s) to 200px width"
-  echo "  img-resize-512       - Resize image(s) to 512px width"
-  echo "  img-resize-1024      - Resize image(s) to 1024px width"
   echo
   echo "Format Conversion:"
   echo "  img-convert-format   - Convert image files to different format"
