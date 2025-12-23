@@ -1,0 +1,2903 @@
+# Description: Video processing aliases for conversion, compression, merging, and format transformation using ffmpeg.
+
+#------------------------------------------------------------------------------
+# Helper Functions
+#------------------------------------------------------------------------------
+
+# Helper function to validate file existence
+_vdo_validate_file() {
+  if [[ ! -f "$1" ]]; then
+    echo "Error: File \"$1\" does not exist" >&2
+    return 1
+  fi
+  return 0
+}
+
+# Helper function to validate directory existence
+_vdo_validate_dir() {
+  if [[ ! -d "$1" ]]; then
+    echo "Error: Directory \"$1\" does not exist" >&2
+    return 1
+  fi
+  return 0
+}
+
+# Helper function to check if ffmpeg is installed
+_vdo_check_ffmpeg() {
+  if ! command -v ffmpeg &> /dev/null; then
+    echo "Error: ffmpeg is not installed or not in PATH" >&2
+    return 1
+  fi
+  return 0
+}
+
+# Helper function to validate image watermark file
+_vdo_validate_image() {
+  if [[ ! -f "$1" ]]; then
+    echo "Error: Image file \"$1\" does not exist" >&2
+    return 1
+  fi
+
+  # Check if file is a supported image format (PNG priority)
+  if [[ ! "$1" =~ \.(png|jpg|jpeg|gif|bmp|webp)$ ]]; then
+    echo "Error: Unsupported image format. Supported formats: PNG, JPG, JPEG, GIF, BMP, WEBP" >&2
+    return 1
+  fi
+
+  return 0
+}
+
+# Helper function to check for required dependencies
+_vdo_check_dependencies() {
+  # Check for bc command for numeric validation
+  if ! command -v bc &> /dev/null; then
+    echo "Warning: bc command not found. Some numeric validations may be limited" >&2
+  fi
+  return 0
+}
+
+# Helper function to calculate watermark position for overlay filter (nine-grid + percentage offset)
+_vdo_calculate_watermark_position() {
+  local position="$1"
+  local offset_x="$2"
+  local offset_y="$3"
+
+  # Default position values
+  local pos_x="10"
+  local pos_y="10"
+
+  # Calculate base position based on nine-grid system
+  case "$position" in
+    "topleft")
+      pos_x="$offset_x"
+      pos_y="$offset_y"
+      ;;
+    "top-center"|"topcenter")
+      pos_x="(main_w-overlay_w)/2"
+      pos_y="$offset_y"
+      ;;
+    "topright")
+      pos_x="main_w-overlay_w-$offset_x"
+      pos_y="$offset_y"
+      ;;
+    "left")
+      pos_x="$offset_x"
+      pos_y="(main_h-overlay_h)/2"
+      ;;
+    "center")
+      pos_x="(main_w-overlay_w)/2"
+      pos_y="(main_h-overlay_h)/2"
+      ;;
+    "right")
+      pos_x="main_w-overlay_w-$offset_x"
+      pos_y="(main_h-overlay_h)/2"
+      ;;
+    "bottomleft")
+      pos_x="$offset_x"
+      pos_y="main_h-overlay_h-$offset_y"
+      ;;
+    "bottom-center"|"bottomcenter")
+      pos_x="(main_w-overlay_w)/2"
+      pos_y="main_h-overlay_h-$offset_y"
+      ;;
+    "bottomright")
+      pos_x="main_w-overlay_w-$offset_x"
+      pos_y="main_h-overlay_h-$offset_y"
+      ;;
+    *)
+      echo "Error: Invalid position \"$position\". Valid positions: topleft, top-center, topright, left, center, right, bottomleft, bottom-center, bottomright" >&2
+      return 1
+      ;;
+  esac
+
+  echo "$pos_x:$pos_y"
+  return 0
+}
+
+# Helper function to calculate text position for drawtext filter
+_vdo_calculate_text_position() {
+  local position="$1"
+  local offset_x="$2"
+  local offset_y="$3"
+
+  # Default position values
+  local pos_x="10"
+  local pos_y="10"
+
+  # Calculate base position based on nine-grid system
+  case "$position" in
+    "topleft")
+      pos_x="$offset_x"
+      pos_y="$offset_y"
+      ;;
+    "top-center"|"topcenter")
+      pos_x="(w-text_w)/2"
+      pos_y="$offset_y"
+      ;;
+    "topright")
+      pos_x="w-text_w-$offset_x"
+      pos_y="$offset_y"
+      ;;
+    "left")
+      pos_x="$offset_x"
+      pos_y="(h-text_h)/2"
+      ;;
+    "center")
+      pos_x="(w-text_w)/2"
+      pos_y="(h-text_h)/2"
+      ;;
+    "right")
+      pos_x="w-text_w-$offset_x"
+      pos_y="(h-text_h)/2"
+      ;;
+    "bottomleft")
+      pos_x="$offset_x"
+      pos_y="h-text_h-$offset_y"
+      ;;
+    "bottom-center"|"bottomcenter")
+      pos_x="(w-text_w)/2"
+      pos_y="h-text_h-$offset_y"
+      ;;
+    "bottomright")
+      pos_x="w-text_w-$offset_x"
+      pos_y="h-text_h-$offset_y"
+      ;;
+    *)
+      echo "Error: Invalid position \"$position\". Valid positions: topleft, top-center, topright, left, center, right, bottomleft, bottom-center, bottomright" >&2
+      return 1
+      ;;
+  esac
+
+  echo "x=$pos_x:y=$pos_y"
+  return 0
+}
+
+# Helper function to build watermark FFmpeg command
+_vdo_build_watermark_command() {
+  local input_file="$1"
+  local watermark_file="$2"
+  local watermark_text="$3"
+  local position="$4"
+  local offset_x="$5"
+  local offset_y="$6"
+  local scale="$7"
+  local opacity="$8"
+  local rotate="$9"
+  local font_family="${10}"
+  local font_size="${11}"
+  local font_color="${12}"
+  local output_file="${13}"
+
+  local ffmpeg_cmd="ffmpeg -i \"$input_file\""
+
+  if [ -n "$watermark_file" ]; then
+    # Image watermark - calculate position for overlay
+    local overlay_position
+    overlay_position=$(_vdo_calculate_watermark_position "$position" "$offset_x" "$offset_y") || return 1
+
+    ffmpeg_cmd="$ffmpeg_cmd -i \"$watermark_file\""
+
+    # Build filter chain for image watermark
+    local filter="[1:v]scale=iw*$scale:ih*$scale"
+
+    # Apply opacity first (if needed)
+    if [[ "$opacity" != "1.0" ]]; then
+      filter="${filter},format=yuva420p,colorchannelmixer=aa=$opacity"
+    fi
+
+    # Apply rotation (if needed)
+    if [[ "$rotate" != "0" ]]; then
+      filter="${filter},rotate=$rotate*PI/180:ow=rotw($rotate):oh=roth($rotate)"
+    fi
+
+    # Apply overlay
+    filter="${filter}[wm];[0:v][wm]overlay=$overlay_position:format=auto,format=yuv420p"
+
+    ffmpeg_cmd="$ffmpeg_cmd -filter_complex \"$filter\" -map \"[v]\" -map \"[a]?\""
+  else
+    # Text watermark - build position directly in the function
+    local pos_x="10"
+    local pos_y="10"
+
+    case "$position" in
+      "topleft")
+        pos_x="$offset_x"
+        pos_y="$offset_y"
+        ;;
+      "top-center"|"topcenter")
+        pos_x="(w-text_w)/2"
+        pos_y="$offset_y"
+        ;;
+      "topright")
+        pos_x="w-text_w-$offset_x"
+        pos_y="$offset_y"
+        ;;
+      "left")
+        pos_x="$offset_x"
+        pos_y="(h-text_h)/2"
+        ;;
+      "center")
+        pos_x="(w-text_w)/2"
+        pos_y="(h-text_h)/2"
+        ;;
+      "right")
+        pos_x="w-text_w-$offset_x"
+        pos_y="(h-text_h)/2"
+        ;;
+      "bottomleft")
+        pos_x="$offset_x"
+        pos_y="h-text_h-$offset_y"
+        ;;
+      "bottom-center"|"bottomcenter")
+        pos_x="(w-text_w)/2"
+        pos_y="h-text_h-$offset_y"
+        ;;
+      "bottomright")
+        pos_x="w-text_w-$offset_x"
+        pos_y="h-text_h-$offset_y"
+        ;;
+      *)
+        echo "Error: Invalid position \"$position\"" >&2
+        return 1
+        ;;
+    esac
+
+    # Build text filter with explicit position parameters using printf
+    local text_filter
+    text_filter=$(printf "drawtext=text='%s':fontfile='%s':fontsize=%s:fontcolor='%s':x=%s:y=%s:shadowx=2:shadowy=2:shadowcolor=black@0.5" "$watermark_text" "$font_family" "$font_size" "$font_color" "$pos_x" "$pos_y")
+    ffmpeg_cmd="$ffmpeg_cmd -vf \"$text_filter\""
+  fi
+
+  ffmpeg_cmd="$ffmpeg_cmd -c:v libx264 -c:a aac -y \"$output_file\""
+  echo "$ffmpeg_cmd"
+}
+
+#------------------------------------------------------------------------------
+# Video File Merging
+#------------------------------------------------------------------------------
+
+alias vdo-merge='() {
+  if [ $# -eq 0 ]; then
+    echo "Merge video files in a directory."
+    echo "Usage:"
+    echo "  vdo-merge <source_dir> <video_extension:mp4>"
+    return 1
+  fi
+
+  vdo_folder="${1:-$(pwd)}"
+  vdo_ext="${2:-mp4}"
+
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Check if source files exist
+  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
+    return 1
+  fi
+
+  # Create a temporary file list
+  temp_list=$(mktemp)
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | sort | while read -r f; do
+    echo "file \"$f\"" >> "$temp_list"
+  done
+
+  # Execute merge
+  output_file="${vdo_folder}/merged_video.${vdo_ext}"
+  echo "Merging videos into ${output_file}..."
+
+  if ffmpeg -f concat -safe 0 -i "$temp_list" -c copy "$output_file"; then
+    echo "Video merge complete, exported to ${output_file}"
+  else
+    echo "Error: Video merge failed" >&2
+    rm "$temp_list"
+    return 1
+  fi
+
+  # Clean up temporary file
+  rm "$temp_list"
+}' # Merge multiple videos into one file
+
+alias vdo-merge-audio='() {
+  echo -e "Merge video and audio files into one MP4 file.\nUsage:\n  vdo-merge-audio <video_file_path> [audio_file_path]\n\nExamples:\n  vdo-merge-audio video.mp4 audio.mp3\n  vdo-merge-audio video.mp4  # Automatically finds matching audio file"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  local video_file="$1"
+  local audio_file="$2"
+  local video_basename
+  local video_dir
+  local output_file
+
+  _vdo_validate_file "$video_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Extract video basename and directory
+  video_basename=$(basename "$video_file")
+  video_name="${video_basename%.*}"
+  video_dir=$(dirname "$video_file")
+
+  # If audio file not specified, try to find matching audio file
+  if [ -z "$audio_file" ]; then
+    echo "No audio file specified, searching for matching audio files..."
+
+    # Try to find audio files with same name but different extension
+    for ext in mp3 wav aac m4a ogg flac; do
+      potential_audio="$video_dir/$video_name.$ext"
+      if [ -f "$potential_audio" ]; then
+        audio_file="$potential_audio"
+        echo "Found matching audio file: $audio_file"
+        break
+      fi
+    done
+
+    if [ -z "$audio_file" ]; then
+      echo "Error: No matching audio file found for $video_file" >&2
+      echo "Please specify an audio file or ensure a matching one exists in the same directory" >&2
+      return 1
+    fi
+  else
+    _vdo_validate_file "$audio_file" || return 1
+  fi
+
+  # Create output filename
+  output_file="${video_dir}/${video_name}_merged.mp4"
+
+  echo "Merging video $video_file with audio $audio_file..."
+
+  if ffmpeg -i "$video_file" -i "$audio_file" -c:v copy -c:a aac -b:a 192k -map 0:v:0 -map 1:a:0 "$output_file"; then
+    echo "Audio-video merge complete, exported to $output_file"
+  else
+    echo "Error: Audio-video merge failed" >&2
+    return 1
+  fi
+}' # Merge a video with an audio file
+
+alias vdo-batch-merge-audio='() {
+  echo -e "Batch merge video and audio files from directories.\nUsage:\n  vdo-batch-merge-audio <video_directory> [options]\n\nOptions:\n  -ad, --audio_dir DIR    : Directory containing audio files (default: same as video dir)\n  -ve, --video_ext EXT    : Video file extension (default: mp4)\n  -ae, --audio_ext EXT    : Audio file extension (default: mp3)\n  -q,  --quality VALUE    : Audio quality in kbps (default: 192)\n  -o,  --output_dir DIR   : Output directory (default: video_dir/merged)\n  -h,  --help             : Show this help message\n\nExamples:\n  vdo-batch-merge-audio videos/ --audio_dir audios/ --video_ext mp4 --audio_ext wav\n  vdo-batch-merge-audio videos/ -ad audios/ -ve mp4 -ae wav"
+
+  # Variables with default values
+  local video_dir=""
+  local audio_dir=""
+  local video_ext="mp4"
+  local audio_ext="mp3"
+  local audio_quality="192"
+  local output_dir=""
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -ad|--audio_dir)
+        audio_dir="$2"
+        shift 2
+        ;;
+      -ve|--video_ext)
+        video_ext="$2"
+        shift 2
+        ;;
+      -ae|--audio_ext)
+        audio_ext="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        audio_quality="$2"
+        shift 2
+        ;;
+      -o|--output_dir)
+        output_dir="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the video directory
+        if [ -z "$video_dir" ]; then
+          video_dir="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no video_dir provided
+  if $show_help || [ -z "$video_dir" ]; then
+    return 1
+  fi
+
+  # Use video_dir as audio_dir if not specified
+  if [ -z "$audio_dir" ]; then
+    audio_dir="$video_dir"
+  fi
+
+  # Set default output_dir if not specified
+  if [ -z "$output_dir" ]; then
+    output_dir="${video_dir}/merged"
+  fi
+
+  _vdo_validate_dir "$video_dir" || return 1
+  _vdo_validate_dir "$audio_dir" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Check if video files exist
+  local file_count=$(find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${video_ext} files found in $video_dir" >&2
+    return 1
+  fi
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  local success_count=0
+  local error_count=0
+  local skipped_count=0
+
+  # Process each video file
+  find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | while read -r video_file; do
+    local base_name=$(basename "$video_file" .${video_ext})
+    local audio_file="${audio_dir}/${base_name}.${audio_ext}"
+    local output_file="${output_dir}/${base_name}.mp4"
+
+    # Check if audio file exists
+    if [ ! -f "$audio_file" ]; then
+      echo "Warning: No matching audio file found for $video_file, skipping..." >&2
+      ((skipped_count++))
+      continue
+    fi
+
+    echo "Merging video $video_file with audio $audio_file..."
+
+    if ffmpeg -i "$video_file" -i "$audio_file" -c:v copy -c:a aac -b:a "${audio_quality}k" -map 0:v:0 -map 1:a:0 -y "$output_file"; then
+      echo "Merge complete for $base_name"
+      ((success_count++))
+    else
+      echo "Error: Failed to merge $base_name" >&2
+      ((error_count++))
+    fi
+  done
+
+  # Print summary
+  echo "Batch merge summary:"
+  echo "  Successfully merged: $success_count files"
+  echo "  Failed to merge: $error_count files"
+  echo "  Skipped (no audio): $skipped_count files"
+  echo "Output files saved to: $output_dir"
+
+  # Return error if any errors occurred
+  if [ "$error_count" -gt 0 ]; then
+    return 1
+  fi
+
+  return 0
+}' # Batch merge videos with audio files from directories
+
+#------------------------------------------------------------------------------
+# Video Format Conversion
+#------------------------------------------------------------------------------
+
+alias vdo-convert='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert video to specified format."
+    echo "Usage:"
+    echo "  vdo-convert <video_file_path> [target_format] [video_file_path2] [target_format2]..."
+    echo "  vdo-convert <video_file_path> [video_file_path2] [video_file_path3]... [target_format]"
+    echo "Examples:"
+    echo "  vdo-convert video.avi mp4"
+    echo "  vdo-convert video1.avi video2.mkv mp4"
+    echo "  vdo-convert video.avi webm"
+    return 1
+  fi
+
+  _vdo_check_ffmpeg || return 1
+
+  # Parse arguments to separate files and format
+  local input_files=()
+  local target_format="mp4"
+
+  # If last argument looks like a format (no extension), use it as target format
+  if [[ "${@: -1}" =~ ^[a-zA-Z0-9]+$ ]] && [[ ! -f "${@: -1}" ]]; then
+    target_format="${@: -1}"
+    input_files=("${@:1:$(($#-1))}")
+  else
+    input_files=("$@")
+  fi
+
+  for input_file in "${input_files[@]}"; do
+    _vdo_validate_file "$input_file" || return 1
+
+    output_file="${input_file%.*}.${target_format}"
+    echo "Converting $input_file to ${target_format} format..."
+
+    if ffmpeg -i "$input_file" -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 256k -ac 2 "$output_file"; then
+      echo "Conversion complete, exported to $output_file"
+    else
+      echo "Error: Video conversion failed" >&2
+      return 1
+    fi
+  done
+}' # Convert video to specified format
+
+alias vdo-batch-convert='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert videos in directory to specified format."
+    echo "Usage:"
+    echo "  vdo-batch-convert <video_directory> <source_extension> [target_format]"
+    echo "Examples:"
+    echo "  vdo-batch-convert ./videos avi mp4"
+    echo "  vdo-batch-convert ./videos mkv webm"
+    echo "  vdo-batch-convert ./videos mov (defaults to mp4)"
+    return 1
+  fi
+
+  vdo_folder="${1:-.}"
+  vdo_ext="${2:-mp4}"
+  target_format="${3:-mp4}"
+
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Check if source files exist
+  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
+    return 1
+  fi
+
+  mkdir -p "${vdo_folder}/${target_format}"
+  errors=0
+
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
+    output_file="$vdo_folder/${target_format}/$(basename "$file" .${vdo_ext}).${target_format}"
+    echo "Converting $file to $output_file..."
+    if ! ffmpeg -i "$file" -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 256k -ac 2 "$output_file"; then
+      echo "Error: Failed to convert $file" >&2
+      ((errors++))
+    fi
+  done
+
+  if [ "$errors" -eq 0 ]; then
+    echo "Directory video conversion complete, exported to $vdo_folder/${target_format}"
+  else
+    echo "Warning: Conversion completed with $errors errors" >&2
+    return 1
+  fi
+}' # Convert batch of videos to specified format
+
+alias vdo-to-mp4='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert video to MP4 format."
+    echo "Usage:"
+    echo "  vdo-to-mp4 <video_file_path> [video_file_path2] [video_file_path3]..."
+    return 1
+  fi
+
+  vdo-convert "$@" mp4
+}' # Convert video to MP4 format
+
+alias vdo-batch-to-mp4='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert videos in directory to MP4 format."
+    echo "Usage:"
+    echo "  vdo-batch-to-mp4 <video_directory> <source_extension:mp4>"
+    return 1
+  fi
+
+  vdo_folder="${1:-.}"
+  vdo_ext="${2:-mp4}"
+
+  vdo-batch-convert "$vdo_folder" "$vdo_ext" mp4
+}' # Convert batch of videos to MP4 format
+
+#------------------------------------------------------------------------------
+# Video to Audio Extraction
+#------------------------------------------------------------------------------
+
+alias vdo-extract-mp3='() {
+  if [ $# -eq 0 ]; then
+    echo "Extract audio from video to MP3 format."
+    echo "Usage:"
+    echo "  vdo-extract-mp3 <video_file_path>"
+    return 1
+  fi
+
+  input_file="$1"
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${input_file%.*}.mp3"
+  echo "Extracting audio from $input_file to MP3 format..."
+
+  if ffmpeg -i "$input_file" -vn -acodec libmp3lame -ab 128k -ar 44100 -y "$output_file"; then
+    echo "Extraction complete, exported to $output_file"
+  else
+    echo "Error: Audio extraction failed" >&2
+    return 1
+  fi
+}' # Extract audio from video to MP3 format
+
+alias vdo-extract-dir-mp3='() {
+  if [ $# -eq 0 ]; then
+    echo "Extract audio from videos in directory to MP3 format."
+    echo "Usage:"
+    echo "  vdo-extract-dir-mp3 <video_directory> <source_extension:mp4>"
+    return 1
+  fi
+
+  vdo_folder="${1:-.}"
+  vdo_ext="${2:-mp4}"
+
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Check if source files exist
+  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
+    return 1
+  fi
+
+  mkdir -p "${vdo_folder}/mp3"
+  errors=0
+
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
+    output_file="$vdo_folder/mp3/$(basename "$file" .${vdo_ext}).mp3"
+    echo "Extracting audio from $file to $output_file..."
+    if ! ffmpeg -i "$file" -vn -acodec libmp3lame -ab 128k -ar 44100 -y "$output_file"; then
+      echo "Error: Failed to extract audio from $file" >&2
+      ((errors++))
+    fi
+  done
+
+  if [ "$errors" -eq 0 ]; then
+    echo "Directory audio extraction complete, exported to $vdo_folder/mp3"
+  else
+    echo "Warning: Audio extraction completed with $errors errors" >&2
+    return 1
+  fi
+}' # Extract audio from videos in directory to MP3 format
+
+#------------------------------------------------------------------------------
+# Video Compression
+#------------------------------------------------------------------------------
+
+alias vdo-compress='() {
+  if [ $# -eq 0 ]; then
+    echo "Compress video."
+    echo "Usage:"
+    echo "  vdo-compress <video_file_path> [quality:30]"
+    echo "Note: Lower quality value means higher quality (18-28 is good range)"
+    return 1
+  fi
+
+  input_file="$1"
+  quality="${2:-30}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate quality parameter
+  if ! [[ "$quality" =~ ^[0-9]+$ ]] || [ "$quality" -lt 0 ] || [ "$quality" -gt 51 ]; then
+    echo "Error: Quality must be a number between 0 and 51" >&2
+    return 1
+  fi
+
+  output_file="${input_file%.*}_compressed.mp4"
+  echo "Compressing $input_file with quality factor $quality..."
+
+  if ffmpeg -i "$input_file" -c:v libx264 -tag:v avc1 -movflags faststart -crf "$quality" -preset superfast "$output_file"; then
+    echo "Compression complete, exported to $output_file"
+  else
+    echo "Error: Video compression failed" >&2
+    return 1
+  fi
+}' # Compress video with specified quality
+
+alias vdo-compress-dir='() {
+  if [ $# -eq 0 ]; then
+    echo "Compress videos in directory."
+    echo "Usage:"
+    echo "  vdo-compress-dir <video_directory> <source_extension:mp4> [quality:30]"
+    echo "Note: Lower quality value means higher quality (18-28 is good range)"
+    return 1
+  fi
+
+  vdo_folder="${1:-.}"
+  vdo_ext="${2:-mp4}"
+  quality="${3:-30}"
+
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate quality parameter
+  if ! [[ "$quality" =~ ^[0-9]+$ ]] || [ "$quality" -lt 0 ] || [ "$quality" -gt 51 ]; then
+    echo "Error: Quality must be a number between 0 and 51" >&2
+    return 1
+  fi
+
+  # Check if source files exist
+  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
+    return 1
+  fi
+
+  mkdir -p "${vdo_folder}/compressed"
+  errors=0
+
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
+    output_file="$vdo_folder/compressed/$(basename "$file" .${vdo_ext})_compressed.mp4"
+    echo "Compressing $file to $output_file with quality factor $quality..."
+    if ! ffmpeg -i "$file" -c:v libx264 -tag:v avc1 -movflags faststart -crf "$quality" -preset superfast "$output_file"; then
+      echo "Error: Failed to compress $file" >&2
+      ((errors++))
+    fi
+  done
+
+  if [ "$errors" -eq 0 ]; then
+    echo "Directory video compression complete, exported to $vdo_folder/compressed"
+  else
+    echo "Warning: Compression completed with $errors errors" >&2
+    return 1
+  fi
+}' # Compress videos in directory
+
+#------------------------------------------------------------------------------
+# Video Resolution Conversion
+#------------------------------------------------------------------------------
+
+# Helper functions for resolution conversion
+_vdo_convert_resolution() {
+  if [ $# -lt 2 ]; then
+    echo "Error: Missing required parameters" >&2
+    return 1
+  fi
+
+  input_file="$1"
+  resolution="$2"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${input_file%.*}_${resolution}p.mp4"
+  echo "Converting $input_file to ${resolution}p resolution..."
+
+  if ffmpeg -i "$input_file" -vf "scale=-2:${resolution}" -c:a copy "$output_file"; then
+    echo "Conversion complete, exported to $output_file"
+    return 0
+  else
+    echo "Error: Video resolution conversion failed" >&2
+    return 1
+  fi
+} # Convert video to specified resolution
+
+_vdo_convert_dir_resolution() {
+  if [ $# -lt 2 ]; then
+    echo "Error: Missing required parameters" >&2
+    return 1
+  fi
+
+  vdo_folder="$1"
+  resolution="$2"
+  vdo_ext="${3:-mp4}"
+
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Check if source files exist
+  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
+    return 1
+  fi
+
+  mkdir -p "${vdo_folder}/${resolution}p"
+  errors=0
+
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
+    output_file="$vdo_folder/${resolution}p/$(basename "$file" .${vdo_ext})_${resolution}p.mp4"
+    echo "Converting $file to ${resolution}p resolution..."
+    if ! ffmpeg -i "$file" -vf "scale=-2:${resolution}" -c:a copy "$output_file"; then
+      echo "Error: Failed to convert $file" >&2
+      ((errors++))
+    fi
+  done
+
+  if [ "$errors" -eq 0 ]; then
+    echo "Directory video resolution conversion complete, exported to $vdo_folder/${resolution}p"
+    return 0
+  else
+    echo "Warning: Resolution conversion completed with $errors errors" >&2
+    return 1
+  fi
+} # Convert videos in directory to specified resolution
+
+# Resolution specific aliases
+alias vdo-to-144p='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert video to 144p resolution."
+    echo "Usage:"
+    echo "  vdo-to-144p <video_file_path>"
+    return 1
+  fi
+  _vdo_convert_resolution "$1" "144"
+}' # Convert video to 144p resolution
+
+alias vdo-to-240p='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert video to 240p resolution."
+    echo "Usage:"
+    echo "  vdo-to-240p <video_file_path>"
+    return 1
+  fi
+  _vdo_convert_resolution "$1" "240"
+}' # Convert video to 240p resolution
+
+# Resolution specific aliases
+alias vdo-to-320p='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert video to 320p resolution."
+    echo "Usage:"
+    echo "  vdo-to-320p <video_file_path>"
+    return 1
+  fi
+  _vdo_convert_resolution "$1" "320"
+}' # Convert video to 320p resolution
+
+alias vdo-to-480p='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert video to 480p resolution."
+    echo "Usage:"
+    echo "  vdo-to-480p <video_file_path>"
+    return 1
+  fi
+  _vdo_convert_resolution "$1" "480"
+}' # Convert video to 480p resolution
+
+alias vdo-to-720p='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert video to 720p resolution."
+    echo "Usage:"
+    echo "  vdo-to-720p <video_file_path>"
+    return 1
+  fi
+  _vdo_convert_resolution "$1" "720"
+}' # Convert video to 720p resolution
+
+alias vdo-to-1080p='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert video to 1080p resolution."
+    echo "Usage:"
+    echo "  vdo-to-1080p <video_file_path>"
+    return 1
+  fi
+  _vdo_convert_resolution "$1" "1080"
+}' # Convert video to 1080p resolution
+
+# Directory resolution conversion aliases
+alias vdo-dir-to-320p='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert videos in directory to 320p resolution."
+    echo "Usage:"
+    echo "  vdo-dir-to-320p <video_directory> <source_extension:mp4>"
+    return 1
+  fi
+  _vdo_convert_dir_resolution "${1:-.}" "320" "${2:-mp4}"
+}' # Convert videos in directory to 320p resolution
+
+alias vdo-dir-to-480p='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert videos in directory to 480p resolution."
+    echo "Usage:"
+    echo "  vdo-dir-to-480p <video_directory> <source_extension:mp4>"
+    return 1
+  fi
+  _vdo_convert_dir_resolution "${1:-.}" "480" "${2:-mp4}"
+}' # Convert videos in directory to 480p resolution
+
+alias vdo-dir-to-720p='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert videos in directory to 720p resolution."
+    echo "Usage:"
+    echo "  vdo-dir-to-720p <video_directory> <source_extension:mp4>"
+    return 1
+  fi
+  _vdo_convert_dir_resolution "${1:-.}" "720" "${2:-mp4}"
+}' # Convert videos in directory to 720p resolution
+
+alias vdo-dir-to-1080p='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert videos in directory to 1080p resolution."
+    echo "Usage:"
+    echo "  vdo-dir-to-1080p <video_directory> <source_extension:mp4>"
+    return 1
+  fi
+  _vdo_convert_dir_resolution "${1:-.}" "1080" "${2:-mp4}"
+}' # Convert videos in directory to 1080p resolution
+
+#------------------------------------------------------------------------------
+# Mobile Device Optimization
+#------------------------------------------------------------------------------
+
+alias vdo-optimize-for-mobile='() {
+  if [ $# -eq 0 ]; then
+    echo "Optimize video for mobile devices."
+    echo "Usage:"
+    echo "  vdo-optimize-for-mobile <video_file_path> [video_file_path2] [video_file_path3]..."
+    return 1
+  fi
+
+  input_files=("$@")
+  _vdo_check_ffmpeg || return 1
+
+  for input_file in "${input_files[@]}"; do
+    _vdo_validate_file "${input_files[@]}" || return 1
+    temp_file="${input_file%.*}_320p_temp.mp4"
+    output_file="${input_file%.*}_mobile.mp4"
+    echo "Converting $input_file to mobile-optimized format..."
+
+    # First convert to 320p
+    if ! ffmpeg -i "$input_file" -vf "scale=-2:320" -c:a copy "$temp_file"; then
+      echo "Error: Failed to convert to 320p resolution" >&2
+      return 1
+    fi
+
+    # Then compress
+    if ffmpeg -i "$temp_file" -c:v libx264 -tag:v avc1 -movflags faststart -crf 28 -preset superfast "$output_file"; then
+      echo "Mobile optimization complete, exported to $output_file"
+      # Delete intermediate file
+      rm "$temp_file"
+    else
+      echo "Error: Video compression failed" >&2
+      rm "$temp_file"
+      return 1
+    fi
+  done
+}' # Optimize video for mobile devices
+
+#------------------------------------------------------------------------------
+# M3U8 Stream Processing
+#------------------------------------------------------------------------------
+
+alias vdo-convert-m3u8-to-mp4='() {
+  if [ $# -eq 0 ]; then
+    echo "Convert M3U8 stream to MP4 video."
+    echo "Usage:"
+    echo "  vdo-convert-m3u8-to-mp4 <m3u8_url> [output_filename]"
+    return 1
+  fi
+
+  _vdo_check_ffmpeg || return 1
+
+  url="$1"
+  output="${2:-output_$(date +%Y%m%d%H%M%S).mp4}"
+
+  echo "Converting M3U8 stream $url to MP4 format..."
+
+  if ffmpeg -i "$url" -c copy "${output}"; then
+    echo "Conversion complete, exported to ${output}"
+  else
+    echo "Error: M3U8 conversion failed" >&2
+    return 1
+  fi
+}' # Convert M3U8 stream to MP4 video
+
+#------------------------------------------------------------------------------
+# Video Information & Metadata
+#------------------------------------------------------------------------------
+
+alias vdo-info='() {
+  echo "Show detailed information about a video file."
+  echo "Usage:"
+  echo "  vdo-info <video_file_path>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  echo "Getting detailed information for $input_file..."
+  ffmpeg -i "$input_file" -hide_banner 2>&1 | grep -v "^ffmpeg version"
+}' # Show detailed video information
+
+alias vdo-stream-info='() {
+  echo "Show stream information about a video file."
+  echo "Usage:"
+  echo "  vdo-stream-info <video_file_path>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  echo "Getting stream information for $input_file..."
+  ffprobe -v error -show_entries stream=index,codec_name,codec_type,width,height,bit_rate,duration -of compact=p=0:nk=1 "$input_file"
+}' # Display codec and stream details
+
+alias vdo-duration='() {
+  echo "Show the duration of a video file."
+  echo "Usage:"
+  echo "  vdo-duration <video_file_path>"
+
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$input_file")
+  hours=$(echo "$duration/3600" | bc)
+  minutes=$(echo "($duration%3600)/60" | bc)
+  seconds=$(echo "$duration%60" | bc)
+
+  printf "Duration of %s: %02d:%02d:%05.2f\n" "$input_file" "$hours" "$minutes" "$seconds"
+}' # Show video duration in hours:minutes:seconds
+
+#------------------------------------------------------------------------------
+# Video Trimming & Splitting
+#------------------------------------------------------------------------------
+
+alias vdo-trim-video='() {
+  echo "Trim a video file between start and end time."
+  echo "Usage:"
+  echo "  vdo-trim-video <video_file_path> <start_time> <duration>"
+  echo "Time format examples: 00:01:30 (1m30s), 00:00:45 (45s)"
+
+  if [ $# -lt 3 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  start_time="$2"
+  duration="$3"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${input_file%.*}_trimmed.mp4"
+  echo "Trimming $input_file from $start_time for $duration..."
+
+  if ffmpeg -ss "$start_time" -i "$input_file" -t "$duration" -c:v copy -c:a copy "$output_file"; then
+    echo "Trimming complete, exported to $output_file"
+  else
+    echo "Error: Video trimming failed" >&2
+    return 1
+  fi
+}' # Trim video to specified start time and duration
+
+alias vdo-split-video='() {
+  echo "Split a video file into segments of specified duration."
+  echo "Usage:"
+  echo "  vdo-split-video <video_file_path> <segment_duration>"
+  echo "Duration format examples: 00:10:00 (10min), 00:30:00 (30min)"
+
+  if [ $# -lt 2 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  segment_duration="$2"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_pattern="${input_file%.*}_part%03d.mp4"
+  echo "Splitting $input_file into segments of $segment_duration..."
+
+  if ffmpeg -i "$input_file" -c copy -f segment -segment_time "$segment_duration" -reset_timestamps 1 "$output_pattern"; then
+    echo "Splitting complete, segments saved with pattern: ${output_pattern}"
+  else
+    echo "Error: Video splitting failed" >&2
+    return 1
+  fi
+}' # Split video into equal segments
+
+#------------------------------------------------------------------------------
+# Video Frame Extraction (Legacy - Use vdo-export-frames instead)
+#------------------------------------------------------------------------------
+
+# Legacy aliases for backward compatibility
+# These functions are kept for compatibility but vdo-export-frames provides more features
+alias vdo-extract-frame='() {
+  echo "DEPRECATED: Use vdo-export-frames instead for better features"
+  echo "Example: vdo-export-frames <video> --mode time --start <time> --end <time>"
+  echo "Or: vdo-export-frames <video> --mode count --count 1"
+  return 1
+}' # Legacy: Extract single frame at specified time position
+
+alias vdo-extract-frames='() {
+  echo "DEPRECATED: Use vdo-export-frames instead for better features"
+  echo "Example: vdo-export-frames <video> --mode fps --fps <interval>"
+  return 1
+}' # Legacy: Extract frames at regular intervals
+
+alias vdo-batch-extract-frame='() {
+  echo "DEPRECATED: Use vdo-batch-export-frames instead for better features"
+  echo "Example: vdo-batch-export-frames <dir> --mode time --start <time> --end <time>"
+  return 1
+}' # Legacy: Extract frames at specified time from multiple videos
+
+#------------------------------------------------------------------------------
+# Advanced Frame Export Functions
+#------------------------------------------------------------------------------
+
+alias vdo-export-frames='() {
+  echo -e "Export frames from video with advanced options.\nUsage:\n  vdo-export-frames <video_file_path> [options]\n\nOptions:\n  -m, --mode MODE        : Export mode: \"time\" (time range), \"fps\" (frame rate), \"count\" (frame count) (default: fps)\n  -s, --start START      : Start time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -e, --end END          : End time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -f, --fps FPS          : Frame rate for fps mode (default: 1)\n  -c, --count COUNT      : Number of frames for count mode (default: 10)\n  -o, --output DIR       : Output directory (default: video_name_frames)\n  -q, --quality VALUE    : Image quality (1-31 for JPEG, lower is better, default: 2)\n  -t, --format FORMAT    : Output format: jpg, png, bmp (default: jpg)\n  -w, --width WIDTH      : Resize width (default: original size)\n  -h, --height HEIGHT    : Resize height (default: original size)\n  -n, --name FORMAT      : Output filename format (default: \"frame_%04d\")\n  -h, --help             : Show this help message\n\nExamples:\n  # Basic usage - extract 1 frame per second\n  vdo-export-frames video.mp4\n  vdo-export-frames video.mp4 --mode fps --fps 1\n\n  # Extract frames from specific time range\n  vdo-export-frames video.mp4 --mode time --start 00:01:00 --end 00:02:00\n  vdo-export-frames video.mp4 --mode time --start 00:05:30 --end 00:06:00 --fps 2\n\n  # Extract specific number of evenly spaced frames\n  vdo-export-frames video.mp4 --mode count --count 20\n  vdo-export-frames video.mp4 --mode count --count 5 --start 00:01:00 --end 00:02:00\n\n  # High quality and custom format\n  vdo-export-frames video.mp4 --mode fps --fps 0.5 --quality 1 --format png\n  vdo-export-frames video.mp4 --mode fps --fps 1 --quality 1 --format bmp\n\n  # Resize frames\n  vdo-export-frames video.mp4 --mode fps --fps 1 --width 1280 --height 720\n  vdo-export-frames video.mp4 --mode fps --fps 1 --width 800\n\n  # Custom output directory and naming\n  vdo-export-frames video.mp4 --mode fps --fps 1 --output ./my_frames\n  vdo-export-frames video.mp4 --mode fps --fps 1 --name \"shot_%03d\"\n  vdo-export-frames video.mp4 --mode fps --fps 1 --name \"frame_%05d\"\n\n  # Complex examples\n  vdo-export-frames video.mp4 --mode time --start 00:01:00 --end 00:02:00 --fps 2 --quality 1 --format png --width 1920 --output ./high_quality_frames\n  vdo-export-frames video.mp4 --mode count --count 10 --quality 1 --format png --name \"preview_%02d\" --output ./previews"
+
+  # Variables with default values
+  local input_file=""
+  local mode="fps"
+  local start_time=""
+  local end_time=""
+  local fps=1
+  local count=10
+  local output_dir=""
+  local quality=2
+  local format="jpg"
+  local width=""
+  local height=""
+  local name_format="frame_%04d"
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -m|--mode)
+        mode="$2"
+        shift 2
+        ;;
+      -s|--start)
+        start_time="$2"
+        shift 2
+        ;;
+      -e|--end)
+        end_time="$2"
+        shift 2
+        ;;
+      -f|--fps)
+        fps="$2"
+        shift 2
+        ;;
+      -c|--count)
+        count="$2"
+        shift 2
+        ;;
+      -o|--output)
+        output_dir="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -t|--format)
+        format="$2"
+        shift 2
+        ;;
+      -w|--width)
+        width="$2"
+        shift 2
+        ;;
+      -h|--height)
+        height="$2"
+        shift 2
+        ;;
+      -n|--name)
+        name_format="$2"
+        shift 2
+        ;;
+      --help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the input file
+        if [ -z "$input_file" ]; then
+          input_file="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no input_file provided
+  if $show_help || [ -z "$input_file" ]; then
+    return 1
+  fi
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate mode parameter
+  if [[ "$mode" != "time" && "$mode" != "fps" && "$mode" != "count" ]]; then
+    echo "Error: Mode must be either \"time\", \"fps\", or \"count\"" >&2
+    return 1
+  fi
+
+  # Validate format parameter
+  if [[ "$format" != "jpg" && "$format" != "png" && "$format" != "bmp" ]]; then
+    echo "Error: Format must be either \"jpg\", \"png\", or \"bmp\"" >&2
+    return 1
+  fi
+
+  # Set default output_dir if not specified
+  if [ -z "$output_dir" ]; then
+    local base_name=$(basename "$input_file")
+    output_dir="${base_name%.*}_frames"
+  fi
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  # Build ffmpeg command based on mode
+  local ffmpeg_cmd="ffmpeg"
+  local filter_complex=""
+
+  # Add input file
+  ffmpeg_cmd="$ffmpeg_cmd -i \"$input_file\""
+
+  # Add time range if specified
+  if [ -n "$start_time" ]; then
+    ffmpeg_cmd="$ffmpeg_cmd -ss \"$start_time\""
+  fi
+
+  if [ -n "$end_time" ]; then
+    ffmpeg_cmd="$ffmpeg_cmd -to \"$end_time\""
+  fi
+
+  # Build filter complex based on mode and options
+  if [ "$mode" = "time" ]; then
+    # Time mode: extract frames at regular intervals within time range
+    filter_complex="fps=$fps"
+  elif [ "$mode" = "fps" ]; then
+    # FPS mode: extract frames at specified frame rate
+    filter_complex="fps=$fps"
+  else
+    # Count mode: extract specified number of evenly spaced frames
+    local duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$input_file")
+    duration=${duration%.*} # Remove decimal part
+    local interval=$((duration / (count + 1)))
+    filter_complex="fps=1/$interval"
+  fi
+
+  # Add resize if specified
+  if [ -n "$width" ] || [ -n "$height" ]; then
+    local scale_filter="scale="
+    if [ -n "$width" ] && [ -n "$height" ]; then
+      scale_filter="${scale_filter}${width}:${height}"
+    elif [ -n "$width" ]; then
+      scale_filter="${scale_filter}${width}:-1"
+    else
+      scale_filter="${scale_filter}-1:${height}"
+    fi
+    filter_complex="${filter_complex},${scale_filter}"
+  fi
+
+  # Add quality settings
+  local quality_param=""
+  if [ "$format" = "jpg" ]; then
+    quality_param="-q:v $quality"
+  elif [ "$format" = "png" ]; then
+    quality_param="-compression_level $((10 - quality))"
+  fi
+
+  # Build final command
+  local output_pattern="$output_dir/${name_format}.${format}"
+  ffmpeg_cmd="$ffmpeg_cmd -vf \"$filter_complex\" $quality_param \"$output_pattern\""
+
+  echo "Exporting frames from $input_file..."
+  echo "  Mode: $mode"
+  echo "  Output directory: $output_dir"
+  echo "  Format: $format"
+
+  # Execute ffmpeg command
+  if eval "$ffmpeg_cmd"; then
+    echo "Frame export complete, saved to $output_dir/"
+  else
+    echo "Error: Frame export failed" >&2
+    return 1
+  fi
+
+  return 0
+}' # Export frames from video with advanced options
+
+alias vdo-batch-export-frames='() {
+  echo -e "Batch export frames from videos in directory with advanced options.\nUsage:\n  vdo-batch-export-frames <video_directory> [options]\n\nOptions:\n  -m, --mode MODE        : Export mode: \"time\" (time range), \"fps\" (frame rate), \"count\" (frame count) (default: fps)\n  -s, --start START      : Start time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -e, --end END          : End time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -f, --fps FPS          : Frame rate for fps mode (default: 1)\n  -c, --count COUNT      : Number of frames for count mode (default: 10)\n  -o, --output DIR       : Output directory (default: video_dir/frames)\n  -q, --quality VALUE    : Image quality (1-31 for JPEG, lower is better, default: 2)\n  -t, --format FORMAT    : Output format: jpg, png, bmp (default: jpg)\n  -w, --width WIDTH      : Resize width (default: original size)\n  -h, --height HEIGHT    : Resize height (default: original size)\n  --extension EXT        : Video file extension to process (default: mp4)\n  -n, --name FORMAT      : Output filename format (default: \"%s_frame_%04d\")\n  --help                 : Show this help message\n\nExamples:\n  # Basic usage - extract 1 frame per second from all videos\n  vdo-batch-export-frames videos/\n  vdo-batch-export-frames videos/ --mode fps --fps 1\n\n  # Extract frames from specific time range for all videos\n  vdo-batch-export-frames videos/ --mode time --start 00:01:00 --end 00:02:00\n  vdo-batch-export-frames videos/ --mode time --start 00:05:30 --end 00:06:00 --fps 2\n\n  # Extract specific number of evenly spaced frames from all videos\n  vdo-batch-export-frames videos/ --mode count --count 20\n  vdo-batch-export-frames videos/ --mode count --count 5 --start 00:01:00 --end 00:02:00\n\n  # Process specific video format\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --extension mkv\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --extension avi\n\n  # High quality and custom format\n  vdo-batch-export-frames videos/ --mode fps --fps 0.5 --quality 1 --format png\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --quality 1 --format bmp\n\n  # Resize frames for all videos\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --width 1280 --height 720\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --width 800\n\n  # Custom output directory and naming\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --output ./my_frames\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --name \"%s_shot_%03d\"\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --name \"%s_frame_%05d\"\n\n  # Complex examples\n  vdo-batch-export-frames videos/ --mode time --start 00:01:00 --end 00:02:00 --fps 2 --quality 1 --format png --width 1920 --output ./high_quality_frames\n  vdo-batch-export-frames videos/ --mode count --count 10 --quality 1 --format png --name \"%s_preview_%02d\" --output ./previews --extension mp4"
+
+  # Variables with default values
+  local video_dir=""
+  local mode="fps"
+  local start_time=""
+  local end_time=""
+  local fps=1
+  local count=10
+  local output_dir=""
+  local quality=2
+  local format="jpg"
+  local width=""
+  local height=""
+  local video_ext="mp4"
+  local name_format="%s_frame_%04d"
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -m|--mode)
+        mode="$2"
+        shift 2
+        ;;
+      -s|--start)
+        start_time="$2"
+        shift 2
+        ;;
+      -e|--end)
+        end_time="$2"
+        shift 2
+        ;;
+      -f|--fps)
+        fps="$2"
+        shift 2
+        ;;
+      -c|--count)
+        count="$2"
+        shift 2
+        ;;
+      -o|--output)
+        output_dir="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -t|--format)
+        format="$2"
+        shift 2
+        ;;
+      -w|--width)
+        width="$2"
+        shift 2
+        ;;
+      -h|--height)
+        height="$2"
+        shift 2
+        ;;
+      --extension)
+        video_ext="$2"
+        shift 2
+        ;;
+      -n|--name)
+        name_format="$2"
+        shift 2
+        ;;
+      --help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the video directory
+        if [ -z "$video_dir" ]; then
+          video_dir="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no video_dir provided
+  if $show_help || [ -z "$video_dir" ]; then
+    return 1
+  fi
+
+  _vdo_validate_dir "$video_dir" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate mode parameter
+  if [[ "$mode" != "time" && "$mode" != "fps" && "$mode" != "count" ]]; then
+    echo "Error: Mode must be either \"time\", \"fps\", or \"count\"" >&2
+    return 1
+  fi
+
+  # Validate format parameter
+  if [[ "$format" != "jpg" && "$format" != "png" && "$format" != "bmp" ]]; then
+    echo "Error: Format must be either \"jpg\", \"png\", or \"bmp\"" >&2
+    return 1
+  fi
+
+  # Set default output_dir if not specified
+  if [ -z "$output_dir" ]; then
+    output_dir="${video_dir}/frames"
+  fi
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  # Check if video files exist
+  local file_count=$(find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${video_ext} files found in $video_dir" >&2
+    return 1
+  fi
+
+  local success_count=0
+  local error_count=0
+  local processed_videos=0
+
+  # Process each video file
+  find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | while read -r video_file; do
+    local base_name=$(basename "$video_file" .${video_ext})
+    local video_output_dir="$output_dir/$base_name"
+
+    echo "Processing $video_file..."
+    ((processed_videos++))
+
+    # Create subdirectory for this video
+    mkdir -p "$video_output_dir"
+
+    # Build ffmpeg command for this video
+    local ffmpeg_cmd="ffmpeg"
+    local filter_complex=""
+
+    # Add input file
+    ffmpeg_cmd="$ffmpeg_cmd -i \"$video_file\""
+
+    # Add time range if specified
+    if [ -n "$start_time" ]; then
+      ffmpeg_cmd="$ffmpeg_cmd -ss \"$start_time\""
+    fi
+
+    if [ -n "$end_time" ]; then
+      ffmpeg_cmd="$ffmpeg_cmd -to \"$end_time\""
+    fi
+
+    # Build filter complex based on mode and options
+    if [ "$mode" = "time" ]; then
+      # Time mode: extract frames at regular intervals within time range
+      filter_complex="fps=$fps"
+    elif [ "$mode" = "fps" ]; then
+      # FPS mode: extract frames at specified frame rate
+      filter_complex="fps=$fps"
+    else
+      # Count mode: extract specified number of evenly spaced frames
+      local duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$video_file")
+      duration=${duration%.*} # Remove decimal part
+      local interval=$((duration / (count + 1)))
+      filter_complex="fps=1/$interval"
+    fi
+
+    # Add resize if specified
+    if [ -n "$width" ] || [ -n "$height" ]; then
+      local scale_filter="scale="
+      if [ -n "$width" ] && [ -n "$height" ]; then
+        scale_filter="${scale_filter}${width}:${height}"
+      elif [ -n "$width" ]; then
+        scale_filter="${scale_filter}${width}:-1"
+      else
+        scale_filter="${scale_filter}-1:${height}"
+      fi
+      filter_complex="${filter_complex},${scale_filter}"
+    fi
+
+    # Add quality settings
+    local quality_param=""
+    if [ "$format" = "jpg" ]; then
+      quality_param="-q:v $quality"
+    elif [ "$format" = "png" ]; then
+      quality_param="-compression_level $((10 - quality))"
+    fi
+
+    # Build final command
+    local actual_name_format=$(printf "$name_format" "$base_name" "%04d")
+    local output_pattern="$video_output_dir/${actual_name_format}.${format}"
+    ffmpeg_cmd="$ffmpeg_cmd -vf \"$filter_complex\" $quality_param \"$output_pattern\""
+
+    echo "  Exporting frames to $video_output_dir..."
+
+    # Execute ffmpeg command
+    if eval "$ffmpeg_cmd"; then
+      echo "  Frame export complete for $base_name"
+      ((success_count++))
+    else
+      echo "  Error: Frame export failed for $base_name" >&2
+      ((error_count++))
+    fi
+  done
+
+  # Print summary
+  echo "Batch frame export summary:"
+  echo "  Processed: $processed_videos videos"
+  echo "  Successfully exported: $success_count videos"
+  echo "  Failed: $error_count videos"
+  echo "Output files saved to: $output_dir"
+
+  # Return error if any errors occurred
+  if [ "$error_count" -gt 0 ]; then
+    return 1
+  fi
+
+  return 0
+}' # Batch export frames from videos in directory with advanced options
+
+#------------------------------------------------------------------------------
+# Video Speed Modification
+#------------------------------------------------------------------------------
+
+alias vdo-speed-up='() {
+  echo "Speed up a video by specified factor."
+  echo "Usage:"
+  echo "  vdo-speed-up <video_file_path> <speed_factor:2>"
+  echo "Example: speed-up-video input.mp4 2  # Double the speed"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  speed_factor="${2:-2}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate speed factor
+  if ! [[ "$speed_factor" =~ ^[0-9]+(\.[0-9]+)?$ ]] || (( $(echo "$speed_factor <= 0" | bc -l) )); then
+    echo "Error: Speed factor must be a positive number" >&2
+    return 1
+  fi
+
+  output_file="${input_file%.*}_${speed_factor}x.mp4"
+  # Calculate tempo (inverse of speed for audio)
+  tempo=$(echo "scale=2; 1/$speed_factor" | bc)
+
+  echo "Speeding up $input_file by ${speed_factor}x..."
+
+  if ffmpeg -i "$input_file" -filter_complex "[0:v]setpts=PTS/${speed_factor}[v];[0:a]atempo=${tempo}[a]" -map "[v]" -map "[a]" "$output_file"; then
+    echo "Speed modification complete, saved to $output_file"
+  else
+    echo "Error: Video speed modification failed" >&2
+    return 1
+  fi
+}' # Speed up video playback
+
+alias vdo-slow-down='() {
+  echo "Slow down a video by specified factor."
+  echo "Usage:"
+  echo "  vdo-slow-down <video_file_path> <slow_factor:2>"
+  echo "Example: slow-down-video input.mp4 2  # Half the speed"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  slow_factor="${2:-2}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate slow factor
+  if ! [[ "$slow_factor" =~ ^[0-9]+(\.[0-9]+)?$ ]] || (( $(echo "$slow_factor <= 0" | bc -l) )); then
+    echo "Error: Slow factor must be a positive number" >&2
+    return 1
+  fi
+
+  output_file="${input_file%.*}_${slow_factor}x_slow.mp4"
+  # Calculate tempo (inverse of slow factor for audio)
+  tempo=$(echo "scale=2; 1/$slow_factor" | bc)
+
+  echo "Slowing down $input_file by ${slow_factor}x..."
+
+  if ffmpeg -i "$input_file" -filter_complex "[0:v]setpts=PTS*${slow_factor}[v];[0:a]atempo=${tempo}[a]" -map "[v]" -map "[a]" "$output_file"; then
+    echo "Speed modification complete, saved to $output_file"
+  else
+    echo "Error: Video speed modification failed" >&2
+    return 1
+  fi
+}' # Slow down video playback
+
+#------------------------------------------------------------------------------
+# Video Audio Processing
+#------------------------------------------------------------------------------
+
+alias vdo-remove-audio='() {
+  echo "Remove audio from video."
+  echo "Usage:"
+  echo "  vdo-remove-audio <video_file_path>"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${input_file%.*}_no_audio.mp4"
+  echo "Removing audio from $input_file..."
+
+  if ffmpeg -i "$input_file" -c:v copy -an "$output_file"; then
+    echo "Audio removal complete, saved to $output_file"
+  else
+    echo "Error: Audio removal failed" >&2
+    return 1
+  fi
+}' # Remove audio track from video
+
+alias vdo-replace-audio='() {
+  echo "Replace video audio with another audio file."
+  echo "Usage:"
+  echo "  vdo-replace-audio <video_file_path> <audio_file_path>"
+
+  if [ $# -lt 2 ]; then
+    return 1
+  fi
+
+  video_file="$1"
+  audio_file="$2"
+
+  _vdo_validate_file "$video_file" || return 1
+  _vdo_validate_file "$audio_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${video_file%.*}_new_audio.mp4"
+  echo "Replacing audio in $video_file with $audio_file..."
+
+  if ffmpeg -i "$video_file" -i "$audio_file" -c:v copy -map 0:v:0 -map 1:a:0 -shortest "$output_file"; then
+    echo "Audio replacement complete, saved to $output_file"
+  else
+    echo "Error: Audio replacement failed" >&2
+    return 1
+  fi
+}' # Replace video audio track with another audio file
+
+alias vdo-adjust-volume='() {
+  echo "Adjust video audio volume."
+  echo "Usage:"
+  echo "  vdo-adjust-volume <video_file_path> <volume_factor:1.5>"
+  echo "Examples: 0.5 (half volume), 1.5 (50% louder), 2.0 (double volume)"
+
+  if [ $# -lt 2 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  volume="${2:-1.5}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate volume factor
+  if ! [[ "$volume" =~ ^[0-9]+(\.[0-9]+)?$ ]] || (( $(echo "$volume < 0" | bc -l) )); then
+    echo "Error: Volume factor must be a positive number" >&2
+    return 1
+  fi
+
+  output_file="${input_file%.*}_vol_${volume}.mp4"
+  echo "Adjusting volume of $input_file by factor $volume..."
+
+  if ffmpeg -i "$input_file" -filter:a "volume=$volume" -c:v copy "$output_file"; then
+    echo "Volume adjustment complete, saved to $output_file"
+  else
+    echo "Error: Volume adjustment failed" >&2
+    return 1
+  fi
+}' # Adjust audio volume in video
+
+#------------------------------------------------------------------------------
+# Video Screenshot Series
+#------------------------------------------------------------------------------
+
+alias vdo-create-thumbnails='() {
+  echo "Create thumbnail images from video at regular intervals."
+  echo "Usage:"
+  echo "  vdo-create-thumbnails <video_file_path> <interval_in_seconds:60> <thumbnail_width:320>"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  interval="${2:-60}"
+  width="${3:-320}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Create output directory
+  output_dir="${input_file%.*}_thumbnails"
+  mkdir -p "$output_dir"
+
+  echo "Creating thumbnails from $input_file every $interval seconds..."
+
+  if ffmpeg -i "$input_file" -vf "fps=1/$interval,scale=$width:-1" -q:v 2 "$output_dir/thumb_%04d.jpg"; then
+    echo "Thumbnail creation complete, saved to $output_dir/"
+  else
+    echo "Error: Thumbnail creation failed" >&2
+    return 1
+  fi
+}' # Create thumbnails at regular intervals
+
+alias vdo-create-preview-grid='() {
+  echo "Create a preview grid of video screenshots."
+  echo "Usage:"
+  echo "  vdo-create-preview-grid <video_file_path> <columns:4> <rows:4>"
+
+  if [ $# -lt 1 ]; then
+    return 1
+  fi
+
+  input_file="$1"
+  columns="${2:-4}"
+  rows="${3:-4}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  output_file="${input_file%.*}_preview.jpg"
+  total_frames=$((columns * rows))
+
+  # Get video duration
+  duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$input_file")
+
+  # Calculate interval between frames
+  interval=$(echo "scale=2; $duration / ($total_frames + 1)" | bc)
+
+  echo "Creating $columns×$rows preview grid from $input_file..."
+
+  if ffmpeg -i "$input_file" -vf "fps=1/$interval,scale=320:-1,tile=${columns}x${rows}" -frames:v 1 -q:v 2 "$output_file"; then
+    echo "Preview grid created, saved to $output_file"
+  else
+    echo "Error: Preview grid creation failed" >&2
+    return 1
+  fi
+}' # Create a grid of screenshots from the video
+
+#------------------------------------------------------------------------------
+# Video Screenshot Functions
+#------------------------------------------------------------------------------
+
+alias vdo-screenshot='() {
+  echo -e "Capture screenshots from a video.\nUsage:\n  vdo-screenshot <video_file_path> [options]\n\nOptions:\n  -m, --mode MODE        : Capture mode: \"time\" or \"count\" (default: time)\n  -t, --timestamps LIST  : Comma-separated list of timestamps (default: 00:00:00)\n                           Format: HH:MM:SS or MM:SS or SS\n  -c, --count NUMBER     : Number of screenshots to capture (default: 3)\n  -w, --width WIDTH      : Width of screenshots (default: 1280, aspect ratio preserved)\n  -q, --quality VALUE    : JPEG quality (1-31, lower is better quality, default: 2)\n  -o, --output_dir DIR   : Output directory (default: video_name_screenshots)\n  -f, --filename FORMAT  : Output filename format (default: \"screenshot_%03d\")\n  -h, --help             : Show this help message\n\nExamples:\n  vdo-screenshot video.mp4 --mode time --timestamps 00:05:00,00:10:00,00:15:00\n  vdo-screenshot video.mp4 -m count -c 5 -w 800 -o ./screenshots"
+
+  # Variables with default values
+  local input_file=""
+  local mode="time"
+  local timestamps="00:00:00"
+  local count=3
+  local width=1280
+  local quality=2
+  local output_dir=""
+  local filename_format="screenshot_%03d"
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -m|--mode)
+        mode="$2"
+        shift 2
+        ;;
+      -t|--timestamps)
+        timestamps="$2"
+        shift 2
+        ;;
+      -c|--count)
+        count="$2"
+        shift 2
+        ;;
+      -w|--width)
+        width="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -o|--output_dir)
+        output_dir="$2"
+        shift 2
+        ;;
+      -f|--filename)
+        filename_format="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the input file
+        if [ -z "$input_file" ]; then
+          input_file="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no input_file provided
+  if $show_help || [ -z "$input_file" ]; then
+    return 1
+  fi
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate mode parameter
+  if [[ "$mode" != "time" && "$mode" != "count" ]]; then
+    echo "Error: Mode must be either \"time\" or \"count\"" >&2
+    return 1
+  fi
+
+  # Set default output_dir if not specified
+  if [ -z "$output_dir" ]; then
+    output_dir="${input_file%.*}_screenshots"
+  fi
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  # Get video duration
+  local duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$input_file")
+  duration=${duration%.*} # Remove decimal part
+
+  # Process based on mode
+  if [ "$mode" = "time" ]; then
+    echo "Capturing screenshots from $input_file at specified timestamps..."
+
+    # Split timestamps by comma (zsh-compatible way)
+    local timestamp_array=("${(@s/,/)timestamps}")
+    local i=1
+
+    for ts in "${timestamp_array[@]}"; do
+      # Validate timestamp is not empty
+      if [[ -z "$ts" ]]; then
+        echo "Error: Empty timestamp detected" >&2
+        continue
+      fi
+
+      local output_file="${output_dir}/${filename_format}.jpg"
+      output_file=$(printf "$output_file" $i)
+
+      echo "Taking screenshot at $ts -> $output_file"
+
+      if ! ffmpeg -ss "$ts" -i "$input_file" -vframes 1 -q:v "$quality" -vf "scale=$width:-1" "$output_file"; then
+        echo "Error: Failed to capture screenshot at $ts" >&2
+        return 1
+      fi
+
+      ((i++))
+    done
+
+    echo "Captured ${#timestamp_array[@]} screenshots from $input_file"
+  else
+    # Count mode - captures evenly spaced screenshots
+    echo "Capturing $count evenly spaced screenshots from $input_file..."
+
+    if (( count <= 0 )); then
+      echo "Error: Count must be greater than 0" >&2
+      return 1
+    fi
+
+    # Check if count is greater than duration and adjust accordingly
+    if (( count > duration )); then
+      echo "Warning: Requested $count screenshots but video is only $duration seconds long"
+      echo "Adjusting to capture 1 screenshot per second (maximum $duration screenshots)"
+      count=$duration
+    fi
+
+    # Calculate interval based on duration and count
+    # Use floating point arithmetic to avoid integer division issues
+    local interval_float=$(echo "scale=2; $duration / ($count + 1)" | bc 2>/dev/null)
+
+    # Fallback to shell arithmetic if bc is not available
+    if [ -z "$interval_float" ]; then
+      local interval=$(( duration / (count + 1) ))
+      # Ensure minimum interval of 1 second to avoid duplicate timestamps
+      if (( interval < 1 )); then
+        interval=1
+      fi
+    fi
+
+    for ((i=1; i<=count; i++)); do
+      local time_pos
+      if [ -n "$interval_float" ]; then
+        # Use bc for precise calculation
+        time_pos=$(echo "scale=0; $interval_float * $i" | bc)
+      else
+        time_pos=$((interval * i))
+      fi
+
+      # Ensure time_pos does not exceed video duration
+      if (( time_pos >= duration )); then
+        time_pos=$((duration - 1))
+      fi
+
+      # Format timestamp in HH:MM:SS format (cross-platform compatible)
+      local hours=$((time_pos/3600))
+      local minutes=$(((time_pos%3600)/60))
+      local seconds=$((time_pos%60))
+      local timestamp=$(printf "%02d:%02d:%02d" $hours $minutes $seconds)
+
+      local output_file="${output_dir}/${filename_format}.jpg"
+      output_file=$(printf "$output_file" $i)
+
+      echo "Taking screenshot at $timestamp -> $output_file"
+
+      if ! ffmpeg -ss "$timestamp" -i "$input_file" -vframes 1 -q:v "$quality" -vf "scale=$width:-1" "$output_file"; then
+        echo "Error: Failed to capture screenshot at $timestamp" >&2
+        return 1
+      fi
+    done
+
+    echo "Captured $count screenshots from $input_file"
+  fi
+
+  echo "Screenshots saved to $output_dir"
+  return 0
+}' # Capture screenshots from a video
+
+alias vdo-batch-screenshot='() {
+  echo -e "Capture screenshots from videos in a directory.\nUsage:\n  vdo-batch-screenshot <video_directory> [options]\n\nOptions:\n  -m, --mode MODE        : Capture mode: \"time\" or \"count\" (default: time)\n  -t, --timestamps LIST  : Comma-separated list of timestamps (default: 00:00:00)\n                           Format: HH:MM:SS or MM:SS or SS\n  -c, --count NUMBER     : Number of screenshots to capture (default: 3)\n  -w, --width WIDTH      : Width of screenshots (default: 1280, aspect ratio preserved)\n  -q, --quality VALUE    : JPEG quality (1-31, lower is better quality, default: 2)\n  -o, --output_dir DIR   : Output directory (default: video_dir/screenshots)\n  -e, --extension EXT    : Video file extension to process (default: mp4)\n  -f, --filename FORMAT  : Output filename format (default: \"%s_screenshot_%03d\")\n  -h, --help             : Show this help message\n\nExamples:\n  vdo-batch-screenshot videos/ --mode time --timestamps 00:05:00,00:10:00\n  vdo-batch-screenshot videos/ -m count -c 5 -e mkv -o ./screenshots"
+
+  # Variables with default values
+  local video_dir=""
+  local mode="time"
+  local timestamps="00:00:00"
+  local count=3
+  local width=1280
+  local quality=2
+  local output_dir=""
+  local video_ext="mp4"
+  local filename_format="%s_screenshot_%03d"
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -m|--mode)
+        mode="$2"
+        shift 2
+        ;;
+      -t|--timestamps)
+        timestamps="$2"
+        shift 2
+        ;;
+      -c|--count)
+        count="$2"
+        shift 2
+        ;;
+      -w|--width)
+        width="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -o|--output_dir)
+        output_dir="$2"
+        shift 2
+        ;;
+      -e|--extension)
+        video_ext="$2"
+        shift 2
+        ;;
+      -f|--filename)
+        filename_format="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the video directory
+        if [ -z "$video_dir" ]; then
+          video_dir="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no video_dir provided
+  if $show_help || [ -z "$video_dir" ]; then
+    return 1
+  fi
+
+  _vdo_validate_dir "$video_dir" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate mode parameter
+  if [[ "$mode" != "time" && "$mode" != "count" ]]; then
+    echo "Error: Mode must be either \"time\" or \"count\"" >&2
+    return 1
+  fi
+
+  # Set default output_dir if not specified
+  if [ -z "$output_dir" ]; then
+    output_dir="${video_dir}/screenshots"
+  fi
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  # Check if video files exist
+  local file_count=$(find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${video_ext} files found in $video_dir" >&2
+    return 1
+  fi
+
+  local success_count=0
+  local error_count=0
+  local processed_videos=0
+
+  # Process each video file
+  find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | while read -r video_file; do
+    local base_name=$(basename "$video_file" .${video_ext})
+    echo "Processing $video_file..."
+    ((processed_videos++))
+
+    # Get video duration
+    local duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$video_file")
+    duration=${duration%.*} # Remove decimal part
+
+    # Process based on mode
+    if [ "$mode" = "time" ]; then
+      # Split timestamps by comma (zsh-compatible way)
+      local timestamp_array=("${(@s/,/)timestamps}")
+      local i=1
+
+      for ts in "${timestamp_array[@]}"; do
+        # Validate timestamp is not empty
+        if [[ -z "$ts" ]]; then
+          echo "Error: Empty timestamp detected" >&2
+          continue
+        fi
+
+        local actual_filename=$(printf "$filename_format" "$base_name" $i)
+        local output_file="${output_dir}/${actual_filename}.jpg"
+
+        echo "  Taking screenshot at $ts -> $output_file"
+
+        if ffmpeg -ss "$ts" -i "$video_file" -vframes 1 -q:v "$quality" -vf "scale=$width:-1" "$output_file"; then
+          ((success_count++))
+        else
+          echo "  Error: Failed to capture screenshot at $ts from $video_file" >&2
+          ((error_count++))
+        fi
+
+        ((i++))
+      done
+    else
+      # Count mode - captures evenly spaced screenshots
+      if (( count <= 0 )); then
+        echo "Error: Count must be greater than 0" >&2
+        return 1
+      fi
+
+      # Calculate interval based on duration and count
+      local interval=$(( duration / (count + 1) ))
+
+      for ((i=1; i<=count; i++)); do
+        local time_pos=$((interval * i))
+        # Format timestamp in HH:MM:SS format (cross-platform compatible)
+        local hours=$((time_pos/3600))
+        local minutes=$(((time_pos%3600)/60))
+        local seconds=$((time_pos%60))
+        local timestamp=$(printf "%02d:%02d:%02d" $hours $minutes $seconds)
+
+        local actual_filename=$(printf "$filename_format" "$base_name" $i)
+        local output_file="${output_dir}/${actual_filename}.jpg"
+
+        echo "  Taking screenshot at $timestamp -> $output_file"
+
+        if ffmpeg -ss "$timestamp" -i "$video_file" -vframes 1 -q:v "$quality" -vf "scale=$width:-1" "$output_file"; then
+          ((success_count++))
+        else
+          echo "  Error: Failed to capture screenshot at $timestamp from $video_file" >&2
+          ((error_count++))
+        fi
+      done
+    fi
+  done
+
+  # Print summary
+  echo "Batch screenshot summary:"
+  echo "  Processed: $processed_videos videos"
+  echo "  Successfully captured: $success_count screenshots"
+  echo "  Failed: $error_count screenshots"
+  echo "Screenshots saved to $output_dir"
+
+  # Return error if any errors occurred
+  if [ "$error_count" -gt 0 ]; then
+    return 1
+  fi
+
+  return 0
+}' # Capture screenshots from videos in a directory
+
+#------------------------------------------------------------------------------
+# Video Cropping
+#------------------------------------------------------------------------------
+
+# Helper function to get video dimensions
+_vdo_get_dimensions() {
+  local input_file="$1"
+  local width=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of default=noprint_wrappers=1:nokey=1 "$input_file")
+  local height=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 "$input_file")
+  echo "$width $height"
+}
+
+# Helper function to calculate crop parameters
+_vdo_calculate_crop_params() {
+  local input_file="$1"
+  local position="$2"
+  local size="$3"
+
+  # Get video dimensions
+  local dimensions=$(_vdo_get_dimensions "$input_file")
+  local video_width=$(echo "$dimensions" | awk '{print $1}')
+  local video_height=$(echo "$dimensions" | awk '{print $2}')
+
+  local pos_x=0
+  local pos_y=0
+  local crop_width="$video_width"
+  local crop_height="$video_height"
+
+  # Parse position
+  if [ -n "$position" ]; then
+    local pos_x_val=$(echo "$position" | cut -d',' -f1)
+    local pos_y_val=$(echo "$position" | cut -d',' -f2)
+
+    # Check if percentage or absolute value
+    if [[ "$position" == *"%"* ]]; then
+      # Position in percentage
+      pos_x_val=$(echo "$pos_x_val" | tr -d '%')
+      pos_y_val=$(echo "$pos_y_val" | tr -d '%')
+      pos_x=$(echo "scale=0; $video_width * $pos_x_val / 100" | bc)
+      pos_y=$(echo "scale=0; $video_height * $pos_y_val / 100" | bc)
+    else
+      # Position in absolute pixels
+      pos_x="$pos_x_val"
+      pos_y="$pos_y_val"
+    fi
+  fi
+
+  # Parse size
+  if [ -n "$size" ]; then
+    local size_width=$(echo "$size" | cut -d',' -f1)
+    local size_height=$(echo "$size" | cut -d',' -f2)
+
+    # Check if percentage or absolute value
+    if [[ "$size" == *"%"* ]]; then
+      # Size in percentage
+      size_width=$(echo "$size_width" | tr -d '%')
+      size_height=$(echo "$size_height" | tr -d '%')
+      crop_width=$(echo "scale=0; $video_width * $size_width / 100" | bc)
+      crop_height=$(echo "scale=0; $video_height * $size_height / 100" | bc)
+    else
+      # Size in absolute pixels
+      crop_width="$size_width"
+      crop_height="$size_height"
+    fi
+  else
+    # If size not specified, crop from position to end of video
+    crop_width=$((video_width - pos_x))
+    crop_height=$((video_height - pos_y))
+  fi
+
+  # Ensure we don't crop outside video bounds
+  if (( pos_x + crop_width > video_width )); then
+    crop_width=$((video_width - pos_x))
+  fi
+
+  if (( pos_y + crop_height > video_height )); then
+    crop_height=$((video_height - pos_y))
+  fi
+
+  printf "%s %s %s %s" "$crop_width" "$crop_height" "$pos_x" "$pos_y"
+}
+
+alias vdo-crop='() {
+  echo -e "Crop a video file by position and size.\nUsage:\n  vdo-crop <video_file_path> [options]\n\nOptions:\n  -p, --position POS     : Start position for cropping, format: \"x,y\" or \"x%,y%\"\n                           (default: 0,0)\n  -s, --size SIZE        : Size of the cropped area, format: \"width,height\" or \"width%,height%\"\n                           (default: full width/height from position)\n  -o, --output PATH      : Output file path (default: input_cropped.mp4)\n  -q, --quality VALUE    : Output quality (0-51, lower is better, default: 23)\n  -h, --help             : Show this help message\n\nExamples:\n  vdo-crop video.mp4 -p 100,200 -s 500,400\n  -> Crop from position x=100,y=200 with width=500,height=400\n  vdo-crop video.mp4 -p 10%,20% -s 60%,50%\n  -> Crop from 10% width and 20% height, with size 60% of width and 50% of height"
+
+  # Variables with default values
+  local input_file=""
+  local position="0,0"
+  local size=""
+  local output_file=""
+  local quality=23
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -p|--position)
+        position="$2"
+        shift 2
+        ;;
+      -s|--size)
+        size="$2"
+        shift 2
+        ;;
+      -o|--output)
+        output_file="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the input file
+        if [ -z "$input_file" ]; then
+          input_file="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no input_file provided
+  if $show_help || [ -z "$input_file" ]; then
+    return 1
+  fi
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate position format
+  if ! [[ "$position" =~ ^[0-9%]+,[0-9%]+$ ]]; then
+    echo "Error: Position must be in format \"x,y\" or \"x%,y%\"" >&2
+    return 1
+  fi
+
+  # Validate size format if provided
+  if [ -n "$size" ] && ! [[ "$size" =~ ^[0-9%]+,[0-9%]+$ ]]; then
+    echo "Error: Size must be in format \"width,height\" or \"width%,height%\"" >&2
+    return 1
+  fi
+
+  # Set default output file if not specified
+  if [ -z "$output_file" ]; then
+    output_file="${input_file%.*}_cropped.mp4"
+  fi
+
+  # Calculate crop parameters
+  local crop_params=$(_vdo_calculate_crop_params "$input_file" "$position" "$size")
+  read -r crop_width crop_height crop_x crop_y <<< "$crop_params"
+
+  echo "Cropping $input_file..."
+  echo "  From position: x=$crop_x, y=$crop_y"
+  echo "  With size: width=$crop_width, height=$crop_height"
+  echo "  Output: $output_file"
+
+  # Apply the crop
+  if ffmpeg -i "$input_file" -vf "crop=$crop_width:$crop_height:$crop_x:$crop_y" -c:v libx264 -crf "$quality" -c:a copy "$output_file"; then
+    echo "Video cropping complete, saved to $output_file"
+  else
+    echo "Error: Video cropping failed" >&2
+    return 1
+  fi
+
+  return 0
+}' # Crop a video file by position and size
+
+alias vdo-batch-crop='() {
+  echo -e "Crop multiple video files in a directory by position and size.\nUsage:\n  vdo-batch-crop <video_directory> [options]\n\nOptions:\n  -p, --position POS     : Start position for cropping, format: \"x,y\" or \"x%,y%\"\n                           (default: 0,0)\n  -s, --size SIZE        : Size of the cropped area, format: \"width,height\" or \"width%,height%\"\n                           (default: full width/height from position)\n  -o, --output-dir DIR   : Output directory (default: video_dir/cropped)\n  -e, --extension EXT    : Video file extension to process (default: mp4)\n  -q, --quality VALUE    : Output quality (0-51, lower is better, default: 23)\n  -h, --help             : Show this help message\n\nExamples:\n  vdo-batch-crop videos/ -p 100,200 -s 500,400\n  -> Crop all videos from x=100,y=200 with width=500,height=400\n  vdo-batch-crop videos/ -p 10%,20% -s 60%,50% -e mkv -o ./cropped_videos\n  -> Crop all mkv videos from 10% width and 20% height, with size 60% of width and 50% of height"
+
+  # Variables with default values
+  local video_dir=""
+  local position="0,0"
+  local size=""
+  local output_dir=""
+  local video_ext="mp4"
+  local quality=23
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -p|--position)
+        position="$2"
+        shift 2
+        ;;
+      -s|--size)
+        size="$2"
+        shift 2
+        ;;
+      -o|--output-dir)
+        output_dir="$2"
+        shift 2
+        ;;
+      -e|--extension)
+        video_ext="$2"
+        shift 2
+        ;;
+      -q|--quality)
+        quality="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the video directory
+        if [ -z "$video_dir" ]; then
+          video_dir="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no video_dir provided
+  if $show_help || [ -z "$video_dir" ]; then
+    return 1
+  fi
+
+  _vdo_validate_dir "$video_dir" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  # Validate position format
+  if ! [[ "$position" =~ ^[0-9%]+,[0-9%]+$ ]]; then
+    echo "Error: Position must be in format \"x,y\" or \"x%,y%\"" >&2
+    return 1
+  fi
+
+  # Validate size format if provided
+  if [ -n "$size" ] && ! [[ "$size" =~ ^[0-9%]+,[0-9%]+$ ]]; then
+    echo "Error: Size must be in format \"width,height\" or \"width%,height%\"" >&2
+    return 1
+  fi
+
+  # Set default output_dir if not specified
+  if [ -z "$output_dir" ]; then
+    output_dir="${video_dir}/cropped"
+  fi
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  # Check if video files exist
+  local file_count=$(find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${video_ext} files found in $video_dir" >&2
+    return 1
+  fi
+
+  local success_count=0
+  local error_count=0
+  local processed_videos=0
+
+  # Process each video file
+  find "$video_dir" -maxdepth 1 -type f -iname "*.${video_ext}" | while read -r video_file; do
+    local base_name=$(basename "$video_file" .${video_ext})
+    local output_file="$output_dir/${base_name}_cropped.mp4"
+
+    echo "Processing $video_file..."
+    ((processed_videos++))
+
+    # Calculate crop parameters for this video
+    local crop_params=$(_vdo_calculate_crop_params "$video_file" "$position" "$size")
+    read -r crop_width crop_height crop_x crop_y <<< "$crop_params"
+
+    echo "  Cropping from position: x=$crop_x, y=$crop_y"
+    echo "  With size: width=$crop_width, height=$crop_height"
+    echo "  Output: $output_file"
+
+    # Apply the crop
+    if ffmpeg -i "$video_file" -vf "crop=$crop_width:$crop_height:$crop_x:$crop_y" -c:v libx264 -crf "$quality" -c:a copy "$output_file"; then
+      echo "  Cropping complete"
+      ((success_count++))
+    else
+      echo "  Error: Cropping failed" >&2
+      ((error_count++))
+    fi
+  done
+
+  # Print summary
+  echo "Batch cropping summary:"
+  echo "  Processed: $processed_videos videos"
+  echo "  Successfully cropped: $success_count videos"
+  echo "  Failed: $error_count videos"
+  echo "Output files saved to: $output_dir"
+
+  # Return error if any errors occurred
+  if [ "$error_count" -gt 0 ]; then
+    return 1
+  fi
+
+  return 0
+}' # Crop multiple video files in a directory
+
+alias vdo-rm-metadata='() {
+  if [[ -z "$1" ]]; then
+    echo "Remove metadata from a video file"
+    echo "Usage: vdo-rm-metadata <input_file> [output_file]"
+    echo "Example: vdo-rm-metadata input.mp4 output.mp4"
+    return 1
+  fi
+
+  local input_file="$1"
+  local output_file="$2"
+
+  if [[ -z "$output_file" ]]; then
+    local base_name="${input_file%.*}"
+    local ext="${input_file##*.}"
+    output_file="${base_name}_nometa.${ext}"
+  fi
+
+  echo "Removing metadata from: $input_file"
+  echo "Output file: $output_file"
+
+  ffmpeg -hide_banner -loglevel error -y -i "$input_file" \
+    -c:v copy -c:a copy -map_metadata -1 -map_chapters -1 -fflags +bitexact "$output_file" && \
+    echo "Metadata removed successfully." || \
+    echo "Error: Failed to remove metadata." >&2
+}' # Remove metadata from a video file
+
+alias vdo-batch-rm-metadata='() {
+  if [[ -z "$1" ]]; then
+    echo "Remove metadata from all video files in a directory"
+    echo "Usage: vdo-batch-rm-metadata <directory> [extension]"
+    echo "Example: vdo-batch-rm-metadata ./videos mp4"
+    return 1
+  fi
+
+  local dir="$1"
+  local ext="${2:-mp4}"
+  local output_dir="${dir%/}_nometa"
+  local processed=0
+  local success=0
+  local failed=0
+
+  if [[ ! -d "$dir" ]]; then
+    echo "Error: Directory '$dir' does not exist." >&2
+    return 1
+  fi
+
+  mkdir -p "$output_dir"
+
+  for file in "$dir"/*."$ext"; do
+    if [[ ! -f "$file" ]]; then
+      continue
+    fi
+    local base_name="$(basename "$file")"
+    local out_file="$output_dir/${base_name%.*}_nometa.${ext}"
+    echo "Processing: $base_name"
+    if ffmpeg -hide_banner -loglevel error -y -i "$file" \
+      -c:v copy -c:a copy -map_metadata -1 -map_chapters -1 -fflags +bitexact "$out_file"; then
+      echo "  Metadata removed: $out_file"
+      ((success++))
+    else
+      echo "  Error: Failed to remove metadata from $base_name" >&2
+      ((failed++))
+    fi
+    ((processed++))
+  done
+
+  echo "Batch remove metadata summary:"
+  echo "  Processed: $processed files"
+  echo "  Success:   $success files"
+  echo "  Failed:    $failed files"
+  echo "Output files saved to: $output_dir"
+
+  if [[ $failed -gt 0 ]]; then
+    return 1
+  fi
+  return 0
+}' # Remove metadata from all video files in a directory
+
+#------------------------------------------------------------------------------
+# Video Watermarking
+#------------------------------------------------------------------------------
+
+alias vdo-add-watermark='() {
+  echo -e "Add watermark to video files (single or batch processing).\nUsage:\n  vdo-add-watermark <input_path> [options]\n\nImage Watermark:\n  -w, --watermark PATH     : Watermark image path (PNG format preferred)\n\nText Watermark:\n  -t, --text TEXT          : Watermark text content\n  --font-family FONT       : Font family (default: Arial)\n  --font-size SIZE         : Font size (default: 24)\n  --font-color COLOR       : Font color (default: white@0.8)\n\nCommon Options:\n  -p, --position POS       : Position (topleft/top-center/...+x,y%offset, default: bottomright+10,10)\n  -s, --scale SCALE        : Scale ratio (0.1-2.0, default: 0.2)\n  -o, --opacity OPACITY    : Opacity (0.1-1.0, default: 0.8)\n  -r, --rotate ANGLE       : Rotation angle (0-360 degrees, default: 0)\n  --output-dir DIR         : Output directory (default: ./watermarked)\n  --suffix SUFFIX          : Output file suffix (default: _wm)\n  --parallel               : Parallel processing (default: sequential)\n  -h, --help              : Show this help message\n\nExamples:\n  # Single file with image watermark\n  vdo-add-watermark video.mp4 -w logo.png -p bottomright+5,5\n  \n  # Batch text watermarking\n  vdo-add-watermark ./videos/ -t \"Copyright\" -p topleft+10,10 --opacity 0.6\n  \n  # Advanced parameters\n  vdo-add-watermark video.mp4 -w watermark.png -s 0.15 -o 0.7 -r 45 --output-dir ./output"
+
+  # Variables with default values
+  local input_path=""
+  local watermark_file=""
+  local watermark_text=""
+  local position="bottomright"
+  local offset_x="10"
+  local offset_y="10"
+  local scale="0.2"
+  local opacity="0.8"
+  local rotate="0"
+  local font_family="Arial"
+  local font_size="24"
+  local font_color="white@0.8"
+  local output_dir="./watermarked"
+  local suffix="_wm"
+  local parallel=false
+  local show_help=false
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -w|--watermark)
+        watermark_file="$2"
+        shift 2
+        ;;
+      -t|--text)
+        watermark_text="$2"
+        shift 2
+        ;;
+      -p|--position)
+        local pos_input="$2"
+        # Parse position with offset (e.g., "bottomright+10,15")
+        # Extract position part before + and offsets after +
+        if [[ "$pos_input" =~ ^(.+)\+([0-9]+),([0-9]+)$ ]]; then
+          # Use bash/zsh compatible regex capture
+          position="${pos_input%+*}"
+          local offset_part="${pos_input#*+}"
+          offset_x="${offset_part%,*}"
+          offset_y="${offset_part#*,}"
+        else
+          position="$pos_input"
+        fi
+        shift 2
+        ;;
+      -s|--scale)
+        scale="$2"
+        shift 2
+        ;;
+      -o|--opacity)
+        opacity="$2"
+        shift 2
+        ;;
+      -r|--rotate)
+        rotate="$2"
+        shift 2
+        ;;
+      --font-family)
+        font_family="$2"
+        shift 2
+        ;;
+      --font-size)
+        font_size="$2"
+        shift 2
+        ;;
+      --font-color)
+        font_color="$2"
+        shift 2
+        ;;
+      --output-dir)
+        output_dir="$2"
+        shift 2
+        ;;
+      --suffix)
+        suffix="$2"
+        shift 2
+        ;;
+      --parallel)
+        parallel=true
+        shift
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        # First non-option argument is the input path
+        if [ -z "$input_path" ]; then
+          input_path="$1"
+        else
+          echo "Error: Unexpected argument \"$1\"" >&2
+          show_help=true
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Show help if requested or no input_path provided
+  if $show_help || [ -z "$input_path" ]; then
+    return 1
+  fi
+
+  # Validate watermark type
+  if [ -z "$watermark_file" ] && [ -z "$watermark_text" ]; then
+    echo "Error: Either watermark file (-w) or text (-t) must be specified" >&2
+    return 1
+  fi
+
+  if [ -n "$watermark_file" ] && [ -n "$watermark_text" ]; then
+    echo "Error: Cannot specify both image and text watermark" >&2
+    return 1
+  fi
+
+  # Validate parameters
+  if ! [[ "$scale" =~ ^[0-9]+(\.[0-9]+)?$ ]] || (( $(echo "$scale < 0.1 || $scale > 2.0" | bc -l 2>/dev/null || echo "1") )); then
+    echo "Error: Scale must be a number between 0.1 and 2.0" >&2
+    return 1
+  fi
+
+  if ! [[ "$opacity" =~ ^[0-9]+(\.[0-9]+)?$ ]] || (( $(echo "$opacity < 0.1 || $opacity > 1.0" | bc -l 2>/dev/null || echo "1") )); then
+    echo "Error: Opacity must be a number between 0.1 and 1.0" >&2
+    return 1
+  fi
+
+  if ! [[ "$rotate" =~ ^[0-9]+$ ]] || [ "$rotate" -lt 0 ] || [ "$rotate" -gt 360 ]; then
+    echo "Error: Rotation must be an integer between 0 and 360" >&2
+    return 1
+  fi
+
+  # Validate offset parameters
+  if ! [[ "$offset_x" =~ ^[0-9]+$ ]]; then
+    echo "Error: X offset must be a positive integer" >&2
+    return 1
+  fi
+
+  if ! [[ "$offset_y" =~ ^[0-9]+$ ]]; then
+    echo "Error: Y offset must be a positive integer" >&2
+    return 1
+  fi
+
+  # Validate font family for text watermark
+  if [ -n "$watermark_text" ]; then
+    # Check if font file exists (common font paths)
+    local font_paths=(
+      "/System/Library/Fonts/Arial.ttf"  # macOS
+      "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Linux
+      "/usr/share/fonts/TTF/DejaVuSans.ttf"  # Alternative Linux
+      "/Windows/Fonts/arial.ttf"  # Windows
+    )
+
+    local font_found=false
+    for font_path in "${font_paths[@]}"; do
+      if [[ -f "$font_path" ]]; then
+        font_family="$font_path"
+        font_found=true
+        break
+      fi
+    done
+
+    if ! $font_found; then
+      echo "Warning: Font file not found. Using default font. For text watermarks, ensure a valid font is available." >&2
+    fi
+  fi
+
+  _vdo_check_ffmpeg || return 1
+  _vdo_check_dependencies
+
+  # Create output directory
+  mkdir -p "$output_dir"
+
+  # Process input path (file or directory)
+  if [[ -f "$input_path" ]]; then
+    # Single file processing
+    _vdo_validate_file "$input_path" || return 1
+
+    if [ -n "$watermark_file" ]; then
+      _vdo_validate_image "$watermark_file" || return 1
+    fi
+
+    local base_name=$(basename "$input_path")
+    local extension="${base_name##*.}"
+    # Preserve original file extension
+    local output_file="${output_dir}/${base_name%.*}${suffix}.${extension}"
+
+    echo "Adding watermark to $input_path..."
+    echo "  Output: $output_file"
+
+    # Build FFmpeg command using helper function
+    local ffmpeg_cmd
+    ffmpeg_cmd=$(_vdo_build_watermark_command "$input_path" "$watermark_file" "$watermark_text" "$position" "$offset_x" "$offset_y" "$scale" "$opacity" "$rotate" "$font_family" "$font_size" "$font_color" "$output_file")
+
+    # Execute command
+    if eval "$ffmpeg_cmd"; then
+      echo "Watermark added successfully: $output_file"
+    else
+      echo "Error: Failed to add watermark to $input_path" >&2
+      return 1
+    fi
+
+  elif [[ -d "$input_path" ]]; then
+    # Directory batch processing
+    _vdo_validate_dir "$input_path" || return 1
+
+    if [ -n "$watermark_file" ]; then
+      _vdo_validate_image "$watermark_file" || return 1
+    fi
+
+    # Find video files
+    local video_files=()
+    while IFS= read -r -d $'\0' file; do
+      video_files+=("$file")
+    done < <(find "$input_path" -maxdepth 1 -type f \( -iname "*.mp4" -o -iname "*.avi" -o -iname "*.mov" -o -iname "*.mkv" -o -iname "*.flv" -o -iname "*.wmv" \) -print0)
+
+    if [ ${#video_files[@]} -eq 0 ]; then
+      echo "Error: No video files found in $input_path" >&2
+      return 1
+    fi
+
+    echo "Processing ${#video_files[@]} video files..."
+
+    local success_count=0
+    local error_count=0
+
+    # Process each video file
+    for video_file in "${video_files[@]}"; do
+      local base_name=$(basename "$video_file")
+      local extension="${base_name##*.}"
+      # Preserve original file extension
+      local output_file="${output_dir}/${base_name%.*}${suffix}.${extension}"
+
+      echo "Processing $base_name..."
+
+      # Build FFmpeg command using helper function
+      local ffmpeg_cmd
+      ffmpeg_cmd=$(_vdo_build_watermark_command "$video_file" "$watermark_file" "$watermark_text" "$position" "$offset_x" "$offset_y" "$scale" "$opacity" "$rotate" "$font_family" "$font_size" "$font_color" "$output_file")
+
+      # Execute command
+      if eval "$ffmpeg_cmd"; then
+        echo "  ✓ Completed: $output_file"
+        ((success_count++))
+      else
+        echo "  ✗ Failed: $base_name" >&2
+        ((error_count++))
+      fi
+    done
+
+    # Print summary
+    echo ""
+    echo "Batch processing summary:"
+    echo "  Successfully processed: $success_count files"
+    echo "  Failed: $error_count files"
+    echo "Output files saved to: $output_dir"
+
+    # Return error if any errors occurred
+    if [ "$error_count" -gt 0 ]; then
+      return 1
+    fi
+
+  else
+    echo "Error: Input path \"$input_path\" is neither a file nor a directory" >&2
+    return 1
+  fi
+
+  return 0
+}' # Add watermark to video files (single or batch processing)
+
+#------------------------------------------------------------------------------
+# Video Help Function
+#------------------------------------------------------------------------------
+
+alias vdo-help='() {
+  echo "Video Processing Aliases Help"
+  echo "============================"
+  echo "Information & Metadata:"
+  echo "  vdo-info <file>                - Show detailed information about a video file"
+  echo "  vdo-stream-info <file>         - Show stream information about a video file"
+  echo "  vdo-duration <file>            - Show the duration of a video file"
+  echo ""
+  echo "Trimming & Splitting:"
+  echo "  vdo-trim-video <file> <start> <duration> - Trim video between start and duration"
+  echo "  vdo-split-video <file> <segment_duration> - Split video into segments of specified duration"
+  echo ""
+  echo "Frame Extraction:"
+  echo "  vdo-export-frames <file> [options]   - Export frames with advanced options (time range, fps, count)"
+  echo "  vdo-batch-export-frames <dir> [options] - Batch export frames from videos with advanced options"
+  echo "  Note: Legacy functions (vdo-extract-frame, vdo-extract-frames, vdo-batch-extract-frame) are deprecated"
+  echo ""
+  echo "Cropping:"
+  echo "  vdo-crop <file> [options]            - Crop a video by position and size"
+  echo "  vdo-batch-crop <dir> [options]       - Crop multiple videos in a directory"
+  echo ""
+  echo "Speed Modification:"
+  echo "  vdo-speed-up <file> <factor>   - Speed up video playback"
+  echo "  vdo-slow-down <file> <factor>  - Slow down video playback"
+  echo ""
+  echo "Audio Processing:"
+  echo "  vdo-remove-audio <file>              - Remove audio from video"
+  echo "  vdo-replace-audio <video> <audio>    - Replace video audio with another audio file"
+  echo "  vdo-adjust-volume <file> <factor>    - Adjust audio volume in video"
+  echo "  vdo-extract-mp3 <file>               - Extract audio to MP3 format"
+  echo "  vdo-extract-dir-mp3 <dir>            - Extract audio from videos in directory to MP3"
+  echo "  vdo-merge-audio <video> [audio]      - Merge video and audio into a single file"
+  echo "  vdo-batch-merge-audio <vdir> [adir] [vext] [aext] - Batch merge videos with audio files"
+  echo ""
+  echo "Compression & Conversion:"
+  echo "  vdo-compress <file> <quality>        - Compress video with specified quality"
+  echo "  vdo-compress-dir <dir> <ext> <quality> - Compress videos in directory"
+  echo "  vdo-convert <file> [file2] [file3]... [format] - Convert video to specified format"
+  echo "  vdo-batch-convert <dir> <ext> [format] - Convert videos in directory to specified format"
+  echo "  vdo-to-mp4 <file> [file2] [file3]...   - Convert video to MP4 format"
+  echo "  vdo-batch-to-mp4 <dir> <ext>          - Convert videos in directory to MP4 format"
+  echo "  vdo-optimize-for-mobile <file> [file2] [file3]... - Optimize video for mobile devices"
+  echo "  vdo-convert-m3u8-to-mp4 <url>        - Convert M3U8 stream to MP4 video"
+  echo ""
+  echo "Resolution Conversion:"
+  echo "  vdo-to-144p <file>                   - Convert video to 144p resolution"
+  echo "  vdo-to-240p <file>                   - Convert video to 240p resolution"
+  echo "  vdo-to-320p <file>                   - Convert video to 320p resolution"
+  echo "  vdo-to-480p <file>                   - Convert video to 480p resolution"
+  echo "  vdo-to-720p <file>                   - Convert video to 720p resolution"
+  echo "  vdo-to-1080p <file>                  - Convert video to 1080p resolution"
+  echo "  vdo-dir-to-720p <dir> <ext>          - Convert videos in directory to 720p resolution"
+  echo "  vdo-dir-to-1080p <dir> <ext>         - Convert videos in directory to 1080p resolution"
+  echo ""
+  echo "Metadata Removal:"
+  echo "  vdo-rm-metadata <file> [output_file]   - Remove metadata from a video file"
+  echo "  vdo-batch-rm-metadata <dir> [ext]      - Batch remove metadata from videos in a directory"
+  echo ""
+  echo "Screenshot Series:"
+  echo "  vdo-create-thumbnails <file> <interval> - Create thumbnails at regular intervals"
+  echo "  vdo-create-preview-grid <file> <cols>   - Create a grid of screenshots"
+  echo "  vdo-screenshot <file> [options]         - Capture screenshots from a video"
+  echo "  vdo-batch-screenshot <dir> [options]    - Capture screenshots from videos in a directory"
+  echo ""
+  echo "Video Watermarking:"
+  echo "  vdo-add-watermark <input> [options]     - Add watermark to video files (single or batch)"
+  echo ""
+  echo "For more detailed help on any command, run the command without arguments"
+}' # Display help information about all video commands
+
+alias video-help='() {
+  vdo-help
+}' # Alias to call the video help function
