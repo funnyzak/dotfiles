@@ -158,6 +158,90 @@ alias w_fcount_ext='() {
   watch -n "$interval" "find \"$target_dir\" -type f -name \"*.$file_ext\" -print | wc -l | xargs echo \"File count => \""
 }'  # Monitor count of files with specific extension
 
+# Merge matching subdirectories
+alias merge-matching-dirs='() {
+  echo -e "Merge contents of matching subdirectories into a target directory.\nUsage:\n merge-matching-dirs [pattern:codegen-*] [target_dir:./merged/] [source_dir:.] [maxdepth:1]"
+  echo -e "Examples:\n merge-matching-dirs\n -> Merge all codegen-* directories from current directory to ./merged/"
+  echo -e " merge-matching-dirs \"test-*\" \"./combined/\" \".\" 2\n -> Merge test-* directories (maxdepth 2) to ./combined/"
+
+  local pattern="${1:-codegen-*}"
+  local target_dir="${2:-./merged/}"
+  local source_dir="${3:-.}"
+  local maxdepth="${4:-1}"
+
+  # Validate source directory
+  if [ ! -d "$source_dir" ]; then
+    echo "Error: Source directory does not exist: $source_dir" >&2
+    return 1
+  fi
+
+  # Validate maxdepth is a positive integer
+  if ! [[ "$maxdepth" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Error: maxdepth must be a positive integer, got: $maxdepth" >&2
+    return 1
+  fi
+
+  # Create target directory if it does not exist
+  if [ ! -d "$target_dir" ]; then
+    echo "Creating target directory: $target_dir"
+    mkdir -p "$target_dir"
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to create target directory: $target_dir" >&2
+      return 1
+    fi
+  fi
+
+  # Check if rsync is available
+  if ! command -v rsync >/dev/null 2>&1; then
+    echo "Error: rsync command not found. Please install rsync first." >&2
+    return 1
+  fi
+
+  # Check if find is available
+  if ! command -v find >/dev/null 2>&1; then
+    echo "Error: find command not found." >&2
+    return 1
+  fi
+
+  echo "Merging directories matching pattern: $pattern"
+  echo "Source directory: $source_dir"
+  echo "Target directory: $target_dir"
+  echo "Max depth: $maxdepth"
+  echo ""
+
+  # Find and merge matching directories
+  local merge_count=0
+  local merge_failed=0
+
+  while IFS= read -r dir_path; do
+    if [ -n "$dir_path" ] && [ -d "$dir_path" ]; then
+      echo "Merging: $dir_path -> $target_dir"
+      rsync -av --ignore-existing "$dir_path/" "$target_dir"
+      if [ $? -eq 0 ]; then
+        merge_count=$((merge_count + 1))
+        echo "Successfully merged: $dir_path"
+      else
+        merge_failed=$((merge_failed + 1))
+        echo "Error: Failed to merge: $dir_path" >&2
+      fi
+      echo ""
+    fi
+  done < <(find "$source_dir" -maxdepth "$maxdepth" -type d -name "$pattern" 2>/dev/null)
+
+  if [ $merge_count -eq 0 ] && [ $merge_failed -eq 0 ]; then
+    echo "No directories found matching pattern: $pattern" >&2
+    return 1
+  fi
+
+  echo "Merge completed: $merge_count directory(ies) merged successfully"
+  if [ $merge_failed -gt 0 ]; then
+    echo "Warning: $merge_failed directory(ies) failed to merge" >&2
+    return 1
+  fi
+
+  return 0
+}'  # Merge contents of matching subdirectories into a target directory
+
 
 # Help function for directory aliases
 alias dir-help='() {
@@ -189,5 +273,6 @@ alias dir-help='() {
   echo "  watchdf           - Monitor disk usage"
   echo "  w_fcount          - Monitor file count in target directory"
   echo "  w_fcount_ext      - Monitor count of files with specific extension"
-  echo "  directory-help    - Display this help message"
+  echo "  merge-matching-dirs - Merge contents of matching subdirectories into a target directory"
+  echo "  dir-help          - Display this help message"
 }' # Display help for directory management aliases
