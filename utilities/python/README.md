@@ -5,6 +5,7 @@ This directory contains Python-related utility scripts to enhance your workflow.
 ## Contents
 - [Background Remover](#background-remover)
 - [Image Background Overlay Processor](#image-background-overlay-processor)
+- [MTranServer Model Downloader](#mtranserver-model-downloader)
 
 ## Background Remover
 
@@ -218,3 +219,95 @@ python image-background-overlay-processor.py --batch --foreground-dir team_photo
 - For JPEG output files, transparency is automatically converted to solid background
 - The processor automatically handles aspect ratio preservation by default
 - When using URLs, ensure proper internet connectivity and be mindful of image download sizes
+
+## MTranServer Model Downloader
+
+`download_models.py` is a utility for downloading MTranServer translation model files from Mozilla Firefox Translation Services. It supports both command-line arguments and interactive mode, with automatic file verification, decompression, and retry mechanisms.
+
+### Features
+- **Automatic Record Fetching**: Retrieves the latest model records from Mozilla CDN
+- **Architecture Filtering**: Support for base-memory, base, and tiny architectures
+- **SHA256 Verification**: Validates both compressed and decompressed files
+- **Resume & Retry**: Automatic retry mechanism for failed downloads
+- **Concurrent Downloads**: Multi-threaded downloading with configurable workers
+- **Progress Display**: Visual progress bar (requires tqdm)
+- **Smart Skip**: Automatically skips already downloaded and verified files
+
+### Requirements
+- Python 3.x
+- Decompression support (one of the following):
+  - `zstandard` library: `pip install zstandard` (recommended)
+  - System command: `brew install zstd` (macOS) / `apt install zstd` (Linux)
+- Optional: `tqdm` for progress bar display: `pip install tqdm`
+
+### Usage
+
+#### Command-Line Mode
+Download models directly using command-line arguments:
+
+```bash
+# Download models with default settings (base-memory architecture)
+python download_models.py --model-dir ./models
+
+# Specify architecture type
+python download_models.py --model-dir ./models --arch-filter base
+
+# Use 8 concurrent threads for faster downloads
+python download_models.py --model-dir ./models --workers 8
+
+# Download tiny architecture (smallest size)
+python download_models.py --model-dir ./models --arch-filter tiny
+```
+
+#### Interactive Mode
+Run the script without arguments or with `-i` flag for a guided experience:
+
+```bash
+python download_models.py
+python download_models.py -i
+```
+
+#### Remote Execution
+Execute the script directly without downloading:
+
+```bash
+# Interactive mode (Linux/macOS)
+python3 <(curl -s https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/python/mtran-server/download_models.py)
+
+# Command-line mode
+python3 <(curl -s https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/python/mtran-server/download_models.py) --model-dir ./models --arch-filter base-memory
+```
+
+### Options
+- **`--model-dir, -m`**: Model storage directory (default: ./models)
+- **`--arch-filter, -a`**: Architecture filter (base-memory/base/tiny, default: base-memory)
+- **`--workers, -w`**: Number of concurrent download threads (default: 4)
+- **`-i, --interactive`**: Use interactive mode
+
+### Architecture Types
+| Architecture | Description |
+|--------------|-------------|
+| `base-memory` | Memory-optimized version (default, recommended for amd64 servers) |
+| `base` | Standard version (balanced performance and resource usage) |
+| `tiny` | Compact version (smallest size, suitable for resource-limited environments) |
+
+### Example Workflow
+1. Ensure Python 3.x is installed
+2. Install decompression support:
+   ```bash
+   pip install zstandard tqdm
+   ```
+3. Run the downloader:
+   ```bash
+   # Download all base-memory models with 8 threads
+   python download_models.py --model-dir ./models --arch-filter base-memory --workers 8
+   ```
+4. Models will be organized by language pair (e.g., `en_cs/`, `en_de/`)
+
+### Notes
+- **File Organization**: Models are stored in subdirectories named by language pair (source_target)
+- **Verification**: Files are verified using SHA256 checksums before and after decompression
+- **Incremental Downloads**: Already downloaded and verified files are automatically skipped
+- **Cleanup**: Compressed `.zst` files are automatically removed after successful decompression
+- **Network**: Requires internet access to Mozilla CDN servers
+- **MTranServer**: For more information, visit https://github.com/xxnuo/MTranServer
