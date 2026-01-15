@@ -1,0 +1,180 @@
+# =========================================================================
+# Batch Upload Configuration File
+# =========================================================================
+# Description: Batch upload task definitions for ssh_upload.exp script
+# Location: ~/.ssh/batch_upload.conf (or specify with -b option)
+#
+# Format: ServerID,Method,TargetPath,Source1,Source2,...
+#
+# Field Descriptions:
+#   ServerID    - Server identifier (must exist in upload.conf)
+#   Method      - Upload method: scp, rsync, or sftp (optional)
+#                 Leave empty to use server's default method from upload.conf
+#   TargetPath  - Destination path on server (optional)
+#                 Leave empty to use server's default target from upload.conf
+#   SourceN     - Source files or directories to upload (can be multiple)
+#                 Supports wildcards (e.g., *.log, backup_*.tar.gz)
+#                 Paths can be absolute or relative to current directory
+#
+# =========================================================================
+# NOTES
+# =========================================================================
+# 1. Lines starting with # are comments and will be ignored
+# 2. Empty lines are ignored
+# 3. All fields are comma-separated
+# 4. At least one source file must be specified
+# 5. The ServerID must exist in your upload.conf file
+# 6. Wildcards are expanded by the script, not the shell
+# 7. If Method or TargetPath are empty (,,), server defaults are used
+#
+# =========================================================================
+# BEHAVIOR
+# =========================================================================
+# By default, batch upload continues even if individual tasks fail.
+# To stop on first error, use the --stop-on-error option:
+#   ./ssh_upload.exp -b batch_upload.conf --stop-on-error
+#
+# =========================================================================
+# EXAMPLES
+# =========================================================================
+
+# Example 1: Upload multiple files to web server
+# - Server: web1 (must be defined in upload.conf)
+# - Method: scp (explicitly specified)
+# - Target: /var/www/html
+# - Sources: Three local files
+web1,scp,/var/www/html,/local/file1.txt,/local/file2.txt,/local/file3.txt
+
+# Example 2: Upload database backups using rsync
+# - Server: db1
+# - Method: rsync (explicitly specified)
+# - Target: /backup
+# - Sources: All SQL files in backup directory (wildcard)
+db1,rsync,/backup,/backup/*.sql
+
+# Example 3: Upload to app server using server defaults
+# - Server: app1
+# - Method: Empty (use server's default from upload.conf)
+# - Target: Empty (use server's default from upload.conf)
+# - Sources: Application JAR and config directory
+app1,,,/data/app.jar,/data/config/
+
+# Example 4: Upload logs to backup server
+# - Server: backup1
+# - Method: rsync
+# - Target: /backup/logs
+# - Sources: All log files matching pattern
+backup1,rsync,/backup/logs,/var/log/*.log
+
+# Example 5: Deploy website with multiple file types
+# - Server: web1
+# - Method: scp
+# - Target: /var/www/example.com
+# - Sources: HTML files, CSS directory, and JavaScript directory
+web1,scp,/var/www/example.com,/dist/html/*,/dist/css/,/dist/js/
+
+# Example 6: Upload configuration files to multiple locations
+# - First task: Upload to production server
+# - Second task: Upload to staging server
+prod1,scp,/etc/app/,config/app.conf,config/app.prod.conf
+staging1,scp,/etc/app/,config/app.conf,config/app.staging.conf
+
+# Example 7: Backup multiple directories
+# - Server: backup1
+# - Method: rsync with server's default target
+# - Sources: Multiple directories to backup
+backup1,rsync,,/home/user/documents/,/home/user/projects/,/home/user/.config/
+
+# Example 8: Upload release files
+# - Server: prod1
+# - Method: scp
+# - Target: /releases/2025-01-15
+# - Sources: Release tarball and checksum file
+prod1,scp,/releases/2025-01-15,/dist/app-1.0.0.tar.gz,/dist/app-1.0.0.tar.gz.sha256
+
+# =========================================================================
+# USAGE
+# =========================================================================
+# After creating this batch configuration file:
+#
+# 1. Set proper permissions:
+#    chmod 600 ~/.ssh/batch_upload.conf
+#
+# 2. Run batch upload:
+#    # Use default batch config location
+#    ./ssh_upload.exp -b ~/.ssh/batch_upload.conf
+#
+#    # Use custom batch config file
+#    ./ssh_upload.exp -b /path/to/custom_batch.conf
+#
+#    # Stop on first error
+#    ./ssh_upload.exp -b batch_upload.conf --stop-on-error
+#
+#    # Verbose output to see detailed progress
+#    ./ssh_upload.exp -b batch_upload.conf --verbose
+#
+#    # Dry run to test without uploading
+#    ./ssh_upload.exp -b batch_upload.conf --dry-run
+#
+# 3. View batch upload report:
+#    # After execution, a summary report is displayed
+#    # Use --verbose to see detailed results for each task
+#
+# =========================================================================
+# ADVANCED EXAMPLES
+# =========================================================================
+
+# Example 9: Deploy with pre- and post-tasks
+# Note: This requires separate script orchestration
+# The batch file only handles the upload portion
+web1,rsync,/var/www/staging,/dist/
+# After this completes, you would run:
+# ssh web1 "cd /var/www/staging && ./deploy.sh"
+
+# Example 10: Rotate backups
+# Upload to three different backup locations with different methods
+backup1,scp,/backup/daily,/data/backup_daily.tar.gz
+backup2,rsync,/backup/weekly,/data/backup_weekly.tar.gz
+backup3,sftp,/backup/monthly,/data/backup_monthly.tar.gz
+
+# Example 11: Multi-server deployment
+# Deploy the same application to multiple servers
+# All servers use their default paths and methods from upload.conf
+web1,,,/dist/app/
+web2,,,/dist/app/
+web3,,,/dist/app/
+api1,,,/dist/api/
+api2,,,/dist/api/
+
+# =========================================================================
+# TROUBLESHOOTING
+# =========================================================================
+#
+# Problem: "Server not found: xxx"
+# Solution: Ensure the ServerID exists in your upload.conf file
+#
+# Problem: "No valid source files found"
+# Solution: Check that source paths are correct and files exist
+#          Use absolute paths if relative paths are problematic
+#
+# Problem: "Permission denied"
+# Solution: Check SSH key permissions (should be 600)
+#          Verify user has write permission on target directory
+#
+# Problem: "Connection timeout"
+# Solution: Check network connectivity
+#          Verify server is running and SSH port is accessible
+#          Check firewall rules
+#
+# =========================================================================
+# TIPS
+# =========================================================================
+#
+# 1. Test with --dry-run first to verify configuration
+# 2. Use --verbose to see detailed progress information
+# 3. Group related uploads together in logical sections
+# 4. Use comments to document the purpose of each batch task
+# 5. Keep source paths consistent (all absolute or all relative)
+# 6. For large transfers, rsync is recommended over scp
+# 7. Use separate batch files for different deployment scenarios
+# 8. Consider creating batch files for different environments (dev/staging/prod)

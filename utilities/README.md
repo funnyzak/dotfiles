@@ -57,6 +57,20 @@ Shell utilities provide command-line tools and scripts for system operations. Fo
   - Handles key-based and password-based authentication
   - Includes retry mechanisms and customizable configuration
 
+- **SSH Upload** (`shell/sshc/ssh_upload.exp`): A versatile file upload tool supporting scp, rsync, and sftp protocols.
+  - Three upload methods: scp (default), rsync (for large files), sftp (for reliability)
+  - Interactive and command-line modes with flexible server selection
+  - Upload history tracking and batch upload support
+  - Command-line options: `-m` (method), `-t` (target path), `-s` (server), `-b` (batch)
+  - Special commands: `--history`, `--repeat`, `--cleanup`, `--dry-run`
+  - Environment variable configuration support
+
+- **SSH Port Forward** (`shell/sshc/ssh_port_forward.exp`): An Expect script for SSH port forwarding with multiple port mappings.
+  - Supports multiple port forwarding rules per server
+  - Port conflict detection and automatic alternative port suggestion
+  - Connection stability options with keep-alive configuration
+  - Both interactive and non-interactive modes
+
 - **AList Upload** (`shell/alist/alist_upload.sh`): A comprehensive script for uploading files to AList storage via API.
   - Features multiple file upload support with batch processing
   - Automatic authentication with token caching (24h validity) and optional cache disabling

@@ -910,12 +910,96 @@ alias ssh-port-forward='() {
 
 alias sshpf='ssh-port-forward' # Short alias for ssh-port-forward
 
+# SSH File Upload Management
+# Upload files to remote servers using expect script
+alias ssh-upload='() {
+  echo -e "Upload files to remote servers using expect script.\nUsage:\n  ssh-upload [server_id] [source_files...]\n  ssh-upload [options] [server_id] [source_files...]\n\nOptions:\n  -s, --server <id>       Specify server by ID or number\n  -m, --method <method>   Upload method: scp, rsync, or sftp (default: scp)\n  -t, --target <path>     Target path on remote server\n  -o, --options <opts>    Extra options for upload method\n  -b, --batch <file>      Batch upload mode with config file\n  -d, --dry-run          Simulate upload without actually transferring\n  -v, --verbose          Verbose output\n  -q, --quiet            Quiet mode (errors only)\n  -h, --help             Show help message\n      --history [n]      Show upload history (last n records)\n      --repeat           Repeat the last successful upload\n      --cleanup [days]   Clean history records older than n days\n\nExamples:\n  ssh-upload                                    # Interactive mode\n  ssh-upload KL.PVE file.txt                    # Upload to KL.PVE\n  ssh-upload -s KL.PVE -m rsync file.txt       # Use rsync\n  ssh-upload -s KL.PVE -t /tmp/ file1 file2    # Custom path\n  ssh-upload --history                          # View history\n  ssh-upload --repeat                           # Repeat last\n\nEnvironment Variables:"
+
+  # Display environment variables with their current values if set
+  echo -n "  UPLOAD_CONFIG          Config file path"
+  [[ -n "$UPLOAD_CONFIG" ]] && echo " (current: $UPLOAD_CONFIG)" || echo " (default: ~/.ssh/upload.conf)"
+
+  echo -n "  UPLOAD_METHOD          Default upload method"
+  [[ -n "$UPLOAD_METHOD" ]] && echo " (current: $UPLOAD_METHOD)" || echo " (default: scp)"
+
+  echo -n "  TARGET_PATH            Default target path"
+  [[ -n "$TARGET_PATH" ]] && echo " (current: $TARGET_PATH)" || echo ""
+
+  echo -n "  TARGET_SERVER_ID       Server ID for non-interactive mode"
+  [[ -n "$TARGET_SERVER_ID" ]] && echo " (current: $TARGET_SERVER_ID)" || echo ""
+
+  echo -n "  UPLOAD_TIMEOUT         Timeout in seconds"
+  [[ -n "$UPLOAD_TIMEOUT" ]] && echo " (current: $UPLOAD_TIMEOUT)" || echo " (default: 300)"
+
+  echo -n "  UPLOAD_MAX_ATTEMPTS    Max retry attempts"
+  [[ -n "$UPLOAD_MAX_ATTEMPTS" ]] && echo " (current: $UPLOAD_MAX_ATTEMPTS)" || echo " (default: 3)"
+
+  echo -n "  UPLOAD_NO_COLOR        Disable colored output"
+  [[ -n "$UPLOAD_NO_COLOR" ]] && echo " (current: enabled)" || echo " (default: disabled)"
+
+  echo ""
+
+  local upload_exp_path="${UPLOAD_EXP_EXEC_PATH:-$HOME/.ssh/ssh_upload.exp}"
+
+  # Check if expect script exists
+  if [[ ! -f "$upload_exp_path" ]]; then
+    echo "SSH upload script not found. Checking for setup..."
+
+    # Try to find it in the dotfiles directory
+    local dotfiles_dir=""
+    if [[ -n "$DOTFILES_DIR" ]]; then
+      dotfiles_dir="$DOTFILES_DIR"
+    elif [[ -d "$HOME/Documents/Work/Project/Pro/dotfiles" ]]; then
+      dotfiles_dir="$HOME/Documents/Work/Project/Pro/dotfiles"
+    elif [[ -d "$HOME/projects/dotfiles" ]]; then
+      dotfiles_dir="$HOME/projects/dotfiles"
+    fi
+
+    if [[ -n "$dotfiles_dir" && -f "$dotfiles_dir/utilities/shell/sshc/ssh_upload.exp" ]]; then
+      echo "Found SSH upload script in dotfiles directory"
+      upload_exp_path="$dotfiles_dir/utilities/shell/sshc/ssh_upload.exp"
+    else
+      _show_error_ssh_aliases "SSH upload script not found. Please ensure ssh_upload.exp is installed."
+      return 1
+    fi
+  fi
+
+  # Check if script is executable
+  if [[ ! -x "$upload_exp_path" ]]; then
+    echo "Making SSH upload script executable"
+    chmod +x "$upload_exp_path"
+
+    if [[ $? -ne 0 ]]; then
+      _show_error_ssh_aliases "Failed to make SSH upload script executable"
+      return 1
+    fi
+  fi
+
+  # Pass all arguments to the upload script
+  echo "Using SSH upload script: $upload_exp_path"
+  echo ""
+
+  "$upload_exp_path" "$@"
+  local upload_status=$?
+
+  # Check upload status
+  if [[ $upload_status -ne 0 ]]; then
+    _show_error_ssh_aliases "SSH upload failed with status $upload_status"
+    return $upload_status
+  fi
+
+  return 0
+}' # Upload files to remote servers using expect script
+
+alias sshu='ssh-upload' # Short alias for ssh-upload
+
 # SSH help function
 alias ssh-help='() {
   echo -e "SSH aliases and functions help\n"
   echo "SSH Connection Management:"
   echo "  ssh-connect            - Connect to a remote host using expect script"
   echo "  ssh-port-forward       - Connect with port forwarding using expect script"
+  echo "  ssh-upload            - Upload files to remote servers using expect script"
   echo ""
   echo "SSH Key Management:"
   echo "  ssh-key-generate      - Generate a new SSH key with enhanced security"
@@ -940,6 +1024,7 @@ alias ssh-help='() {
   echo "Short aliases:"
   echo "  sshc                  - Alias for ssh-connect"
   echo "  sshpf                 - Alias for ssh-port-forward"
+  echo "  sshu                  - Alias for ssh-upload"
   echo ""
   echo "For server management functions, use: ssh-srv-help"
 }' # Show help for SSH aliases and functions

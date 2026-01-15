@@ -1,0 +1,113 @@
+# =========================================================================
+# SSH Upload Configuration File
+# =========================================================================
+# Description: Server configuration for ssh_upload.exp script
+# Location: ~/.ssh/upload.conf (or set UPLOAD_CONFIG environment variable)
+#
+# Format: ID,Name,Host,Port,User,AuthType,AuthValue,DefaultTargetPath,DefaultUploadMethod,ExtraOptions
+#
+# Field Descriptions:
+#   ID                    - Unique server identifier (alphanumeric, no spaces)
+#   Name                  - Descriptive server name
+#   Host                  - IP address or hostname
+#   Port                  - SSH port number
+#   User                  - SSH username
+#   AuthType              - Authentication type: 'key' or 'password'
+#   AuthValue             - SSH key file path (for 'key') or password (for 'password')
+#                          Supports ~ expansion for key paths
+#                          Supports plaintext passwords (use with caution)
+#   DefaultTargetPath     - Default destination path on server (optional)
+#                          If not specified, defaults to user's home directory
+#   DefaultUploadMethod   - Default upload method: scp, rsync, or sftp (optional)
+#                          If not specified, defaults to 'scp'
+#   ExtraOptions          - Additional options for the upload method (optional)
+#                          For rsync: e.g., -a --progress --exclude '*.log'
+#                          For scp: e.g., -p -C
+#                          For sftp: (not commonly used)
+#
+# =========================================================================
+# NOTES
+# =========================================================================
+# 1. Lines starting with # are comments and will be ignored
+# 2. Empty lines are ignored
+# 3. All fields are comma-separated
+# 4. Fields containing commas should be avoided or properly escaped
+# 5. The configuration file should have restricted permissions (chmod 600)
+# 6. Passwords are stored in plaintext - use with caution and protect the file
+#
+# =========================================================================
+# EXAMPLES
+# =========================================================================
+
+# Example 1: Web server with SSH key authentication
+# - Uses key file at ~/.ssh/web1.key
+# - Default upload location: /var/www/html
+# - Default method: scp with progress display
+web1,Web Server 1,192.168.1.10,22,root,key,~/.ssh/web1.key,/var/www/html,scp,--progress
+
+# Example 2: Database server with password authentication
+# - Uses password authentication (password: securepass123)
+# - Default upload location: /backup
+# - Default method: rsync with archive and progress options
+db1,Database Server 1,192.168.1.20,22,root,password,securepass123,/backup,scp,-a --progress
+
+# Example 3: Application server with custom SSH port
+# - Uses key file at ~/.ssh/app1.key
+# - Custom SSH port: 2222
+# - Default upload location: /data/app
+# - Default method: sftp
+app1,App Server 1,192.168.1.30,2222,admin,key,~/.ssh/app1.key,/data/app,sftp,
+
+# Example 4: Backup server with rsync optimization
+# - Uses key authentication
+# - Default upload location: /backup/daily
+# - Default method: rsync with compression and exclusion
+backup1,Backup Server,192.168.1.40,22,backup,key,~/.ssh/backup.key,/backup/daily,rsync,-a -z --progress --exclude '*.tmp' --exclude '*.log'
+
+# Example 5: Test server with minimal configuration
+# - Uses password authentication
+# - No default target path (will use user's home directory)
+# - No default method (will use script default: scp)
+test1,Test Server,192.168.1.50,22,test,password,testpass123,,,
+
+# Example 6: Production server with multiple options
+# - Uses key file at ~/.ssh/prod.key
+# - Default upload location: /var/www/prod
+# - Default method: rsync with all common options
+prod1,Production Server,192.168.1.60,22,deploy,key,~/.ssh/prod.key,/var/www/prod,rsync,-a -v -z --progress --delete --exclude '.git/' --exclude 'node_modules/'
+
+# =========================================================================
+# USAGE
+# =========================================================================
+# After creating this configuration file:
+#
+# 1. Set proper permissions:
+#    chmod 600 ~/.ssh/upload.conf
+#
+# 2. Use with ssh_upload.exp:
+#    # Interactive mode - select server from list
+#    ./ssh_upload.exp
+#
+#    # Direct upload to specific server
+#    ./ssh_upload.exp web1 /local/file.txt
+#
+#    # Override default method
+#    ./ssh_upload.exp -s web1 -m rsync /local/dir/
+#
+#    # Override default target path
+#    ./ssh_upload.exp -s web1 -t /tmp/ /local/file.txt
+#
+# 3. Use environment variables:
+#    export UPLOAD_CONFIG=/path/to/upload.conf
+#    ./ssh_upload.exp
+#
+# =========================================================================
+# SECURITY RECOMMENDATIONS
+# =========================================================================
+# 1. Always set restrictive permissions on the config file: chmod 600
+# 2. Use SSH key authentication instead of passwords when possible
+# 3. Store passwords only if absolutely necessary
+# 4. Consider using SSH agent for key management
+# 5. Rotate passwords and keys regularly
+# 6. Use different keys for different servers
+# 7. Limit the config file access to specific users only
