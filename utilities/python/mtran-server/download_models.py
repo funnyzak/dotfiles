@@ -40,11 +40,11 @@ MTranServer 模型文件下载工具
        - 或安装系统命令: brew install zstd (macOS) / apt install zstd (Linux)
     3. 可选: pip install tqdm (显示下载进度条)
 
-    # 远程执行脚本 (交互式模式, Linux/macOS)https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/python/mtran-server/download_models.py
-    python3 <(curl -s https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/python/mtran-server/download_models.py)
+    # 远程执行脚本 (交互式模式, Linux/macOS)https://gitee.com/funnyzak/dotfiles/raw/main/utilities/python/mtran-server/download_models.py
+    python3 <(curl -s https://gitee.com/funnyzak/dotfiles/raw/main/utilities/python/mtran-server/download_models.py)
 
     # 远程执行脚本 (命令行模式)
-    python3 <(curl -s https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/python/mtran-server/download_models.py) --model-dir ./models --arch-filter base-memory
+    python3 <(curl -s https://gitee.com/funnyzak/dotfiles/raw/main/utilities/python/mtran-server/download_models.py) --model-dir ./models --arch-filter base-memory
 
 选项:
   --model-dir, -m      : 模型存储目录 (默认: ./models)
