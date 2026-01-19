@@ -1,0 +1,1555 @@
+#!/usr/bin/expect -f
+
+# =========================================================================
+# SSH Upload Script
+# Description: A versatile file upload tool supporting scp, rsync, and sftp
+#              with interactive and command-line modes, history tracking,
+#              and batch upload support.
+# Github: funnyzak
+# Last Updated: January 15, 2025
+# Version: 1.0.0
+# =========================================================================
+
+# =========================================================================
+# USAGE
+# =========================================================================
+#   Interactive mode: ./ssh_upload.exp
+#   Direct upload: ./ssh_upload.exp <server_id> <source1> <source2> ...
+#   With options: ./ssh_upload.exp -s <server_id> -m <method> -t <target> <sources>
+#
+# Examples:
+#   ./ssh_upload.exp                                    # Interactive mode
+#   ./ssh_upload.exp web1 file.txt                      # Upload to web1
+#   ./ssh_upload.exp -s web1 -m rsync file.txt dir/     # Use rsync
+#   ./ssh_upload.exp -s web1 -t /tmp/ file.txt          # Custom target
+#   ./ssh_upload.exp -b batch_tasks.conf                # Batch upload
+#   ./ssh_upload.exp --history                          # View history
+#   ./ssh_upload.exp --repeat                           # Repeat last upload
+#
+# Environment Variables:
+#   UPLOAD_CONFIG          # Config file path (default: ~/.ssh/upload.conf)
+#   UPLOAD_METHOD          # Default upload method (default: scp)
+#   TARGET_PATH            # Default target path
+#   TARGET_SERVER_ID       # Server ID for non-interactive mode
+#   TARGET_SERVER_NUM      # Server number for non-interactive mode
+#   UPLOAD_TIMEOUT         # Timeout in seconds (default: 300)
+#   UPLOAD_MAX_ATTEMPTS    # Max retry attempts (default: 3)
+#   UPLOAD_NO_COLOR        # Disable colored output
+#   UPLOAD_HISTORY_FILE    # History file path
+
+# =========================================================================
+# COMMAND LINE OPTIONS
+# =========================================================================
+#   -s, --server <id>       Specify server by ID or number
+#   -m, --method <method>   Upload method: scp, rsync, or sftp (default: scp)
+#   -t, --target <path>     Target path on remote server
+#   -o, --options <opts>    Extra options for upload method
+#   -b, --batch <file>      Batch upload mode with config file
+#   -d, --dry-run          Simulate upload without actually transferring
+#   -v, --verbose          Verbose output
+#   -q, --quiet            Quiet mode (errors only)
+#   -h, --help             Show this help message
+#   --history [n]          Show upload history (last n records)
+#   --repeat               Repeat the last successful upload
+#   --cleanup [days]       Clean history records older than n days
+
+# =========================================================================
+# CONFIGURATION FILE FORMAT
+# =========================================================================
+#   upload.conf (default: ~/.ssh/upload.conf)
+#   Format: ID,Name,Host,Port,User,AuthType,AuthValue,DefaultTargetPath,DefaultUploadMethod,ExtraOptions
+#
+#   Fields:
+#     ID                    - Unique server identifier
+#     Name                  - Descriptive server name
+#     Host                  - IP address or hostname
+#     Port                  - SSH port number
+#     User                  - SSH username
+#     AuthType              - 'key' or 'password'
+#     AuthValue             - Key file path or password (supports plaintext)
+#     DefaultTargetPath     - Default target path (optional)
+#     DefaultUploadMethod   - Default method: scp/rsync/sftp (optional, default: scp)
+#     ExtraOptions          - Extra options for the method (optional)
+#
+# Example Configuration:
+#   web1,Web Server 1,192.168.1.10,22,root,key,~/.ssh/web1.key,/var/www/html,scp,--progress
+#   db1,Database Server 1,192.168.1.20,22,root,password,securepass123,/backup,scp,-a --progress
+
+# =========================================================================
+# BATCH UPLOAD CONFIGURATION
+# =========================================================================
+#   batch_upload.conf
+#   Format: ServerID,Method,TargetPath,Source1,Source2,...
+#
+#   Fields:
+#     ServerID    - Server ID (must be defined in upload.conf)
+#     Method      - Upload method (optional, uses server default if empty)
+#     TargetPath  - Target path (optional, uses server default if empty)
+#     SourceN     - Source files/directories (supports wildcards)
+#
+# Example Batch Configuration:
+#   web1,scp,/var/www/html,/local/file1.txt,/local/file2.txt
+#   db1,rsync,/backup,/backup/*.sql
+#   app1,,,/data/app.jar,/data/config/
+
+# =========================================================================
+# SCRIPT CONFIGURATION
+# =========================================================================
+
+# Default configuration values
+set timeout 300
+set max_attempts 3
+set default_config_path [file join $::env(HOME) ".ssh" "upload.conf"]
+set default_history_path [file join $::env(HOME) ".ssh" "upload_history.log"]
+set default_batch_config [file join $::env(HOME) ".ssh" "batch_upload.conf"]
+
+# Parameter storage array
+array set params {
+    server_id      ""
+    upload_method  "scp"
+    target_path    ""
+    extra_options  ""
+    sources        {}
+    batch_mode     0
+    batch_file     ""
+    dry_run        0
+    verbose        0
+    quiet          0
+    show_history   0
+    history_limit  10
+    repeat_last    0
+    cleanup_days   0
+    stop_on_error  0
+}
+
+# Override with environment variables if set
+if {[info exists ::env(UPLOAD_CONFIG)]} {
+    set config_file $::env(UPLOAD_CONFIG)
+} else {
+    set config_file $default_config_path
+}
+
+if {[info exists ::env(UPLOAD_TIMEOUT)]} {
+    set timeout $::env(UPLOAD_TIMEOUT)
+}
+
+if {[info exists ::env(UPLOAD_MAX_ATTEMPTS)]} {
+    set max_attempts $::env(UPLOAD_MAX_ATTEMPTS)
+}
+
+if {[info exists ::env(UPLOAD_METHOD)]} {
+    set params(upload_method) $::env(UPLOAD_METHOD)
+}
+
+if {[info exists ::env(TARGET_PATH)]} {
+    set params(target_path) $::env(TARGET_PATH)
+}
+
+if {[info exists ::env(TARGET_SERVER_ID)]} {
+    set params(server_id) $::env(TARGET_SERVER_ID)
+}
+
+if {[info exists ::env(TARGET_SERVER_NUM)]} {
+    set params(server_id) $::env(TARGET_SERVER_NUM)
+}
+
+# Color codes for terminal output
+set use_colors [expr {![info exists ::env(UPLOAD_NO_COLOR)]}]
+if {$use_colors} {
+    set COLOR_RESET "\033\[0m"
+    set COLOR_HEADER "\033\[1;36m"
+    set COLOR_ID "\033\[1;33m"
+    set COLOR_HOST "\033\[1;32m"
+    set COLOR_NAME "\033\[1;34m"
+    set COLOR_SUCCESS "\033\[1;32m"
+    set COLOR_ERROR "\033\[1;31m"
+    set COLOR_INFO "\033\[1;35m"
+    set COLOR_WARNING "\033\[1;33m"
+    set COLOR_BOLD "\033\[1m"
+} else {
+    set COLOR_RESET ""
+    set COLOR_HEADER ""
+    set COLOR_ID ""
+    set COLOR_HOST ""
+    set COLOR_NAME ""
+    set COLOR_SUCCESS ""
+    set COLOR_ERROR ""
+    set COLOR_INFO ""
+    set COLOR_WARNING ""
+    set COLOR_BOLD ""
+}
+
+# =========================================================================
+# HELPER FUNCTIONS - Output
+# =========================================================================
+
+# Print colored message
+proc print_color {color text} {
+    global COLOR_RESET
+    puts "$color$text$COLOR_RESET"
+}
+
+# Print info message
+proc print_info {text} {
+    global COLOR_INFO
+    if {$::params(quiet) == 0} {
+        print_color $COLOR_INFO "INFO: $text"
+    }
+}
+
+# Print success message
+proc print_success {text} {
+    global COLOR_SUCCESS
+    if {$::params(quiet) == 0} {
+        print_color $COLOR_SUCCESS "SUCCESS: $text"
+    }
+}
+
+# Print error message
+proc print_error {text} {
+    global COLOR_ERROR
+    print_color $COLOR_ERROR "ERROR: $text"
+}
+
+# Print warning message
+proc print_warning {text} {
+    global COLOR_WARNING
+    if {$::params(quiet) == 0} {
+        print_color $COLOR_WARNING "WARNING: $text"
+    }
+}
+
+# Print verbose message
+proc print_verbose {text} {
+    global COLOR_INFO
+    if {$::params(verbose) && $::params(quiet) == 0} {
+        print_color $COLOR_INFO "VERBOSE: $text"
+    }
+}
+
+# =========================================================================
+# HELPER FUNCTIONS - Path and String
+# =========================================================================
+
+# Expand home directory in path (~)
+proc expand_path {path} {
+    global ::env
+
+    if {[string match "~/*" $path]} {
+        return [file join $::env(HOME) [string range $path 2 end]]
+    } elseif {$path eq "~"} {
+        return $::env(HOME)
+    } elseif {[string match "~*/*" $path]} {
+        set username [string range $path 1 [expr {[string first "/" $path] - 1}]]
+        set rest [string range $path [expr {[string first "/" $path] + 1}] end]
+        return "/home/$username/$rest"
+    }
+    return $path
+}
+
+# Trim whitespace from both ends
+proc trim {str} {
+    return [string trim $str]
+}
+
+# Check if file exists
+proc file_exists {path} {
+    return [file exists $path]
+}
+
+# Get file size in human readable format
+proc get_file_size {path} {
+    if {[catch {file size $path} size]} {
+        return "unknown"
+    }
+
+    if {$size < 1024} {
+        return "${size}B"
+    } elseif {$size < 1048576} {
+        return [format "%.1fKB" [expr {$size / 1024.0}]]
+    } elseif {$size < 1073741824} {
+        return [format "%.1fMB" [expr {$size / 1048576.0}]]
+    } else {
+        return [format "%.1fGB" [expr {$size / 1073741824.0}]]
+    }
+}
+
+# Count files in directory
+proc count_files {path} {
+    if {![file isdirectory $path]} {
+        return 1
+    }
+
+    set count 0
+    catch {
+        foreach file [glob -directory $path -nocomplain *] {
+            if {[file isdirectory $file]} {
+                incr count [count_files $file]
+            } else {
+                incr count
+            }
+        }
+    }
+    return $count
+}
+
+# Get current timestamp in ISO 8601 format
+proc get_timestamp {} {
+    return [clock format [clock seconds] -format "%Y-%m-%dT%H:%M:%S"]
+}
+
+# =========================================================================
+# HELPER FUNCTIONS - Configuration
+# =========================================================================
+
+# Load server configurations from file
+proc load_upload_config {filename} {
+    global COLOR_ERROR
+
+    set servers {}
+
+    if {![file exists $filename]} {
+        print_error "Configuration file not found: $filename"
+        print_info "Please create the configuration file or set UPLOAD_CONFIG environment variable"
+        return $servers
+    }
+
+    set fp [open $filename r]
+    while {[gets $fp line] >= 0} {
+        set line [string trim $line]
+
+        # Skip empty lines and comments
+        if {$line eq "" || [string match "#*" $line]} {
+            continue
+        }
+
+        set fields [split $line ","]
+        if {[llength $fields] < 7} {
+            print_warning "Invalid config line skipped: $line"
+            continue
+        }
+
+        # Parse server configuration
+        set id [trim [lindex $fields 0]]
+        set name [trim [lindex $fields 1]]
+        set host [trim [lindex $fields 2]]
+        set port [trim [lindex $fields 3]]
+        set user [trim [lindex $fields 4]]
+        set auth_type [trim [lindex $fields 5]]
+        set auth_value [trim [lindex $fields 6]]
+
+        # Optional fields
+        set default_target [expr {[llength $fields] > 6 ? [trim [lindex $fields 7]] : ""}]
+        set default_method [expr {[llength $fields] > 7 ? [trim [lindex $fields 8]] : "scp"}]
+        set extra_options [expr {[llength $fields] > 8 ? [trim [lindex $fields 9]] : ""}]
+
+        # Handle empty optional fields
+        if {$default_method eq ""} {
+            set default_method "scp"
+        }
+
+        lappend servers [list $id $name $host $port $user $auth_type $auth_value $default_target $default_method $extra_options]
+    }
+    close $fp
+
+    return $servers
+}
+
+# Find server by ID or number
+proc find_server_by_id {servers id} {
+    # Check if ID is an integer (server number)
+    if {[string is integer $id]} {
+        set index [expr {$id - 1}]
+        if {$index >= 0 && $index < [llength $servers]} {
+            return [lindex $servers $index]
+        }
+    } else {
+        # Search by string ID
+        foreach server $servers {
+            if {[lindex $server 0] eq $id} {
+                return $server
+            }
+        }
+    }
+    return ""
+}
+
+# Display server list
+proc display_servers {servers} {
+    global COLOR_HEADER COLOR_ID COLOR_HOST COLOR_NAME COLOR_RESET COLOR_INFO COLOR_BOLD
+
+    if {[llength $servers] == 0} {
+        print_error "No servers found in configuration file"
+        return
+    }
+
+    send_user "\n${COLOR_HEADER}Available Servers for Upload:${COLOR_RESET}\n"
+    send_user "${COLOR_HEADER}=========================================${COLOR_RESET}\n\n"
+
+    set idx 1
+    foreach server $servers {
+        set id [lindex $server 0]
+        set name [lindex $server 1]
+        set host [lindex $server 2]
+        set port [lindex $server 3]
+        set user [lindex $server 4]
+        set auth [lindex $server 5]
+        set default_target [lindex $server 7]
+        set default_method [lindex $server 8]
+
+        send_user "${COLOR_ID}[format "%2d" $idx]${COLOR_RESET}  ${COLOR_BOLD}ID: $id${COLOR_RESET}\n"
+        send_user "    Name: ${COLOR_NAME}$name${COLOR_RESET}\n"
+        send_user "    Host: ${COLOR_HOST}$host${COLOR_RESET}:$port\n"
+        send_user "    User: $user\n"
+        send_user "    Auth: $auth\n"
+        send_user "    Default Path: $default_target\n"
+        send_user "    Default Method: $default_method\n\n"
+
+        incr idx
+    }
+}
+
+# Interactive server selection
+proc select_server {servers} {
+    global COLOR_INFO COLOR_ERROR COLOR_RESET
+
+    display_servers $servers
+
+    if {[llength $servers] == 0} {
+        return ""
+    }
+
+    send_user "${COLOR_INFO}Enter server ID or number (1-[llength $servers]):${COLOR_RESET} "
+    expect_user -re "(.*)\n"
+    set choice $expect_out(1,string)
+
+    # Process selection
+    if {[string is integer $choice]} {
+        set index [expr {$choice - 1}]
+        if {$index >= 0 && $index < [llength $servers]} {
+            return [lindex $servers $index]
+        }
+    } else {
+        set server [find_server_by_id $servers $choice]
+        if {$server ne ""} {
+            return $server
+        }
+    }
+
+    print_error "Invalid selection"
+    return ""
+}
+
+# =========================================================================
+# HELPER FUNCTIONS - Command Line Arguments
+# =========================================================================
+
+# Show help message
+proc show_help {} {
+    global COLOR_HEADER COLOR_BOLD COLOR_RESET
+
+    send_user "${COLOR_HEADER}SSH Upload Tool - Help${COLOR_RESET}\n\n"
+    send_user "${COLOR_BOLD}USAGE:${COLOR_RESET}\n"
+    send_user "  ./ssh_upload.exp \[OPTIONS\] \[server_id\] \[source1\] \[source2\] ...\n\n"
+    send_user "${COLOR_BOLD}OPTIONS:${COLOR_RESET}\n"
+    send_user "  -s, --server <id>       Specify server by ID or number\n"
+    send_user "  -m, --method <method>   Upload method: scp, rsync, or sftp (default: scp)\n"
+    send_user "  -t, --target <path>     Target path on remote server\n"
+    send_user "  -o, --options <opts>    Extra options for upload method\n"
+    send_user "  -b, --batch <file>      Batch upload mode with config file\n"
+    send_user "  -d, --dry-run          Simulate upload without actually transferring\n"
+    send_user "  -v, --verbose          Verbose output\n"
+    send_user "  -q, --quiet            Quiet mode (errors only)\n"
+    send_user "  -h, --help             Show this help message\n"
+    send_user "      --history \[n\]      Show upload history (last n records, default: 10)\n"
+    send_user "      --repeat           Repeat the last successful upload\n"
+    send_user "      --cleanup \[days\]   Clean history records older than n days (default: 30)\n\n"
+    send_user "${COLOR_BOLD}EXAMPLES:${COLOR_RESET}\n"
+    send_user "  ./ssh_upload.exp                                    # Interactive mode\n"
+    send_user "  ./ssh_upload.exp web1 file.txt                      # Upload file\n"
+    send_user "  ./ssh_upload.exp -s web1 -m rsync file.txt         # Use rsync\n"
+    send_user "  ./ssh_upload.exp -s web1 -t /tmp/ file1 file2      # Custom path\n"
+    send_user "  ./ssh_upload.exp -b batch_tasks.conf                # Batch upload\n"
+    send_user "  ./ssh_upload.exp --history                          # View history\n"
+    send_user "  ./ssh_upload.exp --repeat                           # Repeat last\n\n"
+    send_user "${COLOR_BOLD}ENVIRONMENT VARIABLES:${COLOR_RESET}\n"
+    send_user "  UPLOAD_CONFIG          Config file path (default: ~/.ssh/upload.conf)\n"
+    send_user "  UPLOAD_METHOD          Default upload method\n"
+    send_user "  TARGET_PATH            Default target path\n"
+    send_user "  TARGET_SERVER_ID       Server ID for non-interactive mode\n"
+    send_user "  UPLOAD_TIMEOUT         Timeout in seconds\n"
+    send_user "  UPLOAD_MAX_ATTEMPTS    Max retry attempts\n"
+    send_user "  UPLOAD_NO_COLOR        Disable colored output\n"
+}
+
+# Parse command line arguments
+proc parse_command_line_args {argv} {
+    global params
+
+    set i 0
+    while {$i < [llength $argv]} {
+        set arg [lindex $argv $i]
+
+        switch -glob -- $arg {
+            "-s" - "--server" {
+                incr i
+                if {$i < [llength $argv]} {
+                    set params(server_id) [lindex $argv $i]
+                }
+            }
+            "-m" - "--method" {
+                incr i
+                if {$i < [llength $argv]} {
+                    set method [lindex $argv $i]
+                    if {[lsearch {scp rsync sftp} $method] != -1} {
+                        set params(upload_method) $method
+                    } else {
+                        print_error "Invalid method: $method (must be scp, rsync, or sftp)"
+                    }
+                }
+            }
+            "-t" - "--target" {
+                incr i
+                if {$i < [llength $argv]} {
+                    set params(target_path) [lindex $argv $i]
+                }
+            }
+            "-o" - "--options" {
+                incr i
+                if {$i < [llength $argv]} {
+                    set params(extra_options) [lindex $argv $i]
+                }
+            }
+            "-b" - "--batch" {
+                incr i
+                if {$i < [llength $argv]} {
+                    set params(batch_mode) 1
+                    set params(batch_file) [lindex $argv $i]
+                }
+            }
+            "-d" - "--dry-run" {
+                set params(dry_run) 1
+            }
+            "-v" - "--verbose" {
+                set params(verbose) 1
+            }
+            "-q" - "--quiet" {
+                set params(quiet) 1
+            }
+            "-h" - "--help" {
+                show_help
+                exit 0
+            }
+            "--history" {
+                set params(show_history) 1
+                # Check if next argument is a number
+                if {$i + 1 < [llength $argv] && [string is integer [lindex $argv [expr {$i + 1}]]]} {
+                    incr i
+                    set params(history_limit) [lindex $argv $i]
+                }
+            }
+            "--repeat" {
+                set params(repeat_last) 1
+            }
+            "--cleanup" {
+                # Check if next argument is a number
+                if {$i + 1 < [llength $argv] && [string is integer [lindex $argv [expr {$i + 1}]]]} {
+                    incr i
+                    set params(cleanup_days) [lindex $argv $i]
+                } else {
+                    set params(cleanup_days) 30
+                }
+            }
+            "--stop-on-error" {
+                set params(stop_on_error) 1
+            }
+            default {
+                # Not an option, treat as source file or server ID
+                if {[string index $arg 0] ne "-"} {
+                    # Check if it's a server ID or source file
+                    if {$params(server_id) eq ""} {
+                        set params(server_id) $arg
+                    } else {
+                        lappend params(sources) $arg
+                    }
+                }
+            }
+        }
+        incr i
+    }
+}
+
+# =========================================================================
+# HELPER FUNCTIONS - Upload History
+# =========================================================================
+
+# Get history file path
+proc get_history_file {} {
+    if {[info exists ::env(UPLOAD_HISTORY_FILE)]} {
+        return $::env(UPLOAD_HISTORY_FILE)
+    }
+    return $::default_history_path
+}
+
+# Add history record
+proc add_history_record {record} {
+    set history_file [get_history_file]
+    set fp [open $history_file a]
+    puts $fp $record
+    close $fp
+}
+
+# Show upload history
+proc show_history {limit} {
+    set history_file [get_history_file]
+
+    if {![file exists $history_file]} {
+        print_info "No upload history found"
+        return
+    }
+
+    print_info "Upload History (Last $limit records):"
+    send_user "==================================\n\n"
+
+    # Read all lines
+    set fp [open $history_file r]
+    set lines {}
+    while {[gets $fp line] >= 0} {
+        lappend lines $line
+    }
+    close $fp
+
+    # Show last N records in reverse order
+    set count [expr {[llength $lines] - 1}]
+    set shown 0
+
+    for {set i $count} {$i >= 0 && $shown < $limit} {incr i -1} {
+        set line [lindex $lines $i]
+        if {[catch {
+            # Parse JSON (simplified)
+            set timestamp [regsub {.*"timestamp":"([^"]*)".*} $line {\1}]
+            set server [regsub {.*"server":"([^"]*)".*} $line {\1}]
+            set host [regsub {.*"host":"([^"]*)".*} $line {\1}]
+            set method [regsub {.*"method":"([^"]*)".*} $line {\1}]
+            set sources [regsub {.*"sources":\[(.*?)\].*} $line {\1}]
+            set target [regsub {.*"target":"([^"]*)".*} $line {\1}]
+            set status [regsub {.*"status":"([^"]*)".*} $line {\1}]
+            set duration [regsub {.*"duration":"([^"]*)".*} $line {\1}]
+            set size [regsub {.*"size":"([^"]*)".*} $line {\1}]
+
+            # Format timestamp
+            set timestamp [string range $timestamp 0 18]
+
+            # Display record
+            send_user "\[$timestamp\] $server -> $target ($method) - "
+            if {$status eq "success"} {
+                print_color $::COLOR_SUCCESS "SUCCESS"
+            } else {
+                print_color $::COLOR_ERROR "FAILED"
+            }
+            send_user "  Sources: $sources\n"
+            send_user "  Size: $size | Duration: $duration\n\n"
+
+            incr shown
+        } err]} {
+            # Skip invalid lines
+            continue
+        }
+    }
+}
+
+# Get last successful upload
+proc get_last_upload {} {
+    set history_file [get_history_file]
+
+    if {![file exists $history_file]} {
+        return ""
+    }
+
+    # Read lines in reverse
+    set fp [open $history_file r]
+    set lines {}
+    while {[gets $fp line] >= 0} {
+        lappend lines $line
+    }
+    close $fp
+
+    # Find last successful upload
+    for {set i [expr {[llength $lines] - 1}]} {$i >= 0} {incr i -1} {
+        set line [lindex $lines $i]
+        if {[string match "*success*" $line]} {
+            return $line
+        }
+    }
+
+    return ""
+}
+
+# Cleanup old history records
+proc cleanup_history {days} {
+    set history_file [get_history_file]
+
+    if {![file exists $history_file]} {
+        print_info "No upload history found"
+        return
+    }
+
+    set cutoff_time [expr {[clock seconds] - ($days * 86400)}]
+    set temp_file "${history_file}.tmp"
+
+    set fp_in [open $history_file r]
+    set fp_out [open $temp_file w]
+    set removed 0
+
+    while {[gets $fp_in line] >= 0} {
+        if {[catch {
+            set timestamp_str [regsub {.*"timestamp":"([^"]*)".*} $line {\1}]
+            set timestamp [clock scan $timestamp_str -format "%Y-%m-%dT%H:%M:%S"]
+
+            if {$timestamp >= $cutoff_time} {
+                puts $fp_out $line
+            } else {
+                incr removed
+            }
+        } err]} {
+            # Keep invalid lines
+            puts $fp_out $line
+        }
+    }
+
+    close $fp_in
+    close $fp_out
+
+    file rename -force $temp_file $history_file
+
+    print_success "Cleaned up $removed history records older than $days days"
+}
+
+# =========================================================================
+# HELPER FUNCTIONS - Batch Upload
+# =========================================================================
+
+# Load batch tasks
+proc load_batch_tasks {batch_file} {
+    set tasks {}
+
+    if {![file exists $batch_file]} {
+        print_error "Batch configuration file not found: $batch_file"
+        return $tasks
+    }
+
+    set fp [open $batch_file r]
+    while {[gets $fp line] >= 0} {
+        set line [string trim $line]
+
+        if {$line eq "" || [string match "#*" $line]} {
+            continue
+        }
+
+        set fields [split $line ","]
+        if {[llength $fields] < 2} {
+            print_warning "Invalid batch task skipped: $line"
+            continue
+        }
+
+        set server_id [trim [lindex $fields 0]]
+        set method [expr {[llength $fields] > 1 ? [trim [lindex $fields 1]] : ""}]
+        set target [expr {[llength $fields] > 2 ? [trim [lindex $fields 2]] : ""}]
+
+        # Collect sources
+        set sources {}
+        for {set i 3} {$i < [llength $fields]} {incr i} {
+            set src [trim [lindex $fields $i]]
+            if {$src ne ""} {
+                lappend sources $src
+            }
+        }
+
+        lappend tasks [list $server_id $method $target $sources]
+    }
+    close $fp
+
+    return $tasks
+}
+
+# Execute batch upload
+proc execute_batch_upload {tasks servers} {
+    set total [llength $tasks]
+    set success 0
+    set failed 0
+    set results {}
+
+    print_info "Batch Upload: $total tasks"
+    send_user "=================================\n\n"
+
+    set idx 1
+    foreach task $tasks {
+        lassign $task server_id method target sources
+
+        print_info "Task [$idx/$total]: $server_id"
+
+        # Find server
+        set server [find_server_by_id $servers $server_id]
+        if {$server eq ""} {
+            print_error "Server not found: $server_id"
+            incr failed
+            if {$::params(stop_on_error)} {
+                break
+            }
+            incr idx
+            continue
+        }
+
+        # Merge task parameters with server config
+        if {$method ne ""} {
+            set params(upload_method) $method
+        } else {
+            set params(upload_method) [lindex $server 8]
+        }
+
+        if {$target ne ""} {
+            set params(target_path) $target
+        } else {
+            set params(target_path) [lindex $server 7]
+        }
+
+        set params(sources) $sources
+
+        # Execute upload
+        set result [execute_upload $server $sources $params(upload_method) $params(target_path)]
+        lassign $result status duration size error
+
+        if {$status eq "success"} {
+            incr success
+            print_success "[$idx/$total] $server_id -> SUCCESS (${duration})"
+        } else {
+            incr failed
+            print_error "[$idx/$total] $server_id -> FAILED: $error"
+            if {$::params(stop_on_error)} {
+                break
+            }
+        }
+
+        lappend results [list $idx $server_id $status $duration $size $error]
+        incr idx
+    }
+
+    # Generate report
+    generate_batch_report $total $success $failed $results
+
+    return [list $total $success $failed $results]
+}
+
+# Generate batch upload report
+proc generate_batch_report {total success failed results} {
+    global COLOR_HEADER COLOR_SUCCESS COLOR_ERROR COLOR_RESET
+
+    send_user "\n${COLOR_HEADER}Batch Upload Report:${COLOR_RESET}\n"
+    send_user "=================================\n"
+    send_user "Total Tasks: $total\n"
+    print_color $COLOR_SUCCESS "Successful: $success\n"
+    if {$failed > 0} {
+        print_color $COLOR_ERROR "Failed: $failed\n"
+    } else {
+        send_user "Failed: $failed\n"
+    }
+    send_user "Skipped: 0\n\n"
+
+    if {$::params(verbose)} {
+        send_user "Task Results:\n"
+        send_user "--------------\n"
+        foreach result $results {
+            lassign $result idx server_id status duration size error
+            if {$status eq "success"} {
+                print_color $COLOR_SUCCESS "\[$idx\] $server_id -> SUCCESS\n"
+            } else {
+                print_color $COLOR_ERROR "\[$idx\] $server_id -> FAILED: $error\n"
+            }
+            send_user "  Duration: $duration | Size: $size\n\n"
+        }
+    }
+}
+
+# =========================================================================
+# HELPER FUNCTIONS - Upload Execution
+# =========================================================================
+
+# Display upload configuration
+proc display_upload_config {server sources method target} {
+    global COLOR_HEADER COLOR_BOLD COLOR_RESET
+
+    send_user "\n${COLOR_HEADER}Upload Configuration:${COLOR_RESET}\n"
+    send_user "${COLOR_BOLD}=====================${COLOR_RESET}\n"
+    send_user "Server: [lindex $server 1] ([lindex $server 0])\n"
+    send_user "Host: [lindex $server 2]:[lindex $server 3]\n"
+    send_user "Method: $method\n"
+    send_user "Sources:\n"
+
+    set total_size 0
+    foreach source $sources {
+        if {[file exists $source]} {
+            set size [get_file_size $source]
+            if {[file isdirectory $source]} {
+                set count [count_files $source]
+                send_user "  - $source ($count files, $size)\n"
+            } else {
+                send_user "  - $source ($size)\n"
+            }
+        } else {
+            send_user "  - $source (not found)\n"
+        }
+    }
+
+    send_user "Target: $target\n"
+
+    if {$::params(extra_options) ne ""} {
+        send_user "Options: $::params(extra_options)\n"
+    }
+
+    if {$::params(dry_run)} {
+        print_warning "DRY RUN MODE - No files will be uploaded\n"
+    }
+
+    send_user "\n"
+}
+
+# Execute upload
+proc execute_upload {server sources method target} {
+    set start_time [clock seconds]
+
+    # Choose upload method
+    switch -exact -- $method {
+        "scp" {
+            set result [upload_via_scp $server $sources $target]
+        }
+        "rsync" {
+            set result [upload_via_rsync $server $sources $target]
+        }
+        "sftp" {
+            set result [upload_via_sftp $server $sources $target]
+        }
+        default {
+            return [list "failed" "0" "0" "Unknown upload method: $method"]
+        }
+    }
+
+    set end_time [clock seconds]
+    set duration [expr {$end_time - $start_time}]
+    set duration_str "${duration}s"
+
+    return [list [lindex $result 0] $duration_str [lindex $result 1] [lindex $result 2]]
+}
+
+# Upload via SCP
+proc upload_via_scp {server sources target} {
+    global timeout max_attempts COLOR_SUCCESS COLOR_ERROR COLOR_INFO
+
+    set id [lindex $server 0]
+    set name [lindex $server 1]
+    set host [lindex $server 2]
+    set port [lindex $server 3]
+    set user [lindex $server 4]
+    set auth [lindex $server 5]
+    set value [lindex $server 6]
+
+    # Expand key path if needed
+    if {$auth eq "key"} {
+        set value [expand_path $value]
+    }
+
+    set total_size 0
+
+    # Build SCP command
+    set scp_cmd [list scp]
+
+    if {$port != "22"} {
+        lappend scp_cmd -P $port
+    }
+
+    lappend scp_cmd -o "StrictHostKeyChecking=no"
+    lappend scp_cmd -o "UserKnownHostsFile=/dev/null"
+    lappend scp_cmd -o "ConnectTimeout=30"
+
+    if {$::params(verbose)} {
+        lappend scp_cmd -v
+    }
+
+    if {$auth eq "key"} {
+        lappend scp_cmd -o "PubkeyAuthentication=yes"
+        lappend scp_cmd -i $value
+    }
+
+    # Add recursive option for directories
+    foreach source $sources {
+        if {[file isdirectory $source]} {
+            lappend scp_cmd -r
+            break
+        }
+    }
+
+    # Add sources
+    foreach source $sources {
+        lappend scp_cmd $source
+    }
+
+    # Add destination
+    lappend scp_cmd "${user}@${host}:${target}"
+
+    # Handle dry run
+    if {$::params(dry_run)} {
+        print_info "DRY RUN: Would execute [join $scp_cmd " "]"
+        return [list "success" "0" "0"]
+    }
+
+    print_verbose "Executing: [join $scp_cmd " "]"
+
+    # Execute SCP with retry
+    set attempt 1
+    while {$attempt <= $max_attempts} {
+        print_info "Uploading to $id ($host) - Attempt $attempt/$max_attempts"
+
+        eval spawn $scp_cmd
+
+        expect {
+            "yes/no" {
+                send "yes\r"
+                exp_continue
+            }
+            "password:" {
+                if {$auth ne "password"} {
+                    return [list "failed" "0" "0" "Server requires password but configured for key auth"]
+                }
+                send "$value\r"
+                exp_continue
+            }
+            "Permission denied" {
+                print_error "Authentication failed"
+                incr attempt
+                if {$attempt <= $max_attempts} {
+                    after 5000
+                }
+                exp_continue
+            }
+            "100%" {
+                # Success
+                exp_continue
+            }
+            timeout {
+                print_error "Connection timeout"
+                incr attempt
+                if {$attempt <= $max_attempts} {
+                    after 5000
+                }
+                exp_continue
+            }
+            eof {
+                # Check exit status
+                set exit_status [lindex [wait] 3]
+                if {$exit_status == 0} {
+                    print_success "Upload completed successfully"
+                    return [list "success" $total_size ""]
+                } else {
+                    incr attempt
+                    if {$attempt <= $max_attempts} {
+                        after 5000
+                        continue
+                    }
+                    return [list "failed" $total_size "Upload failed with exit code $exit_status"]
+                }
+            }
+        }
+    }
+
+    return [list "failed" $total_size "Max retries exceeded"]
+}
+
+# Upload via Rsync
+proc upload_via_rsync {server sources target} {
+    global timeout max_attempts COLOR_SUCCESS COLOR_ERROR COLOR_INFO
+
+    set id [lindex $server 0]
+    set name [lindex $server 1]
+    set host [lindex $server 2]
+    set port [lindex $server 3]
+    set user [lindex $server 4]
+    set auth [lindex $server 5]
+    set value [lindex $server 6]
+
+    if {$auth eq "key"} {
+        set value [expand_path $value]
+    }
+
+    set total_size 0
+
+    # Build SSH options for rsync
+    set ssh_opts "ssh"
+    if {$port != "22"} {
+        append ssh_opts " -p $port"
+    }
+    append ssh_opts " -o StrictHostKeyChecking=no"
+    append ssh_opts " -o UserKnownHostsFile=/dev/null"
+    append ssh_opts " -o ConnectTimeout=30"
+
+    if {$auth eq "key"} {
+        append ssh_opts " -o PubkeyAuthentication=yes"
+        append ssh_opts " -i $value"
+    }
+
+    # Build rsync command
+    set rsync_cmd [list rsync]
+    lappend rsync_cmd -avz
+    lappend rsync_cmd --progress
+    lappend rsync_cmd -e "sh -c '$ssh_opts'"
+
+    # Add extra options if provided
+    if {$::params(extra_options) ne ""} {
+        foreach opt [split $::params(extra_options) " "] {
+            if {$opt ne ""} {
+                lappend rsync_cmd $opt
+            }
+        }
+    }
+
+    # Add sources
+    foreach source $sources {
+        # Ensure source ends with / if it's a directory
+        if {[file isdirectory $source] && ![string match "*/" $source]} {
+            append source "/"
+        }
+        lappend rsync_cmd $source
+    }
+
+    # Add destination
+    lappend rsync_cmd "${user}@${host}:${target}"
+
+    # Handle dry run
+    if {$::params(dry_run)} {
+        print_info "DRY RUN: Would execute [join $rsync_cmd " "]"
+        return [list "success" "0" "0"]
+    }
+
+    print_verbose "Executing: [join $rsync_cmd " "]"
+
+    # Execute rsync with retry
+    set attempt 1
+    while {$attempt <= $max_attempts} {
+        print_info "Uploading to $id ($host) - Attempt $attempt/$max_attempts"
+
+        eval spawn $rsync_cmd
+
+        expect {
+            "yes/no" {
+                send "yes\r"
+                exp_continue
+            }
+            "password:" {
+                if {$auth ne "password"} {
+                    return [list "failed" "0" "0" "Server requires password but configured for key auth"]
+                }
+                send "$value\r"
+                exp_continue
+            }
+            "Permission denied" {
+                print_error "Authentication failed"
+                incr attempt
+                if {$attempt <= $max_attempts} {
+                    after 5000
+                }
+                exp_continue
+            }
+            "total size is" {
+                # Parse total size
+                exp_continue
+            }
+            timeout {
+                print_error "Connection timeout"
+                incr attempt
+                if {$attempt <= $max_attempts} {
+                    after 5000
+                }
+                exp_continue
+            }
+            eof {
+                # Check exit status
+                set exit_status [lindex [wait] 3]
+                if {$exit_status == 0 || $exit_status == 23} {
+                    # 23 = some files couldn't be transferred
+                    print_success "Upload completed successfully"
+                    return [list "success" $total_size ""]
+                } else {
+                    incr attempt
+                    if {$attempt <= $max_attempts} {
+                        after 5000
+                        continue
+                    }
+                    return [list "failed" $total_size "Upload failed with exit code $exit_status"]
+                }
+            }
+        }
+    }
+
+    return [list "failed" $total_size "Max retries exceeded"]
+}
+
+# Upload via SFTP
+proc upload_via_sftp {server sources target} {
+    global timeout max_attempts COLOR_SUCCESS COLOR_ERROR COLOR_INFO
+
+    set id [lindex $server 0]
+    set name [lindex $server 1]
+    set host [lindex $server 2]
+    set port [lindex $server 3]
+    set user [lindex $server 4]
+    set auth [lindex $server 5]
+    set value [lindex $server 6]
+
+    if {$auth eq "key"} {
+        set value [expand_path $value]
+    }
+
+    set total_size 0
+
+    # Build SFTP command
+    set sftp_cmd [list sftp]
+
+    if {$port != "22"} {
+        lappend sftp_cmd -o "Port=$port"
+    }
+
+    lappend sftp_cmd -o "StrictHostKeyChecking=no"
+    lappend sftp_cmd -o "UserKnownHostsFile=/dev/null"
+    lappend sftp_cmd -o "ConnectTimeout=30"
+
+    if {$auth eq "key"} {
+        lappend sftp_cmd -o "PubkeyAuthentication=yes"
+        lappend sftp_cmd -i $value
+    }
+
+    lappend sftp_cmd "${user}@${host}"
+
+    # Handle dry run
+    if {$::params(dry_run)} {
+        print_info "DRY RUN: Would upload via SFTP"
+        return [list "success" "0" "0"]
+    }
+
+    print_verbose "Executing SFTP to $host"
+
+    # Execute SFTP with retry
+    set attempt 1
+    while {$attempt <= $max_attempts} {
+        print_info "Uploading to $id ($host) - Attempt $attempt/$max_attempts"
+
+        eval spawn $sftp_cmd
+
+        set uploaded 0
+
+        expect {
+            "yes/no" {
+                send "yes\r"
+                exp_continue
+            }
+            "password:" {
+                if {$auth ne "password"} {
+                    return [list "failed" "0" "0" "Server requires password but configured for key auth"]
+                }
+                send "$value\r"
+                exp_continue
+            }
+            "Permission denied" {
+                print_error "Authentication failed"
+                incr attempt
+                if {$attempt <= $max_attempts} {
+                    after 5000
+                }
+                exp_continue
+            }
+            "sftp>" {
+                # Connected, upload files
+                if {!$uploaded} {
+                    set uploaded 1
+
+                    foreach source $sources {
+                        if {[file exists $source]} {
+                            set filename [file tail $source]
+                            print_verbose "Uploading $source to $target/$filename"
+
+                            # Change to target directory
+                            send "cd $target\r"
+                            expect "sftp>"
+
+                            # Upload file
+                            if {[file isdirectory $source]} {
+                                send "put -r $source\r"
+                            } else {
+                                send "put $source\r"
+                            }
+                            expect "sftp>"
+
+                            incr total_size
+                        } else {
+                            print_warning "Source not found: $source"
+                        }
+                    }
+
+                    # Exit SFTP
+                    send "bye\r"
+                    exp_continue
+                } else {
+                    exp_continue
+                }
+            }
+            timeout {
+                print_error "Connection timeout"
+                incr attempt
+                if {$attempt <= $max_attempts} {
+                    after 5000
+                }
+                exp_continue
+            }
+            eof {
+                if {$uploaded > 0} {
+                    print_success "Upload completed successfully"
+                    return [list "success" $total_size ""]
+                } else {
+                    incr attempt
+                    if {$attempt <= $max_attempts} {
+                        after 5000
+                        continue
+                    }
+                    return [list "failed" $total_size "Failed to upload via SFTP"]
+                }
+            }
+        }
+    }
+
+    return [list "failed" $total_size "Max retries exceeded"]
+}
+
+# =========================================================================
+# MAIN PROGRAM
+# =========================================================================
+
+# Parse command line arguments
+parse_command_line_args $argv
+
+# Handle special commands
+if {$params(show_history)} {
+    show_history $params(history_limit)
+    exit 0
+}
+
+if {$params(cleanup_days) > 0} {
+    cleanup_history $params(cleanup_days)
+    exit 0
+}
+
+# Load server configurations
+print_info "Loading server configurations from: $config_file"
+set servers [load_upload_config $config_file]
+
+if {[llength $servers] == 0 && !$params(batch_mode)} {
+    print_error "No servers found in configuration file"
+    exit 1
+}
+
+# Handle repeat last upload
+if {$params(repeat_last)} {
+    set last_record [get_last_upload]
+    if {$last_record eq ""} {
+        print_error "No previous successful upload found"
+        exit 1
+    }
+
+    # Parse last record (simplified)
+    set params(server_id) [regsub {.*"server":"([^"]*)".*} $last_record {\1}]
+    set params(upload_method) [regsub {.*"method":"([^"]*)".*} $last_record {\1}]
+    set params(target_path) [regsub {.*"target":"([^"]*)".*} $last_record {\1}]
+
+    # Parse sources (simplified)
+    set sources_str [regsub {.*"sources":\[(.*?)\].*} $last_record {\1}]
+    set params(sources) [split $sources_str ","]
+
+    print_info "Repeating last upload configuration"
+}
+
+# Handle batch upload mode
+if {$params(batch_mode)} {
+    if {$params(batch_file) eq ""} {
+        print_error "No batch configuration file specified"
+        exit 1
+    }
+
+    print_info "Loading batch tasks from: $params(batch_file)"
+    set tasks [load_batch_tasks $params(batch_file)]
+
+    if {[llength $tasks] == 0} {
+        print_error "No batch tasks found in configuration file"
+        exit 1
+    }
+
+    set result [execute_batch_upload $tasks $servers]
+    lassign $result total success failed results
+
+    if {$failed > 0} {
+        exit 1
+    }
+    exit 0
+}
+
+# Select server
+if {$params(server_id) ne ""} {
+    set selected_server [find_server_by_id $servers $params(server_id)]
+    if {$selected_server eq ""} {
+        print_error "Server not found: $params(server_id)"
+        display_servers $servers
+        exit 1
+    }
+} else {
+    set selected_server [select_server $servers]
+    if {$selected_server eq ""} {
+        exit 1
+    }
+}
+
+# Get server parameters
+set server_id [lindex $selected_server 0]
+set server_name [lindex $selected_server 1]
+set server_host [lindex $selected_server 2]
+set server_port [lindex $selected_server 3]
+set server_user [lindex $selected_server 4]
+set server_auth [lindex $selected_server 5]
+set server_auth_value [lindex $selected_server 6]
+set server_default_target [lindex $selected_server 7]
+set server_default_method [lindex $selected_server 8]
+set server_extra_options [lindex $selected_server 9]
+
+# Merge parameters (command line > server config > script default)
+if {$params(upload_method) eq "scp"} {
+    set upload_method $server_default_method
+} else {
+    set upload_method $params(upload_method)
+}
+
+if {$params(target_path) eq ""} {
+    set target_path $server_default_target
+} else {
+    set target_path $params(target_path)
+}
+
+# Prompt for source paths if not provided
+if {[llength $params(sources)] == 0} {
+    send_user "\nEnter source files/directories (separated by spaces):\n"
+    expect_user -re "(.*)\n"
+    set input [string trim $expect_out(1,string)]
+
+    # Split by spaces
+    set params(sources) [split $input " "]
+
+    # Filter empty strings
+    set sources {}
+    foreach src $params(sources) {
+        if {[string trim $src] ne ""} {
+            lappend sources [string trim $src]
+        }
+    }
+    set params(sources) $sources
+}
+
+# Validate sources
+set valid_sources {}
+foreach source $params(sources) {
+    # Expand wildcards
+    if {[string match "*" $source] || [string match "*\**" $source]} {
+        if {[catch {
+            foreach matched [glob $source] {
+                if {[file exists $matched]} {
+                    lappend valid_sources $matched
+                }
+            }
+        } err]} {
+            print_warning "No files found matching: $source"
+        }
+    } else {
+        if {[file exists $source]} {
+            lappend valid_sources $source
+        } else {
+            print_warning "Source not found: $source"
+        }
+    }
+}
+
+if {[llength $valid_sources] == 0} {
+    print_error "No valid source files found"
+    exit 1
+}
+
+set params(sources) $valid_sources
+
+# Prompt for target path if not set
+if {$target_path eq ""} {
+    send_user "\nEnter target path on server (default: ~/$server_user): "
+    expect_user -re "(.*)\n"
+    set input [string trim $expect_out(1,string)]
+    if {$input ne ""} {
+        set target_path $input
+    } else {
+        set target_path "~/$server_user"
+    }
+}
+
+# Prompt for upload method if not set
+if {$upload_method eq ""} {
+    send_user "\nSelect upload method:\n"
+    send_user "  1. scp (default)\n"
+    send_user "  2. rsync (recommended for large files)\n"
+    send_user "  3. sftp\n"
+    send_user "Enter choice [1-3]: "
+    expect_user -re "(.*)\n"
+    set choice [string trim $expect_out(1,string)]
+
+    switch -exact -- $choice {
+        "2" { set upload_method "rsync" }
+        "3" { set upload_method "sftp" }
+        default { set upload_method "scp" }
+    }
+}
+
+# Display upload configuration
+display_upload_config $selected_server $params(sources) $upload_method $target_path
+
+# Confirm upload
+send_user "Proceed with upload? \[y/N\]: "
+expect_user -re "(.*)\n"
+set confirm [string tolower [string trim $expect_out(1,string)]]
+
+if {$confirm ne "y" && $confirm ne "yes"} {
+    print_info "Upload cancelled"
+    exit 0
+}
+
+# Execute upload
+set result [execute_upload $selected_server $params(sources) $upload_method $target_path]
+lassign $result status duration size error
+
+# Record history
+set timestamp [get_timestamp]
+set sources_str [join $params(sources) ","]
+
+if {$status eq "success"} {
+    print_success "Upload completed successfully in $duration"
+
+    # Create history record (JSON)
+    set record "{\"timestamp\":\"$timestamp\",\"server\":\"$server_id\",\"host\":\"$server_host\",\"method\":\"$upload_method\",\"sources\":\[$sources_str\],\"target\":\"$target_path\",\"status\":\"success\",\"duration\":\"$duration\",\"size\":\"$size\"}"
+    add_history_record $record
+
+    exit 0
+} else {
+    print_error "Upload failed: $error"
+
+    # Create history record (JSON)
+    set record "{\"timestamp\":\"$timestamp\",\"server\":\"$server_id\",\"host\":\"$server_host\",\"method\":\"$upload_method\",\"sources\":\[$sources_str\],\"target\":\"$target_path\",\"status\":\"failed\",\"error\":\"$error\",\"duration\":\"$duration\",\"size\":\"$size\"}"
+    add_history_record $record
+
+    exit 1
+}
