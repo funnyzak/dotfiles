@@ -979,7 +979,7 @@ alias ssh-upload='() {
   echo "Using SSH upload script: $upload_exp_path"
   echo ""
 
-  "$upload_exp_path" "$@"
+  command expect -f "$upload_exp_path" -- "$@"
   local upload_status=$?
 
   # Check upload status

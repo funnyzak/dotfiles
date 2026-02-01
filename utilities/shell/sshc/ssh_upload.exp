@@ -1082,24 +1082,25 @@ proc upload_via_rsync {server sources target} {
     set total_size 0
 
     # Build SSH options for rsync
-    set ssh_opts "ssh"
+    set ssh_opts [list ssh]
     if {$port != "22"} {
-        append ssh_opts " -p $port"
+        lappend ssh_opts -p $port
     }
-    append ssh_opts " -o StrictHostKeyChecking=no"
-    append ssh_opts " -o UserKnownHostsFile=/dev/null"
-    append ssh_opts " -o ConnectTimeout=30"
+    lappend ssh_opts -o StrictHostKeyChecking=no
+    lappend ssh_opts -o UserKnownHostsFile=/dev/null
+    lappend ssh_opts -o ConnectTimeout=30
 
     if {$auth eq "key"} {
-        append ssh_opts " -o PubkeyAuthentication=yes"
-        append ssh_opts " -i $value"
+        lappend ssh_opts -o PubkeyAuthentication=yes
+        lappend ssh_opts -o IdentitiesOnly=yes
+        lappend ssh_opts -i $value
     }
 
     # Build rsync command
     set rsync_cmd [list rsync]
     lappend rsync_cmd -avz
     lappend rsync_cmd --progress
-    lappend rsync_cmd -e "sh -c '$ssh_opts'"
+    lappend rsync_cmd -e [join $ssh_opts " "]
 
     # Add extra options if provided
     if {$::params(extra_options) ne ""} {
@@ -1135,7 +1136,7 @@ proc upload_via_rsync {server sources target} {
     while {$attempt <= $max_attempts} {
         print_info "Uploading to $id ($host) - Attempt $attempt/$max_attempts"
 
-        eval spawn $rsync_cmd
+        spawn {*}$rsync_cmd
 
         expect {
             "yes/no" {
