@@ -1097,8 +1097,12 @@ proc upload_via_rsync {server sources target} {
     }
 
     # Build rsync command
+    # -a preserves perms/times but we use --no-owner --no-group to avoid
+    # ownership issues when remote user cannot chown (non-root)
     set rsync_cmd [list rsync]
     lappend rsync_cmd -avz
+    lappend rsync_cmd --no-owner
+    lappend rsync_cmd --no-group
     lappend rsync_cmd --progress
     lappend rsync_cmd -e [join $ssh_opts " "]
 
