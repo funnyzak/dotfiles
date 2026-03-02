@@ -38,10 +38,10 @@ _url_check_connectivity() {
 #===================================
 
 # Generate short URL using YOURLS
-alias url-shorten-yourls='() {
+alias url-s-yourls='() {
   echo "Generate short URL using YOURLS.
 Usage:
- url-shorten-yourls <url>"
+ url-s-yourls <url>"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -124,10 +124,10 @@ shorten_url_by_sink() {
 }
 
 # Generate short URL using sink
-alias url-shorten-sink='() {
+alias url-s-sink='() {
   echo "Generate short URL using sink.
 Usage:
- url-shorten-sink <url> [custom_code]"
+ url-s-sink <url> [custom_code]"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -147,10 +147,10 @@ Usage:
 }' # Generate short URL using sink
 
 # Generate short URL using TinyURL
-alias url-shorten-tinyurl='() {
+alias url-s-tinyurl='() {
   echo "Generate short URL using TinyURL.
 Usage:
- url-shorten-tinyurl <url>"
+ url-s-tinyurl <url>"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -178,10 +178,10 @@ Usage:
 }' # Generate short URL using TinyURL
 
 # Generate short URL using Bitly
-alias url-shorten-bitly='() {
+alias url-s-bitly='() {
   echo "Generate short URL using Bitly.
 Usage:
- url-shorten-bitly <url>"
+ url-s-bitly <url>"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -212,10 +212,10 @@ Usage:
 }' # Generate short URL using Bitly
 
 # Generate short URL using is.gd
-alias url-shorten-isgd='() {
+alias url-s-isgd='() {
   echo "Generate short URL using is.gd.
 Usage:
- url-shorten-isgd <url>"
+ url-s-isgd <url>"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -243,10 +243,10 @@ Usage:
 }' # Generate short URL using is.gd
 
 # Generate short URL using v.gd
-alias url-shorten-vgd='() {
+alias url-s-vgd='() {
   echo "Generate short URL using v.gd.
 Usage:
- url-shorten-vgd <url>"
+ url-s-vgd <url>"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -274,10 +274,10 @@ Usage:
 }' # Generate short URL using v.gd
 
 # Generate short URL using shrtco.de
-alias url-shorten-shrtcode='() {
+alias url-s-shrtcode='() {
   echo "Generate short URL using shrtco.de.
 Usage:
- url-shorten-shrtcode <url>"
+ url-s-shrtcode <url>"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -300,10 +300,10 @@ Usage:
 }' # Generate short URL using shrtco.de
 
 # Generate short URL using T2M
-alias url-shorten-t2m='() {
+alias url-s-t2m='() {
   echo "Generate short URL using T2M.
 Usage:
- url-shorten-t2m <url>"
+ url-s-t2m <url>"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -334,10 +334,10 @@ Usage:
 }' # Generate short URL using T2M
 
 # Generate short URL using Rebrandly
-alias url-shorten-rebrandly='() {
+alias url-s-rebrandly='() {
   echo "Generate short URL using Rebrandly.
 Usage:
- url-shorten-rebrandly <url>"
+ url-s-rebrandly <url>"
 
   if [ $# -eq 0 ]; then
     return 1
@@ -577,15 +577,15 @@ alias url-help='() {
   echo "================="
   echo ""
   echo "URL Shortening:"
-  echo "  url-shorten-tinyurl <url>     - Shorten URL using TinyURL"
-  echo "  url-shorten-bitly <url>       - Shorten URL using Bitly (requires BITLY_TOKEN)"
-  echo "  url-shorten-isgd <url>        - Shorten URL using is.gd"
-  echo "  url-shorten-vgd <url>         - Shorten URL using v.gd"
-  echo "  url-shorten-shrtcode <url>    - Shorten URL using shrtco.de"
-  echo "  url-shorten-yourls <url>      - Shorten URL using YOURLS (requires YOURLS_BASE_URL and YOURLS_TOKEN)"
-  echo "  url-shorten-t2m <url>         - Shorten URL using T2M (requires T2M_API_KEY)"
-  echo "  url-shorten-rebrandly <url>   - Shorten URL using Rebrandly (requires REBRANDLY_API_KEY)"
-  echo "  url-shorten-sink <url>        - Shorten URL using sink (requires SINK_BASE_URL and SINK_TOKEN)"
+  echo "  url-s-tinyurl <url>     - Shorten URL using TinyURL"
+  echo "  url-s-bitly <url>       - Shorten URL using Bitly (requires BITLY_TOKEN)"
+  echo "  url-s-isgd <url>        - Shorten URL using is.gd"
+  echo "  url-s-vgd <url>         - Shorten URL using v.gd"
+  echo "  url-s-shrtcode <url>    - Shorten URL using shrtco.de"
+  echo "  url-s-yourls <url>      - Shorten URL using YOURLS (requires YOURLS_BASE_URL and YOURLS_TOKEN)"
+  echo "  url-s-t2m <url>         - Shorten URL using T2M (requires T2M_API_KEY)"
+  echo "  url-s-rebrandly <url>   - Shorten URL using Rebrandly (requires REBRANDLY_API_KEY)"
+  echo "  url-s-sink <url>        - Shorten URL using sink (requires SINK_BASE_URL and SINK_TOKEN)"
   echo ""
   echo "URL Encoding/Decoding:"
   echo "  url-encode <text>             - URL encode a string"
