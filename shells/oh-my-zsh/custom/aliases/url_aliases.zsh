@@ -68,6 +68,61 @@ Usage:
   curl -X POST "$YOURLS_BASE_URL/yourls-api.php" --data "format=json&signature=$YOURLS_TOKEN&action=shorturl&url=$1" | jq .
 }' # Generate short URL using YOURLS
 
+# Helper function: Create short URL via Sink API (POST /api/link/create)
+# Ref: https://github.com/miantiao-me/Sink/blob/master/docs/api.md
+shorten_url_by_sink() {
+  local base_url="$1"
+  local token="$2"
+  local long_url="$3"
+  local custom_slug="${4:-}"
+
+  if ! _url_check_command "curl" || ! _url_check_command "jq"; then
+    return 1
+  fi
+
+  if ! _url_check_connectivity "${base_url}"; then
+    return 1
+  fi
+
+  base_url="${base_url%/}"
+
+  local json_body
+  if [ -n "$custom_slug" ]; then
+    json_body=$(jq -n --arg url "$long_url" --arg slug "$custom_slug" "{url: \$url, slug: \$slug}")
+  else
+    json_body=$(jq -n --arg url "$long_url" "{url: \$url}")
+  fi
+
+  local resp
+  resp=$(curl -s -w "\n%{http_code}" -X POST "${base_url}/api/link/create" \
+    -H "Authorization: Bearer ${token}" \
+    -H "Content-Type: application/json" \
+    -d "${json_body}")
+
+  local http_code
+  http_code=$(echo "$resp" | tail -n1)
+  local body
+  body=$(echo "$resp" | sed '$d')
+
+  if [ "$http_code" != "200" ] && [ "$http_code" != "201" ]; then
+    echo "Error: Sink API request failed (HTTP ${http_code})" >&2
+    if [ -n "$body" ]; then
+      echo "$body" | jq . 2>/dev/null || echo "$body" >&2
+    fi
+    return 1
+  fi
+
+  local short_slug
+  short_slug=$(echo "$body" | jq -r '.link.slug // empty')
+  if [ -z "$short_slug" ]; then
+    echo "Error: Invalid response from Sink API" >&2
+    echo "$body" | jq . 2>/dev/null || echo "$body" >&2
+    return 1
+  fi
+
+  echo "${base_url}/${short_slug}"
+}
+
 # Generate short URL using sink
 alias url-shorten-sink='() {
   echo "Generate short URL using sink.
