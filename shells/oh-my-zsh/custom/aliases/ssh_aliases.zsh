@@ -739,38 +739,38 @@ alias ssh-connect='() {
   echo -e "Connect to a remote host using expect script.\nUsage:\n  ssh-connect [server_id]\nOptions:\n  server_id: Optional server ID to connect directly\n\nEnvironment Variables:"
 
   # Display environment variables with their current values if set
-  echo -n "  TARGET_SERVER_ID: Pre-select a server ID"
-  [[ -n "$TARGET_SERVER_ID" ]] && echo " (current: $TARGET_SERVER_ID)" || echo ""
+  echo -n "  SSHC_CONNECT_SERVER_ID: Pre-select a server ID"
+  [[ -n "$SSHC_CONNECT_SERVER_ID" ]] && echo " (current: $SSHC_CONNECT_SERVER_ID)" || echo ""
 
-  echo -n "  SERVERS_CONFIG: Path to custom servers config file"
-  [[ -n "$SERVERS_CONFIG" ]] && echo " (current: $SERVERS_CONFIG)" || echo ""
+  echo -n "  SSHC_CONNECT_CONFIG: Path to custom servers config file"
+  [[ -n "$SSHC_CONNECT_CONFIG" ]] && echo " (current: $SSHC_CONNECT_CONFIG)" || echo ""
 
-  echo -n "  SSH_TIMEOUT: Connection timeout in seconds"
-  [[ -n "$SSH_TIMEOUT" ]] && echo " (current: $SSH_TIMEOUT)" || echo " (default: 30)"
+  echo -n "  SSHC_CONNECT_TIMEOUT: Connection timeout in seconds"
+  [[ -n "$SSHC_CONNECT_TIMEOUT" ]] && echo " (current: $SSHC_CONNECT_TIMEOUT)" || echo " (default: 30)"
 
-  echo -n "  SSH_MAX_ATTEMPTS: Maximum connection attempts"
-  [[ -n "$SSH_MAX_ATTEMPTS" ]] && echo " (current: $SSH_MAX_ATTEMPTS)" || echo " (default: 3)"
+  echo -n "  SSHC_CONNECT_MAX_ATTEMPTS: Maximum connection attempts"
+  [[ -n "$SSHC_CONNECT_MAX_ATTEMPTS" ]] && echo " (current: $SSHC_CONNECT_MAX_ATTEMPTS)" || echo " (default: 3)"
 
-  echo -n "  SSH_NO_COLOR: Disable colored output if set to any value"
-  [[ -n "$SSH_NO_COLOR" ]] && echo " (current: enabled)" || echo " (default: disabled)"
+  echo -n "  SSHC_CONNECT_NO_COLOR: Disable colored output"
+  [[ -n "$SSHC_CONNECT_NO_COLOR" ]] && echo " (current: $SSHC_CONNECT_NO_COLOR)" || echo " (default: disabled)"
 
-  echo -n "  SSH_KEEP_ALIVE: Enable/disable keep-alive packets"
-  [[ -n "$SSH_KEEP_ALIVE" ]] && echo " (current: $SSH_KEEP_ALIVE)" || echo " (default: 1 - enabled)"
+  echo -n "  SSHC_CONNECT_KEEP_ALIVE: Enable/disable keep-alive packets"
+  [[ -n "$SSHC_CONNECT_KEEP_ALIVE" ]] && echo " (current: $SSHC_CONNECT_KEEP_ALIVE)" || echo " (default: 1)"
 
-  echo -n "  SSH_ALIVE_INTERVAL: Seconds between keep-alive packets"
-  [[ -n "$SSH_ALIVE_INTERVAL" ]] && echo " (current: $SSH_ALIVE_INTERVAL)" || echo " (default: 60)"
+  echo -n "  SSHC_CONNECT_ALIVE_INTERVAL: Seconds between keep-alive packets"
+  [[ -n "$SSHC_CONNECT_ALIVE_INTERVAL" ]] && echo " (current: $SSHC_CONNECT_ALIVE_INTERVAL)" || echo " (default: 60)"
 
-  echo -n "  SSH_ALIVE_COUNT: Maximum missed keep-alive responses before disconnect"
-  [[ -n "$SSH_ALIVE_COUNT" ]] && echo " (current: $SSH_ALIVE_COUNT)" || echo " (default: 3)"
+  echo -n "  SSHC_CONNECT_ALIVE_COUNT: Maximum missed keep-alive responses before disconnect"
+  [[ -n "$SSHC_CONNECT_ALIVE_COUNT" ]] && echo " (current: $SSHC_CONNECT_ALIVE_COUNT)" || echo " (default: 3)"
 
-  echo -n "  SSH_DEFAULT_SHELL: Shell to switch to after login"
-  [[ -n "$SSH_DEFAULT_SHELL" ]] && echo " (current: $SSH_DEFAULT_SHELL)" || echo ""
+  echo -n "  SSHC_CONNECT_DEFAULT_SHELL: Shell to switch to after login"
+  [[ -n "$SSHC_CONNECT_DEFAULT_SHELL" ]] && echo " (current: $SSHC_CONNECT_DEFAULT_SHELL)" || echo ""
 
-  echo -n "  CONNECTION_EXP_EXEC_PATH: Custom path to the expect script"
-  [[ -n "$CONNECTION_EXP_EXEC_PATH" ]] && echo " (current: $CONNECTION_EXP_EXEC_PATH)" || echo " (default: ~/.ssh/ssh_connect.exp)"
+  echo -n "  SSHC_CONNECT_EXP_EXEC_PATH: Custom path to the expect script"
+  [[ -n "$SSHC_CONNECT_EXP_EXEC_PATH" ]] && echo " (current: $SSHC_CONNECT_EXP_EXEC_PATH)" || echo " (default: ~/.ssh/ssh_connect.exp)"
   echo ""
 
-  local connection_exp_exec_path="${CONNECTION_EXP_EXEC_PATH:-$HOME/.ssh/ssh_connect.exp}"
+  local connection_exp_exec_path="${SSHC_CONNECT_EXP_EXEC_PATH:-$HOME/.ssh/ssh_connect.exp}"
 
   # Check if expect script exists, download if not
   if [[ ! -f "$connection_exp_exec_path" ]]; then
@@ -843,25 +843,35 @@ alias sshc='ssh-connect' # Alias for ssh-connect
 # Connect with port forwarding using expect script
 alias ssh-port-forward='() {
   echo -e "Connect to a remote host with port forwarding using expect script.\nUsage:\n  ssh-port-forward [server_id]\nOptions:\n  server_id: Optional server ID to connect directly\n\nEnvironment Variables:"
-  echo -n "  PORT_FORWARD_CONFIG: Custom config file path"
-  [[ -n "$PORT_FORWARD_CONFIG" ]] && echo " (current: $PORT_FORWARD_CONFIG)" || echo " (default: ~/.ssh/port_forward.conf)"
-  echo -n "  SSH_TIMEOUT: Connection timeout in seconds"
-  [[ -n "$SSH_TIMEOUT" ]] && echo " (current: $SSH_TIMEOUT)" || echo " (default: 30)"
-  echo -n "  SSH_MAX_ATTEMPTS: Maximum connection attempts"
-  [[ -n "$SSH_MAX_ATTEMPTS" ]] && echo " (current: $SSH_MAX_ATTEMPTS)" || echo " (default: 3)"
-  echo -n "  SSH_NO_COLOR: Disable colored output if set to any value"
-  [[ -n "$SSH_NO_COLOR" ]] && echo " (current: enabled)" || echo " (default: disabled)"
-  echo -n "  SSH_KEEP_ALIVE: Enable/disable keep-alive packets"
-  [[ -n "$SSH_KEEP_ALIVE" ]] && echo " (current: $SSH_KEEP_ALIVE)" || echo " (default: 1 - enabled)"
-  echo -n "  SSH_ALIVE_INTERVAL: Seconds between keep-alive packets"
-  [[ -n "$SSH_ALIVE_INTERVAL" ]] && echo " (current: $SSH_ALIVE_INTERVAL)" || echo " (default: 60)"
-  echo -n "  SSH_ALIVE_COUNT: Maximum missed keep-alive responses before disconnect"
-  [[ -n "$SSH_ALIVE_COUNT" ]] && echo " (current: $SSH_ALIVE_COUNT)" || echo " (default: 3)"
-  echo -n "  SSH_DEFAULT_SHELL: Shell to switch to after login"
-  [[ -n "$SSH_DEFAULT_SHELL" ]] && echo " (current: $SSH_DEFAULT_SHELL)" || echo ""
+  echo -n "  PORT_FORWARD_EXP_EXEC_PATH: Path to ssh_port_forward.exp (wrapper only; not read by expect)"
+  [[ -n "$PORT_FORWARD_EXP_EXEC_PATH" ]] && echo " (current: $PORT_FORWARD_EXP_EXEC_PATH)" || echo " (default: ~/.ssh/ssh_port_forward.exp)"
+  echo -n "  SSHC_PORT_FORWARD_CONFIG: Port-forward servers config file"
+  [[ -n "$SSHC_PORT_FORWARD_CONFIG" ]] && echo " (current: $SSHC_PORT_FORWARD_CONFIG)" || echo " (default: ~/.ssh/port_forward.conf)"
+  echo -n "  SSHC_PORT_FORWARD_SERVER_ID: Non-interactive server ID (when no argv)"
+  [[ -n "$SSHC_PORT_FORWARD_SERVER_ID" ]] && echo " (current: $SSHC_PORT_FORWARD_SERVER_ID)" || echo ""
+  echo -n "  SSHC_PORT_FORWARD_SERVER_NUMBER: Non-interactive 1-based menu index"
+  [[ -n "$SSHC_PORT_FORWARD_SERVER_NUMBER" ]] && echo " (current: $SSHC_PORT_FORWARD_SERVER_NUMBER)" || echo ""
+  echo -n "  SSHC_PORT_FORWARD_TIMEOUT: Expect global timeout in seconds"
+  [[ -n "$SSHC_PORT_FORWARD_TIMEOUT" ]] && echo " (current: $SSHC_PORT_FORWARD_TIMEOUT)" || echo " (default: 300)"
+  echo -n "  SSHC_PORT_FORWARD_CONNECTION_TIMEOUT: ssh -o ConnectTimeout (seconds)"
+  [[ -n "$SSHC_PORT_FORWARD_CONNECTION_TIMEOUT" ]] && echo " (current: $SSHC_PORT_FORWARD_CONNECTION_TIMEOUT)" || echo " (default: 60)"
+  echo -n "  SSHC_PORT_FORWARD_MAX_ATTEMPTS: Maximum connection attempts"
+  [[ -n "$SSHC_PORT_FORWARD_MAX_ATTEMPTS" ]] && echo " (current: $SSHC_PORT_FORWARD_MAX_ATTEMPTS)" || echo " (default: 5)"
+  echo -n "  SSHC_PORT_FORWARD_NO_COLOR: Disable colored output"
+  [[ -n "$SSHC_PORT_FORWARD_NO_COLOR" ]] && echo " (current: $SSHC_PORT_FORWARD_NO_COLOR)" || echo " (default: disabled)"
+  echo -n "  SSHC_PORT_FORWARD_KEEP_ALIVE: Enable/disable ServerAlive* options"
+  [[ -n "$SSHC_PORT_FORWARD_KEEP_ALIVE" ]] && echo " (current: $SSHC_PORT_FORWARD_KEEP_ALIVE)" || echo " (default: 1)"
+  echo -n "  SSHC_PORT_FORWARD_ALIVE_INTERVAL: ssh -o ServerAliveInterval (seconds)"
+  [[ -n "$SSHC_PORT_FORWARD_ALIVE_INTERVAL" ]] && echo " (current: $SSHC_PORT_FORWARD_ALIVE_INTERVAL)" || echo " (default: 15)"
+  echo -n "  SSHC_PORT_FORWARD_ALIVE_COUNT: ssh -o ServerAliveCountMax"
+  [[ -n "$SSHC_PORT_FORWARD_ALIVE_COUNT" ]] && echo " (current: $SSHC_PORT_FORWARD_ALIVE_COUNT)" || echo " (default: 10)"
+  echo -n "  SSHC_PORT_FORWARD_TCP_KEEP_ALIVE: ssh -o TCPKeepAlive"
+  [[ -n "$SSHC_PORT_FORWARD_TCP_KEEP_ALIVE" ]] && echo " (current: $SSHC_PORT_FORWARD_TCP_KEEP_ALIVE)" || echo " (default: 1)"
+  echo -n "  SSHC_PORT_FORWARD_DEFAULT_SHELL: Shell to switch to after login"
+  [[ -n "$SSHC_PORT_FORWARD_DEFAULT_SHELL" ]] && echo " (current: $SSHC_PORT_FORWARD_DEFAULT_SHELL)" || echo " (default: unset)"
   echo ""
 
-  local port_forward_exp_path="${PORT_FORWARD_CONFIG:-$HOME/.ssh/ssh_port_forward.exp}"
+  local port_forward_exp_path="${PORT_FORWARD_EXP_EXEC_PATH:-$HOME/.ssh/ssh_port_forward.exp}"
 
   # Check if expect script exists
   if [[ ! -f "$port_forward_exp_path" ]]; then
@@ -913,29 +923,35 @@ alias sshpf='ssh-port-forward' # Short alias for ssh-port-forward
 # SSH File Upload Management
 # Upload files to remote servers using expect script
 alias ssh-upload='() {
-  echo -e "Upload files to remote servers using expect script.\nUsage:\n  ssh-upload [server_id] [source_files...]\n  ssh-upload [options] [server_id] [source_files...]\n\nOptions:\n  -s, --server <id>       Specify server by ID or number\n  -m, --method <method>   Upload method: scp, rsync, or sftp (default: scp)\n  -t, --target <path>     Target path on remote server\n  -o, --options <opts>    Extra options for upload method\n  -b, --batch <file>      Batch upload mode with config file\n  -d, --dry-run          Simulate upload without actually transferring\n  -v, --verbose          Verbose output\n  -q, --quiet            Quiet mode (errors only)\n  -h, --help             Show help message\n      --history [n]      Show upload history (last n records)\n      --repeat           Repeat the last successful upload\n      --cleanup [days]   Clean history records older than n days\n\nExamples:\n  ssh-upload                                    # Interactive mode\n  ssh-upload KL.PVE file.txt                    # Upload to KL.PVE\n  ssh-upload -s KL.PVE -m rsync file.txt       # Use rsync\n  ssh-upload -s KL.PVE -t /tmp/ file1 file2    # Custom path\n  ssh-upload --history                          # View history\n  ssh-upload --repeat                           # Repeat last\n\nEnvironment Variables:"
+  echo -e "Upload files to remote servers using expect script.\nUsage:\n  ssh-upload [server_id] [source_files...]\n  ssh-upload [options] [server_id] [source_files...]\n\nOptions:\n  -s, --server <id>       Specify server by ID or number\n  -m, --method <method>   Upload method: scp, rsync, or sftp\n  -t, --target <path>     Target path on remote server\n  -o, --options <opts>    Extra options for upload method\n  -b, --batch <file>      Batch upload mode with config file\n  -d, --dry-run          Simulate upload without actually transferring\n  -v, --verbose          Verbose output\n  -q, --quiet            Quiet mode (errors only)\n  -h, --help             Show help message\n      --history [n]      Show upload history (last n records)\n      --repeat           Repeat the last successful upload\n      --cleanup [days]   Clean history records older than n days\n\nExamples:\n  ssh-upload                                    # Interactive mode\n  ssh-upload KL.PVE file.txt                    # Upload to KL.PVE\n  ssh-upload -s KL.PVE -m rsync file.txt       # Use rsync\n  ssh-upload -s KL.PVE -t /tmp/ file1 file2    # Custom path\n  ssh-upload --history                          # View history\n  ssh-upload --repeat                           # Repeat last\n\nEnvironment Variables:"
 
   # Display environment variables with their current values if set
-  echo -n "  UPLOAD_CONFIG          Config file path"
-  [[ -n "$UPLOAD_CONFIG" ]] && echo " (current: $UPLOAD_CONFIG)" || echo " (default: ~/.ssh/upload.conf)"
+  echo -n "  SSHC_UPLOAD_CONFIG            Config file path"
+  [[ -n "$SSHC_UPLOAD_CONFIG" ]] && echo " (current: $SSHC_UPLOAD_CONFIG)" || echo " (default: ~/.ssh/upload.conf)"
 
-  echo -n "  UPLOAD_METHOD          Default upload method"
-  [[ -n "$UPLOAD_METHOD" ]] && echo " (current: $UPLOAD_METHOD)" || echo " (default: scp)"
+  echo -n "  SSHC_UPLOAD_METHOD            Default upload method"
+  [[ -n "$SSHC_UPLOAD_METHOD" ]] && echo " (current: $SSHC_UPLOAD_METHOD)" || echo ""
 
-  echo -n "  TARGET_PATH            Default target path"
-  [[ -n "$TARGET_PATH" ]] && echo " (current: $TARGET_PATH)" || echo ""
+  echo -n "  SSHC_UPLOAD_TARGET_PATH       Default target path"
+  [[ -n "$SSHC_UPLOAD_TARGET_PATH" ]] && echo " (current: $SSHC_UPLOAD_TARGET_PATH)" || echo ""
 
-  echo -n "  TARGET_SERVER_ID       Server ID for non-interactive mode"
-  [[ -n "$TARGET_SERVER_ID" ]] && echo " (current: $TARGET_SERVER_ID)" || echo ""
+  echo -n "  SSHC_UPLOAD_SERVER_ID         Server ID for non-interactive mode"
+  [[ -n "$SSHC_UPLOAD_SERVER_ID" ]] && echo " (current: $SSHC_UPLOAD_SERVER_ID)" || echo ""
 
-  echo -n "  UPLOAD_TIMEOUT         Timeout in seconds"
-  [[ -n "$UPLOAD_TIMEOUT" ]] && echo " (current: $UPLOAD_TIMEOUT)" || echo " (default: 300)"
+  echo -n "  SSHC_UPLOAD_SERVER_NUMBER     Server number for non-interactive mode"
+  [[ -n "$SSHC_UPLOAD_SERVER_NUMBER" ]] && echo " (current: $SSHC_UPLOAD_SERVER_NUMBER)" || echo ""
 
-  echo -n "  UPLOAD_MAX_ATTEMPTS    Max retry attempts"
-  [[ -n "$UPLOAD_MAX_ATTEMPTS" ]] && echo " (current: $UPLOAD_MAX_ATTEMPTS)" || echo " (default: 3)"
+  echo -n "  SSHC_UPLOAD_TIMEOUT           Timeout in seconds"
+  [[ -n "$SSHC_UPLOAD_TIMEOUT" ]] && echo " (current: $SSHC_UPLOAD_TIMEOUT)" || echo " (default: 300)"
 
-  echo -n "  UPLOAD_NO_COLOR        Disable colored output"
-  [[ -n "$UPLOAD_NO_COLOR" ]] && echo " (current: enabled)" || echo " (default: disabled)"
+  echo -n "  SSHC_UPLOAD_MAX_ATTEMPTS      Max retry attempts"
+  [[ -n "$SSHC_UPLOAD_MAX_ATTEMPTS" ]] && echo " (current: $SSHC_UPLOAD_MAX_ATTEMPTS)" || echo " (default: 3)"
+
+  echo -n "  SSHC_UPLOAD_NO_COLOR          Disable colored output"
+  [[ -n "$SSHC_UPLOAD_NO_COLOR" ]] && echo " (current: $SSHC_UPLOAD_NO_COLOR)" || echo " (default: disabled)"
+
+  echo -n "  SSHC_UPLOAD_HISTORY_FILE      History file path"
+  [[ -n "$SSHC_UPLOAD_HISTORY_FILE" ]] && echo " (current: $SSHC_UPLOAD_HISTORY_FILE)" || echo " (default: ~/.ssh/upload_history.log)"
 
   echo ""
 
@@ -1028,4 +1044,3 @@ alias ssh-help='() {
   echo ""
   echo "For server management functions, use: ssh-srv-help"
 }' # Show help for SSH aliases and functions
-

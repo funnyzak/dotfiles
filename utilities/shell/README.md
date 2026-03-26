@@ -46,29 +46,34 @@ Connect directly to a server by specifying its ID or number:
 ```
 Or use environment variables:
 ```bash
-TARGET_SERVER_ID=web1 ./ssh_connect.exp    # Connect using server ID
-TARGET_SERVER_NUM=3 ./ssh_connect.exp      # Connect using server number (3rd server in list)
+SSHC_CONNECT_SERVER_ID=web1 ./ssh_connect.exp        # Connect using server ID
+SSHC_CONNECT_SERVER_NUMBER=3 ./ssh_connect.exp       # Connect using server number (3rd server in list)
 ```
 
 #### Custom Configuration
 Specify a custom configuration file:
 ```bash
-SERVERS_CONFIG=/path/to/custom.conf ./ssh_connect.exp
+SSHC_CONNECT_CONFIG=/path/to/custom.conf ./ssh_connect.exp
 ```
 
 #### Advanced Options
 Override default timeout and retry attempts:
 ```bash
-SSH_TIMEOUT=60 SSH_MAX_ATTEMPTS=5 ./ssh_connect.exp
+SSHC_CONNECT_TIMEOUT=60 SSHC_CONNECT_MAX_ATTEMPTS=5 ./ssh_connect.exp
 ```
 
 ### Environment Variables
-- **`SERVERS_CONFIG`**: Path to the server configuration file. Default: `servers.conf`.
-- **`TARGET_SERVER_ID`**: Server ID for non-interactive connection. No default.
-- **`TARGET_SERVER_NUM`**: Server number (index) for non-interactive connection. No default.
-- **`SSH_TIMEOUT`**: Connection timeout in seconds. Default: `30`.
-- **`SSH_MAX_ATTEMPTS`**: Maximum number of connection attempts. Default: `3`.
-- **`SSH_DEFAULT_SHELL`**: Shell to switch to after login (e.g., zsh, bash, fish).
+- **`SSHC_CONNECT_CONFIG`**: Path to the server configuration file. Default: `~/.ssh/servers.conf`.
+- **`SSHC_CONNECT_SERVER_ID`**: Server ID for non-interactive connection. No default.
+- **`SSHC_CONNECT_SERVER_NUMBER`**: 1-based server number for non-interactive connection. No default.
+- **`SSHC_CONNECT_TIMEOUT`**: Expect timeout and ssh `ConnectTimeout` in seconds. Default: `30`.
+- **`SSHC_CONNECT_MAX_ATTEMPTS`**: Maximum number of connection attempts. Default: `3`.
+- **`SSHC_CONNECT_KEEP_ALIVE`**: Enable or disable `ServerAlive*` settings. Default: `1`.
+- **`SSHC_CONNECT_ALIVE_INTERVAL`**: Keep-alive interval in seconds. Default: `60`.
+- **`SSHC_CONNECT_ALIVE_COUNT`**: Maximum missed keep-alive responses before disconnect. Default: `3`.
+- **`SSHC_CONNECT_DEFAULT_SHELL`**: Shell to switch to after login (e.g., zsh, bash, fish).
+
+Legacy variables such as `SERVERS_CONFIG`, `TARGET_SERVER_ID`, `TARGET_SERVER_NUM`, and `SSH_*` are still accepted for compatibility.
 
 ### Configuration File
 The script reads server details from a configuration file. See `servers.conf.example` for the format:
@@ -105,7 +110,7 @@ app1,App Server 1,192.168.1.30,2222,admin,key,/home/user/.ssh/app1.key
 3. **Configure Shell**:
    Add these lines to your shell configuration (e.g., `~/.zshrc` or `~/.bashrc`):
    ```bash
-   export SERVERS_CONFIG=~/.servers.conf
+   export SSHC_CONNECT_CONFIG=~/.servers.conf
    alias sshc='~/bin/ssh_connect'
    ```
    Reload your shell:
@@ -176,35 +181,37 @@ Connect directly to a server by specifying its ID or number:
 ```
 Or use environment variables:
 ```bash
-TARGET_SERVER_ID=web1 ./ssh_port_forward.exp    # Connect using server ID
-TARGET_SERVER_NUM=3 ./ssh_port_forward.exp      # Connect using server number (3rd server in list)
+SSHC_PORT_FORWARD_SERVER_ID=web1 ./ssh_port_forward.exp       # Connect using server ID
+SSHC_PORT_FORWARD_SERVER_NUMBER=3 ./ssh_port_forward.exp      # Connect using server number (3rd server in list)
 ```
 
 #### Custom Configuration
 Specify a custom configuration file:
 ```bash
-PORT_FORWARD_CONFIG=/path/to/custom.conf ./ssh_port_forward.exp
+SSHC_PORT_FORWARD_CONFIG=/path/to/custom.conf ./ssh_port_forward.exp
 ```
 
 #### Advanced Options
 Override default timeout and retry attempts:
 ```bash
-SSH_TIMEOUT=60 SSH_MAX_ATTEMPTS=5 ./ssh_port_forward.exp
+SSHC_PORT_FORWARD_TIMEOUT=60 SSHC_PORT_FORWARD_MAX_ATTEMPTS=5 ./ssh_port_forward.exp
 ```
 
 ### Environment Variables
-- **`PORT_FORWARD_CONFIG`**: Path to the port forward configuration file. Default: `~/.ssh/port_forward.conf`
-- **`TARGET_SERVER_ID`**: Server ID for non-interactive connection. No default.
-- **`TARGET_SERVER_NUM`**: Server number (index) for non-interactive connection. No default.
-- **`SSH_TIMEOUT`**: Connection timeout in seconds. Default: `300`
-- **`SSH_CONNECTION_TIMEOUT`**: SSH connection timeout in seconds. Default: `60`
-- **`SSH_MAX_ATTEMPTS`**: Maximum number of connection attempts. Default: `5`
-- **`SSH_NO_COLOR`**: Disable colored output. Default: `0` (enabled)
-- **`SSH_KEEP_ALIVE`**: Enable SSH keep-alive. Default: `1` (enabled)
-- **`SSH_ALIVE_INTERVAL`**: Keep-alive interval in seconds. Default: `15`
-- **`SSH_ALIVE_COUNT`**: Maximum keep-alive count. Default: `10`
-- **`SSH_TCP_KEEP_ALIVE`**: Enable TCP keep-alive. Default: `1` (enabled)
-- **`SSH_DEFAULT_SHELL`**: Shell to switch to after login (e.g., zsh, bash, fish)
+- **`SSHC_PORT_FORWARD_CONFIG`**: Path to the port forward configuration file. Default: `~/.ssh/port_forward.conf`
+- **`SSHC_PORT_FORWARD_SERVER_ID`**: Server ID for non-interactive connection. No default.
+- **`SSHC_PORT_FORWARD_SERVER_NUMBER`**: 1-based server number for non-interactive connection. No default.
+- **`SSHC_PORT_FORWARD_TIMEOUT`**: Expect timeout in seconds. Default: `300`
+- **`SSHC_PORT_FORWARD_CONNECTION_TIMEOUT`**: SSH connection timeout in seconds. Default: `60`
+- **`SSHC_PORT_FORWARD_MAX_ATTEMPTS`**: Maximum number of connection attempts. Default: `5`
+- **`SSHC_PORT_FORWARD_NO_COLOR`**: Disable colored output. Default: `0` (enabled)
+- **`SSHC_PORT_FORWARD_KEEP_ALIVE`**: Enable SSH keep-alive. Default: `1` (enabled)
+- **`SSHC_PORT_FORWARD_ALIVE_INTERVAL`**: Keep-alive interval in seconds. Default: `15`
+- **`SSHC_PORT_FORWARD_ALIVE_COUNT`**: Maximum keep-alive count. Default: `10`
+- **`SSHC_PORT_FORWARD_TCP_KEEP_ALIVE`**: Enable TCP keep-alive. Default: `1` (enabled)
+- **`SSHC_PORT_FORWARD_DEFAULT_SHELL`**: Shell to switch to after login (e.g., zsh, bash, fish)
+
+Legacy variables such as `PORT_FORWARD_CONFIG`, `TARGET_SERVER_ID`, `TARGET_SERVER_NUM`, and `SSH_*` are still accepted for compatibility.
 
 ### Configuration File
 The script reads server details and port mappings from a configuration file. See `port_forward.conf.example` for the format:
@@ -251,7 +258,7 @@ Port mappings follow the format `local_port:remote_port` and support multiple co
 3. **Configure Shell**:
    Add these lines to your shell configuration (e.g., `~/.zshrc` or `~/.bashrc`):
    ```bash
-   export PORT_FORWARD_CONFIG=~/.ssh/port_forward.conf
+   export SSHC_PORT_FORWARD_CONFIG=~/.ssh/port_forward.conf
    alias sshpf='~/bin/ssh_port_forward'
    ```
    Reload your shell:
@@ -685,4 +692,3 @@ The script provides comprehensive backup statistics including:
 - **Compression**: When enabled, creates tar.gz files and removes original SQL files.
 - **Notifications**: Supports both Apprise (universal notification) and Bark (iOS) notification services.
 - **Error Recovery**: Comprehensive error handling with automatic cleanup of failed backup files.
-

@@ -6,42 +6,53 @@
 #              with interactive and command-line modes, history tracking,
 #              and batch upload support.
 # Github: funnyzak
-# Last Updated: January 15, 2025
+# Last Updated: March 26, 2026
 # Version: 1.0.0
 # =========================================================================
 
 # =========================================================================
-# USAGE
+# QUICK START
 # =========================================================================
-#   Interactive mode: ./ssh_upload.exp
-#   Direct upload: ./ssh_upload.exp <server_id> <source1> <source2> ...
-#   With options: ./ssh_upload.exp -s <server_id> -m <method> -t <target> <sources>
+# 1. Prepare config file (default: ~/.ssh/upload.conf):
+#      ID,Name,Host,Port,User,AuthType,AuthValue,DefaultTargetPath,DefaultUploadMethod,ExtraOptions
+#      web1,Web Server,192.168.1.10,22,root,key,~/.ssh/web1.key,/var/www/html,rsync,--delete
 #
-# Examples:
-#   ./ssh_upload.exp                                    # Interactive mode
-#   ./ssh_upload.exp web1 file.txt                      # Upload to web1
-#   ./ssh_upload.exp -s web1 -m rsync file.txt dir/     # Use rsync
-#   ./ssh_upload.exp -s web1 -t /tmp/ file.txt          # Custom target
-#   ./ssh_upload.exp -b batch_tasks.conf                # Batch upload
-#   ./ssh_upload.exp --history                          # View history
-#   ./ssh_upload.exp --repeat                           # Repeat last upload
+# 2. Set restrictive permissions when passwords are stored:
+#      chmod 600 ~/.ssh/upload.conf
 #
-# Environment Variables:
-#   UPLOAD_CONFIG          # Config file path (default: ~/.ssh/upload.conf)
-#   UPLOAD_METHOD          # Default upload method (default: scp)
-#   TARGET_PATH            # Default target path
-#   TARGET_SERVER_ID       # Server ID for non-interactive mode
-#   TARGET_SERVER_NUM      # Server number for non-interactive mode
-#   UPLOAD_TIMEOUT         # Timeout in seconds (default: 300)
-#   UPLOAD_MAX_ATTEMPTS    # Max retry attempts (default: 3)
-#   UPLOAD_NO_COLOR        # Disable colored output
-#   UPLOAD_HISTORY_FILE    # History file path
+# 3. Run:
+#      ./ssh_upload.exp
+#      ./ssh_upload.exp web1 ./dist/app.tar.gz
+#      SSHC_UPLOAD_SERVER_ID=web1 ./ssh_upload.exp --dry-run ./dist/app.tar.gz
+#
+# Configuration precedence:
+#   command line > SSHC_UPLOAD_* > legacy environment variables > server config > defaults
+#
+# Primary environment variables:
+#   SSHC_UPLOAD_CONFIG          Config file path
+#   SSHC_UPLOAD_METHOD          Default upload method: scp/rsync/sftp
+#   SSHC_UPLOAD_TARGET_PATH     Default target path on remote
+#   SSHC_UPLOAD_SERVER_ID       Non-interactive target server ID
+#   SSHC_UPLOAD_SERVER_NUMBER   Non-interactive 1-based server number
+#   SSHC_UPLOAD_TIMEOUT         Expect timeout in seconds
+#   SSHC_UPLOAD_MAX_ATTEMPTS    Maximum retry attempts
+#   SSHC_UPLOAD_NO_COLOR        Disable color output: 1/true/yes/on
+#   SSHC_UPLOAD_HISTORY_FILE    History file path
+#
+# Legacy compatibility still works:
+#   SSH_UPLOAD_*, UPLOAD_*, TARGET_PATH, TARGET_SERVER_ID, TARGET_SERVER_NUM
+#
+# Security notes:
+# - Prefer SSH keys over plaintext passwords in config files.
+# - ExtraOptions are appended as-is to the upload command. Keep them trusted.
+# - History is stored locally. Avoid placing secrets in paths or filenames when
+#   possible.
 
 # =========================================================================
 # COMMAND LINE OPTIONS
 # =========================================================================
 #   -s, --server <id>       Specify server by ID or number
-#   -m, --method <method>   Upload method: scp, rsync, or sftp (default: scp)
+#   -m, --method <method>   Upload method: scp, rsync, or sftp
 #   -t, --target <path>     Target path on remote server
 #   -o, --options <opts>    Extra options for upload method
 #   -b, --batch <file>      Batch upload mode with config file
@@ -93,20 +104,150 @@
 #   app1,,,/data/app.jar,/data/config/
 
 # =========================================================================
+# BOOTSTRAP HELPERS
+# =========================================================================
+
+proc expand_path {path} {
+    if {$path eq ""} {
+        return ""
+    }
+
+    if {$path eq "~"} {
+        return $::env(HOME)
+    }
+
+    if {[string match "~/*" $path]} {
+        return [file join $::env(HOME) [string range $path 2 end]]
+    }
+
+    if {[regexp {^~([^/]+)(/.*)?$} $path -> username suffix]} {
+        if {![regexp {^[A-Za-z0-9._-]+$} $username]} {
+            return $path
+        }
+
+        if {[catch {exec sh -lc "printf '%s' ~$username"} user_home]} {
+            return $path
+        }
+
+        if {$suffix eq ""} {
+            return $user_home
+        }
+
+        return [file join $user_home [string range $suffix 1 end]]
+    }
+
+    return $path
+}
+
+proc get_first_env_value {names default_value} {
+    foreach name $names {
+        if {[info exists ::env($name)]} {
+            set value [string trim $::env($name)]
+            if {$value ne ""} {
+                return $value
+            }
+        }
+    }
+
+    return $default_value
+}
+
+proc get_first_env_int {names default_value {minimum_value ""}} {
+    set value [get_first_env_value $names ""]
+    if {$value eq ""} {
+        return $default_value
+    }
+
+    if {![string is integer -strict $value]} {
+        return $default_value
+    }
+
+    if {$minimum_value ne "" && $value < $minimum_value} {
+        return $default_value
+    }
+
+    return $value
+}
+
+proc get_first_env_bool {names default_value} {
+    set value [string tolower [get_first_env_value $names ""]]
+    if {$value eq ""} {
+        return $default_value
+    }
+
+    switch -- $value {
+        "1" -
+        "true" -
+        "yes" -
+        "on" -
+        "enable" -
+        "enabled" {
+            return 1
+        }
+        "0" -
+        "false" -
+        "no" -
+        "off" -
+        "disable" -
+        "disabled" {
+            return 0
+        }
+    }
+
+    return $default_value
+}
+
+proc has_nonempty_env {names} {
+    foreach name $names {
+        if {[info exists ::env($name)] && [string trim $::env($name)] ne ""} {
+            return 1
+        }
+    }
+
+    return 0
+}
+
+proc normalize_upload_method {method {default_value ""}} {
+    set normalized [string tolower [string trim $method]]
+    if {$normalized eq ""} {
+        return $default_value
+    }
+
+    if {[lsearch -exact {scp rsync sftp} $normalized] == -1} {
+        return $default_value
+    }
+
+    return $normalized
+}
+
+proc path_has_glob {path} {
+    if {[string first "*" $path] >= 0} {
+        return 1
+    }
+    if {[string first "?" $path] >= 0} {
+        return 1
+    }
+    if {[string first {[} $path] >= 0} {
+        return 1
+    }
+    return 0
+}
+
+# =========================================================================
 # SCRIPT CONFIGURATION
 # =========================================================================
 
-# Default configuration values
-set timeout 300
-set max_attempts 3
+set timeout [get_first_env_int [list "SSHC_UPLOAD_TIMEOUT" "SSH_UPLOAD_TIMEOUT" "UPLOAD_TIMEOUT"] 300 1]
+set max_attempts [get_first_env_int [list "SSHC_UPLOAD_MAX_ATTEMPTS" "SSH_UPLOAD_MAX_ATTEMPTS" "UPLOAD_MAX_ATTEMPTS"] 3 1]
 set default_config_path [file join $::env(HOME) ".ssh" "upload.conf"]
 set default_history_path [file join $::env(HOME) ".ssh" "upload_history.log"]
 set default_batch_config [file join $::env(HOME) ".ssh" "batch_upload.conf"]
+set config_file [expand_path [get_first_env_value [list "SSHC_UPLOAD_CONFIG" "SSH_UPLOAD_CONFIG" "UPLOAD_CONFIG"] $default_config_path]]
 
 # Parameter storage array
 array set params {
     server_id      ""
-    upload_method  "scp"
+    upload_method  ""
     target_path    ""
     extra_options  ""
     sources        {}
@@ -122,39 +263,12 @@ array set params {
     stop_on_error  0
 }
 
-# Override with environment variables if set
-if {[info exists ::env(UPLOAD_CONFIG)]} {
-    set config_file $::env(UPLOAD_CONFIG)
-} else {
-    set config_file $default_config_path
-}
-
-if {[info exists ::env(UPLOAD_TIMEOUT)]} {
-    set timeout $::env(UPLOAD_TIMEOUT)
-}
-
-if {[info exists ::env(UPLOAD_MAX_ATTEMPTS)]} {
-    set max_attempts $::env(UPLOAD_MAX_ATTEMPTS)
-}
-
-if {[info exists ::env(UPLOAD_METHOD)]} {
-    set params(upload_method) $::env(UPLOAD_METHOD)
-}
-
-if {[info exists ::env(TARGET_PATH)]} {
-    set params(target_path) $::env(TARGET_PATH)
-}
-
-if {[info exists ::env(TARGET_SERVER_ID)]} {
-    set params(server_id) $::env(TARGET_SERVER_ID)
-}
-
-if {[info exists ::env(TARGET_SERVER_NUM)]} {
-    set params(server_id) $::env(TARGET_SERVER_NUM)
-}
-
 # Color codes for terminal output
-set use_colors [expr {![info exists ::env(UPLOAD_NO_COLOR)]}]
+set no_color [get_first_env_bool [list "SSHC_UPLOAD_NO_COLOR"] -1]
+if {$no_color == -1} {
+    set no_color [expr {[has_nonempty_env [list "SSH_UPLOAD_NO_COLOR" "UPLOAD_NO_COLOR"]] ? 1 : 0}]
+}
+set use_colors [expr {!$no_color}]
 if {$use_colors} {
     set COLOR_RESET "\033\[0m"
     set COLOR_HEADER "\033\[1;36m"
@@ -177,6 +291,13 @@ if {$use_colors} {
     set COLOR_INFO ""
     set COLOR_WARNING ""
     set COLOR_BOLD ""
+}
+
+set params(upload_method) [normalize_upload_method [get_first_env_value [list "SSHC_UPLOAD_METHOD" "SSH_UPLOAD_METHOD" "UPLOAD_METHOD"] ""] ""]
+set params(target_path) [get_first_env_value [list "SSHC_UPLOAD_TARGET_PATH" "SSH_UPLOAD_TARGET_PATH" "TARGET_PATH"] ""]
+set params(server_id) [get_first_env_value [list "SSHC_UPLOAD_SERVER_ID" "SSH_UPLOAD_TARGET_SERVER_ID" "TARGET_SERVER_ID"] ""]
+if {$params(server_id) eq ""} {
+    set params(server_id) [get_first_env_int [list "SSHC_UPLOAD_SERVER_NUMBER" "SSH_UPLOAD_TARGET_SERVER_NUM" "TARGET_SERVER_NUM"] "" 1]
 }
 
 # =========================================================================
@@ -230,22 +351,6 @@ proc print_verbose {text} {
 # =========================================================================
 # HELPER FUNCTIONS - Path and String
 # =========================================================================
-
-# Expand home directory in path (~)
-proc expand_path {path} {
-    global ::env
-
-    if {[string match "~/*" $path]} {
-        return [file join $::env(HOME) [string range $path 2 end]]
-    } elseif {$path eq "~"} {
-        return $::env(HOME)
-    } elseif {[string match "~*/*" $path]} {
-        set username [string range $path 1 [expr {[string first "/" $path] - 1}]]
-        set rest [string range $path [expr {[string first "/" $path] + 1}] end]
-        return "/home/$username/$rest"
-    }
-    return $path
-}
 
 # Trim whitespace from both ends
 proc trim {str} {
@@ -310,7 +415,7 @@ proc load_upload_config {filename} {
 
     if {![file exists $filename]} {
         print_error "Configuration file not found: $filename"
-        print_info "Please create the configuration file or set UPLOAD_CONFIG environment variable"
+        print_info "Please create the configuration file or set SSHC_UPLOAD_CONFIG"
         return $servers
     }
 
@@ -344,6 +449,7 @@ proc load_upload_config {filename} {
         set extra_options [expr {[llength $fields] > 8 ? [trim [lindex $fields 9]] : ""}]
 
         # Handle empty optional fields
+        set default_method [normalize_upload_method $default_method "scp"]
         if {$default_method eq ""} {
             set default_method "scp"
         }
@@ -358,7 +464,7 @@ proc load_upload_config {filename} {
 # Find server by ID or number
 proc find_server_by_id {servers id} {
     # Check if ID is an integer (server number)
-    if {[string is integer $id]} {
+    if {[string is integer -strict $id]} {
         set index [expr {$id - 1}]
         if {$index >= 0 && $index < [llength $servers]} {
             return [lindex $servers $index]
@@ -424,7 +530,7 @@ proc select_server {servers} {
     set choice $expect_out(1,string)
 
     # Process selection
-    if {[string is integer $choice]} {
+    if {[string is integer -strict $choice]} {
         set index [expr {$choice - 1}]
         if {$index >= 0 && $index < [llength $servers]} {
             return [lindex $servers $index]
@@ -453,7 +559,7 @@ proc show_help {} {
     send_user "  ./ssh_upload.exp \[OPTIONS\] \[server_id\] \[source1\] \[source2\] ...\n\n"
     send_user "${COLOR_BOLD}OPTIONS:${COLOR_RESET}\n"
     send_user "  -s, --server <id>       Specify server by ID or number\n"
-    send_user "  -m, --method <method>   Upload method: scp, rsync, or sftp (default: scp)\n"
+    send_user "  -m, --method <method>   Upload method: scp, rsync, or sftp\n"
     send_user "  -t, --target <path>     Target path on remote server\n"
     send_user "  -o, --options <opts>    Extra options for upload method\n"
     send_user "  -b, --batch <file>      Batch upload mode with config file\n"
@@ -473,13 +579,15 @@ proc show_help {} {
     send_user "  ./ssh_upload.exp --history                          # View history\n"
     send_user "  ./ssh_upload.exp --repeat                           # Repeat last\n\n"
     send_user "${COLOR_BOLD}ENVIRONMENT VARIABLES:${COLOR_RESET}\n"
-    send_user "  UPLOAD_CONFIG          Config file path (default: ~/.ssh/upload.conf)\n"
-    send_user "  UPLOAD_METHOD          Default upload method\n"
-    send_user "  TARGET_PATH            Default target path\n"
-    send_user "  TARGET_SERVER_ID       Server ID for non-interactive mode\n"
-    send_user "  UPLOAD_TIMEOUT         Timeout in seconds\n"
-    send_user "  UPLOAD_MAX_ATTEMPTS    Max retry attempts\n"
-    send_user "  UPLOAD_NO_COLOR        Disable colored output\n"
+    send_user "  SSHC_UPLOAD_CONFIG          Config file path (default: ~/.ssh/upload.conf)\n"
+    send_user "  SSHC_UPLOAD_METHOD          Default upload method\n"
+    send_user "  SSHC_UPLOAD_TARGET_PATH     Default target path on remote\n"
+    send_user "  SSHC_UPLOAD_SERVER_ID       Server ID for non-interactive mode\n"
+    send_user "  SSHC_UPLOAD_SERVER_NUMBER   1-based server number for non-interactive mode\n"
+    send_user "  SSHC_UPLOAD_TIMEOUT         Timeout in seconds\n"
+    send_user "  SSHC_UPLOAD_MAX_ATTEMPTS    Max retry attempts\n"
+    send_user "  SSHC_UPLOAD_NO_COLOR        Disable colored output\n"
+    send_user "  SSHC_UPLOAD_HISTORY_FILE    History file path\n"
 }
 
 # Parse command line arguments
@@ -500,11 +608,12 @@ proc parse_command_line_args {argv} {
             "-m" - "--method" {
                 incr i
                 if {$i < [llength $argv]} {
-                    set method [lindex $argv $i]
-                    if {[lsearch {scp rsync sftp} $method] != -1} {
-                        set params(upload_method) $method
+                    set raw_method [lindex $argv $i]
+                    set method [normalize_upload_method $raw_method ""]
+                    if {$method eq ""} {
+                        print_error "Invalid method: $raw_method (must be scp, rsync, or sftp)"
                     } else {
-                        print_error "Invalid method: $method (must be scp, rsync, or sftp)"
+                        set params(upload_method) $method
                     }
                 }
             }
@@ -543,7 +652,7 @@ proc parse_command_line_args {argv} {
             "--history" {
                 set params(show_history) 1
                 # Check if next argument is a number
-                if {$i + 1 < [llength $argv] && [string is integer [lindex $argv [expr {$i + 1}]]]} {
+                if {$i + 1 < [llength $argv] && [string is integer -strict [lindex $argv [expr {$i + 1}]]]} {
                     incr i
                     set params(history_limit) [lindex $argv $i]
                 }
@@ -553,7 +662,7 @@ proc parse_command_line_args {argv} {
             }
             "--cleanup" {
                 # Check if next argument is a number
-                if {$i + 1 < [llength $argv] && [string is integer [lindex $argv [expr {$i + 1}]]]} {
+                if {$i + 1 < [llength $argv] && [string is integer -strict [lindex $argv [expr {$i + 1}]]]} {
                     incr i
                     set params(cleanup_days) [lindex $argv $i]
                 } else {
@@ -585,15 +694,20 @@ proc parse_command_line_args {argv} {
 
 # Get history file path
 proc get_history_file {} {
-    if {[info exists ::env(UPLOAD_HISTORY_FILE)]} {
-        return $::env(UPLOAD_HISTORY_FILE)
+    return [expand_path [get_first_env_value [list "SSHC_UPLOAD_HISTORY_FILE" "SSH_UPLOAD_HISTORY_FILE" "UPLOAD_HISTORY_FILE"] $::default_history_path]]
+}
+
+proc ensure_parent_directory {path} {
+    set parent_dir [file dirname $path]
+    if {$parent_dir ne "" && ![file exists $parent_dir]} {
+        file mkdir $parent_dir
     }
-    return $::default_history_path
 }
 
 # Add history record
 proc add_history_record {record} {
     set history_file [get_history_file]
+    ensure_parent_directory $history_file
     set fp [open $history_file a]
     puts $fp $record
     close $fp
@@ -778,6 +892,7 @@ proc execute_batch_upload {tasks servers} {
     set success 0
     set failed 0
     set results {}
+    set default_extra_options $::params(extra_options)
 
     print_info "Batch Upload: $total tasks"
     send_user "=================================\n\n"
@@ -802,7 +917,7 @@ proc execute_batch_upload {tasks servers} {
 
         # Merge task parameters with server config
         if {$method ne ""} {
-            set params(upload_method) $method
+            set params(upload_method) [normalize_upload_method $method "scp"]
         } else {
             set params(upload_method) [lindex $server 8]
         }
@@ -811,6 +926,12 @@ proc execute_batch_upload {tasks servers} {
             set params(target_path) $target
         } else {
             set params(target_path) [lindex $server 7]
+        }
+
+        if {$default_extra_options ne ""} {
+            set params(extra_options) $default_extra_options
+        } else {
+            set params(extra_options) [lindex $server 9]
         }
 
         set params(sources) $sources
@@ -967,7 +1088,6 @@ proc upload_via_scp {server sources target} {
     }
 
     lappend scp_cmd -o "StrictHostKeyChecking=no"
-    lappend scp_cmd -o "UserKnownHostsFile=/dev/null"
     lappend scp_cmd -o "ConnectTimeout=30"
 
     if {$::params(verbose)} {
@@ -976,7 +1096,16 @@ proc upload_via_scp {server sources target} {
 
     if {$auth eq "key"} {
         lappend scp_cmd -o "PubkeyAuthentication=yes"
+        lappend scp_cmd -o "IdentitiesOnly=yes"
         lappend scp_cmd -i $value
+    }
+
+    if {$::params(extra_options) ne ""} {
+        foreach opt [split $::params(extra_options) " "] {
+            if {$opt ne ""} {
+                lappend scp_cmd $opt
+            }
+        }
     }
 
     # Add recursive option for directories
@@ -1008,7 +1137,7 @@ proc upload_via_scp {server sources target} {
     while {$attempt <= $max_attempts} {
         print_info "Uploading to $id ($host) - Attempt $attempt/$max_attempts"
 
-        eval spawn $scp_cmd
+        spawn {*}$scp_cmd
 
         expect {
             "yes/no" {
@@ -1087,7 +1216,6 @@ proc upload_via_rsync {server sources target} {
         lappend ssh_opts -p $port
     }
     lappend ssh_opts -o StrictHostKeyChecking=no
-    lappend ssh_opts -o UserKnownHostsFile=/dev/null
     lappend ssh_opts -o ConnectTimeout=30
 
     if {$auth eq "key"} {
@@ -1222,12 +1350,20 @@ proc upload_via_sftp {server sources target} {
     }
 
     lappend sftp_cmd -o "StrictHostKeyChecking=no"
-    lappend sftp_cmd -o "UserKnownHostsFile=/dev/null"
     lappend sftp_cmd -o "ConnectTimeout=30"
 
     if {$auth eq "key"} {
         lappend sftp_cmd -o "PubkeyAuthentication=yes"
+        lappend sftp_cmd -o "IdentitiesOnly=yes"
         lappend sftp_cmd -i $value
+    }
+
+    if {$::params(extra_options) ne ""} {
+        foreach opt [split $::params(extra_options) " "] {
+            if {$opt ne ""} {
+                lappend sftp_cmd $opt
+            }
+        }
     }
 
     lappend sftp_cmd "${user}@${host}"
@@ -1245,7 +1381,7 @@ proc upload_via_sftp {server sources target} {
     while {$attempt <= $max_attempts} {
         print_info "Uploading to $id ($host) - Attempt $attempt/$max_attempts"
 
-        eval spawn $sftp_cmd
+        spawn {*}$sftp_cmd
 
         set uploaded 0
 
@@ -1368,7 +1504,7 @@ if {$params(repeat_last)} {
 
     # Parse last record (simplified)
     set params(server_id) [regsub {.*"server":"([^"]*)".*} $last_record {\1}]
-    set params(upload_method) [regsub {.*"method":"([^"]*)".*} $last_record {\1}]
+    set params(upload_method) [normalize_upload_method [regsub {.*"method":"([^"]*)".*} $last_record {\1}] ""]
     set params(target_path) [regsub {.*"target":"([^"]*)".*} $last_record {\1}]
 
     # Parse sources (simplified)
@@ -1426,20 +1562,24 @@ set server_user [lindex $selected_server 4]
 set server_auth [lindex $selected_server 5]
 set server_auth_value [lindex $selected_server 6]
 set server_default_target [lindex $selected_server 7]
-set server_default_method [lindex $selected_server 8]
+set server_default_method [normalize_upload_method [lindex $selected_server 8] "scp"]
 set server_extra_options [lindex $selected_server 9]
 
-# Merge parameters (command line > server config > script default)
-if {$params(upload_method) eq "scp"} {
-    set upload_method $server_default_method
-} else {
+# Merge parameters (command line/env > server config > script default)
+if {$params(upload_method) ne ""} {
     set upload_method $params(upload_method)
+} else {
+    set upload_method $server_default_method
 }
 
 if {$params(target_path) eq ""} {
     set target_path $server_default_target
 } else {
     set target_path $params(target_path)
+}
+
+if {$params(extra_options) eq ""} {
+    set params(extra_options) $server_extra_options
 }
 
 # Prompt for source paths if not provided
@@ -1465,14 +1605,20 @@ if {[llength $params(sources)] == 0} {
 set valid_sources {}
 foreach source $params(sources) {
     # Expand wildcards
-    if {[string match "*" $source] || [string match "*\**" $source]} {
+    if {[path_has_glob $source]} {
+        set matched_count 0
         if {[catch {
-            foreach matched [glob $source] {
+            foreach matched [glob -nocomplain -- $source] {
                 if {[file exists $matched]} {
                     lappend valid_sources $matched
+                    incr matched_count
                 }
             }
         } err]} {
+            print_warning "No files found matching: $source"
+        }
+
+        if {$matched_count == 0} {
             print_warning "No files found matching: $source"
         }
     } else {
@@ -1493,13 +1639,13 @@ set params(sources) $valid_sources
 
 # Prompt for target path if not set
 if {$target_path eq ""} {
-    send_user "\nEnter target path on server (default: ~/$server_user): "
+    send_user "\nEnter target path on server (default: ~): "
     expect_user -re "(.*)\n"
     set input [string trim $expect_out(1,string)]
     if {$input ne ""} {
         set target_path $input
     } else {
-        set target_path "~/$server_user"
+        set target_path "~"
     }
 }
 

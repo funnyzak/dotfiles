@@ -2,7 +2,7 @@
 # SSH Upload Configuration File
 # =========================================================================
 # Description: Server configuration for ssh_upload.exp script
-# Location: ~/.ssh/upload.conf (or set UPLOAD_CONFIG environment variable)
+# Location: ~/.ssh/upload.conf (or set SSHC_UPLOAD_CONFIG environment variable)
 #
 # Format: ID,Name,Host,Port,User,AuthType,AuthValue,DefaultTargetPath,DefaultUploadMethod,ExtraOptions
 #
@@ -98,7 +98,9 @@ prod1,Production Server,192.168.1.60,22,deploy,key,~/.ssh/prod.key,/var/www/prod
 #    ./ssh_upload.exp -s web1 -t /tmp/ /local/file.txt
 #
 # 3. Use environment variables:
-#    export UPLOAD_CONFIG=/path/to/upload.conf
+#    export SSHC_UPLOAD_CONFIG=/path/to/upload.conf
+#    export SSHC_UPLOAD_SERVER_ID=web1
+#    export SSHC_UPLOAD_METHOD=rsync
 #    ./ssh_upload.exp
 #
 # =========================================================================

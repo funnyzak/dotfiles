@@ -1,4 +1,8 @@
-# Port Forward Configuration File
+# SSH Port Forward Configuration File
+# Location: ~/.ssh/port_forward.conf
+# Used by: ssh_port_forward.exp
+# Override with: SSHC_PORT_FORWARD_CONFIG=/path/to/port_forward.conf
+#
 # Format: ID,Name,Host,Port,User,AuthType,AuthValue,PortMapping1,PortMapping2,...
 # - ID: Unique identifier for the server
 # - Name: Descriptive name of the server
@@ -10,14 +14,16 @@
 # - PortMappings: Multiple port mapping fields in format "local_port:remote_port"
 #   Each port mapping should be in a separate field, or combined in one field separated by commas
 
-# Environment variables for timeout configuration:
-# SSH_TIMEOUT=300             # Expect timeout (default: 300 seconds)
-# SSH_CONNECTION_TIMEOUT=60   # SSH connection timeout (default: 60 seconds)
-# SSH_MAX_ATTEMPTS=5          # Maximum retry attempts (default: 5)
-# SSH_KEEP_ALIVE=1            # Enable keep-alive (default: 1)
-# SSH_ALIVE_INTERVAL=15       # Keep-alive interval (default: 15 seconds)
-# SSH_ALIVE_COUNT=10          # Keep-alive count (default: 10)
-# SSH_TCP_KEEP_ALIVE=1        # Enable TCP keep-alive (default: 1)
+# Useful environment variables:
+# SSHC_PORT_FORWARD_SERVER_ID=web1
+# SSHC_PORT_FORWARD_SERVER_NUMBER=2
+# SSHC_PORT_FORWARD_TIMEOUT=300
+# SSHC_PORT_FORWARD_CONNECTION_TIMEOUT=60
+# SSHC_PORT_FORWARD_MAX_ATTEMPTS=5
+# SSHC_PORT_FORWARD_KEEP_ALIVE=1
+# SSHC_PORT_FORWARD_ALIVE_INTERVAL=15
+# SSHC_PORT_FORWARD_ALIVE_COUNT=10
+# SSHC_PORT_FORWARD_TCP_KEEP_ALIVE=1
 
 # Example entries with multiple port mappings:
 

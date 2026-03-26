@@ -3,79 +3,179 @@
 # =========================================================================
 # SSH Connection Script
 # Description: A versatile SSH connection tool supporting multiple servers
-#              with key or password authentication, featuring keep-alive mechanism.
+#              with key or password authentication, featuring keep-alive
+#              settings and both interactive/non-interactive selection.
 # Github: funnyzak
-# Last Updated: March 29, 2025
+# Last Updated: March 26, 2026
 # =========================================================================
 
 # =========================================================================
-# USAGE
+# QUICK START
 # =========================================================================
-#   Interactive mode: ./ssh_connect.exp
-#   Non-interactive mode (by ID): ./ssh_connect.exp <server_id>
-#   Non-interactive mode (by number): ./ssh_connect.exp <number>
-#   Non-interactive mode (env): TARGET_SERVER_ID=<server_id> ./ssh_connect.exp
-#   Non-interactive mode (env number): TARGET_SERVER_NUM=<number> ./ssh_connect.exp
+# 1. Prepare config file (default: ~/.ssh/servers.conf):
+#      ID,Name,Host,Port,User,AuthType,AuthValue
+#      web1,Web Server,192.168.1.10,22,root,key,~/.ssh/web1.key
+#      db1,Database Server,192.168.1.20,22,root,password,StrongPassword
 #
-# Examples:
-#   ./ssh_connect.exp                    # Start in interactive mode
-#   ./ssh_connect.exp web1               # Connect directly to server with ID 'web1'
-#   ./ssh_connect.exp 2                  # Connect directly to the second server in the list
-#   TARGET_SERVER_ID=db1 ./ssh_connect.exp   # Connect to db1 using env variable
-#   TARGET_SERVER_NUM=3 ./ssh_connect.exp    # Connect to the third server in the list
-#   SSH_ALIVE_INTERVAL=120 ./ssh_connect.exp # Custom keep-alive interval
-#   SSH_DEFAULT_SHELL=zsh ./ssh_connect.exp  # Switch to zsh upon login
-
-# =========================================================================
-# ENVIRONMENT VARIABLES
-# =========================================================================
-#   SERVERS_CONFIG: Path to the servers configuration file (default: servers.conf)
-#   TARGET_SERVER_ID: Server ID for non-interactive connection
-#   TARGET_SERVER_NUM: Server number (index) for non-interactive connection
-#   SSH_TIMEOUT: Connection timeout in seconds (default: 30)
-#   SSH_MAX_ATTEMPTS: Maximum connection attempts (default: 3)
-#   SSH_NO_COLOR: Disable colored output if set to any value
-#   SSH_KEEP_ALIVE: Enable/disable keep-alive packets (default: 1 - enabled)
-#   SSH_ALIVE_INTERVAL: Seconds between keep-alive packets (default: 60)
-#   SSH_ALIVE_COUNT: Maximum missed keep-alive responses before disconnect (default: 3)
-#   SSH_DEFAULT_SHELL: Shell to switch to after login (e.g., zsh, bash, fish)
-
-# =========================================================================
-# CONFIGURATION FILE FORMAT
-# =========================================================================
-#   ID,Name,Host,Port,User,AuthType,AuthValue
-#   - ID: Unique identifier for the server
-#   - Name: Descriptive name of the server
-#   - Host: IP address or hostname
-#   - Port: SSH port number
-#   - User: SSH username
-#   - AuthType: 'key' or 'password'
-#   - AuthValue: Path to key file or password
+# 2. Set restrictive permissions when passwords or private key paths are stored:
+#      chmod 600 ~/.ssh/servers.conf
 #
-# Example Configuration (servers.conf):
-#   # ID,Name,Host,Port,User,AuthType,AuthValue
-#   web1,Web Server 1,192.168.1.10,22,root,key,/home/user/.ssh/web1.key
-#   db1,Database Server 1,192.168.1.20,22,root,password,securepass123
-#   app1,App Server 1,192.168.1.30,2222,admin,key,~/app1.key
+# 3. Run:
+#      ./ssh_connect.exp
+#      ./ssh_connect.exp web1
+#      SSHC_CONNECT_SERVER_ID=web1 ./ssh_connect.exp
+#
+# Configuration precedence:
+#   command line > SSHC_CONNECT_* > legacy environment variables > defaults
+#
+# Primary environment variables:
+#   SSHC_CONNECT_CONFIG            Config file path (default: ~/.ssh/servers.conf)
+#   SSHC_CONNECT_SERVER_ID         Non-interactive target server ID
+#   SSHC_CONNECT_SERVER_NUMBER     Non-interactive 1-based server number
+#   SSHC_CONNECT_TIMEOUT           Expect timeout / ssh ConnectTimeout in seconds
+#   SSHC_CONNECT_MAX_ATTEMPTS      Maximum retry attempts
+#   SSHC_CONNECT_NO_COLOR          Disable color output: 1/true/yes/on
+#   SSHC_CONNECT_KEEP_ALIVE        Enable ServerAlive* options: 1/0
+#   SSHC_CONNECT_ALIVE_INTERVAL    ServerAliveInterval seconds
+#   SSHC_CONNECT_ALIVE_COUNT       ServerAliveCountMax value
+#   SSHC_CONNECT_DEFAULT_SHELL     Shell to exec after login, e.g. zsh
+#
+# Legacy compatibility still works:
+#   SERVERS_CONFIG, TARGET_SERVER_ID, TARGET_SERVER_NUM,
+#   SSH_TIMEOUT, SSH_MAX_ATTEMPTS, SSH_NO_COLOR, SSH_KEEP_ALIVE,
+#   SSH_ALIVE_INTERVAL, SSH_ALIVE_COUNT, SSH_DEFAULT_SHELL
+
+# =========================================================================
+# SECURITY NOTES
+# =========================================================================
+# - Prefer key authentication over plaintext passwords in config files.
+# - This script keeps the existing convenience behavior of auto-accepting host
+#   keys. Use only in environments you trust.
+# - ~/.ssh/servers.conf should be readable only by the current user.
+
+# =========================================================================
+# BOOTSTRAP HELPERS
+# =========================================================================
+
+# Expand home directory in path (~ / ~user)
+proc expand_path {path} {
+    if {$path eq ""} {
+        return ""
+    }
+
+    if {$path eq "~"} {
+        return $::env(HOME)
+    }
+
+    if {[string match "~/*" $path]} {
+        return [file join $::env(HOME) [string range $path 2 end]]
+    }
+
+    if {[regexp {^~([^/]+)(/.*)?$} $path -> username suffix]} {
+        if {![regexp {^[A-Za-z0-9._-]+$} $username]} {
+            return $path
+        }
+
+        if {[catch {exec sh -lc "printf '%s' ~$username"} user_home]} {
+            return $path
+        }
+
+        if {$suffix eq ""} {
+            return $user_home
+        }
+
+        return [file join $user_home [string range $suffix 1 end]]
+    }
+
+    return $path
+}
+
+proc get_first_env_value {names default_value} {
+    foreach name $names {
+        if {[info exists ::env($name)]} {
+            set value [string trim $::env($name)]
+            if {$value ne ""} {
+                return $value
+            }
+        }
+    }
+
+    return $default_value
+}
+
+proc get_first_env_int {names default_value {minimum_value ""}} {
+    set value [get_first_env_value $names ""]
+    if {$value eq ""} {
+        return $default_value
+    }
+
+    if {![string is integer -strict $value]} {
+        return $default_value
+    }
+
+    if {$minimum_value ne "" && $value < $minimum_value} {
+        return $default_value
+    }
+
+    return $value
+}
+
+proc get_first_env_bool {names default_value} {
+    set value [string tolower [get_first_env_value $names ""]]
+    if {$value eq ""} {
+        return $default_value
+    }
+
+    switch -- $value {
+        "1" -
+        "true" -
+        "yes" -
+        "on" -
+        "enable" -
+        "enabled" {
+            return 1
+        }
+        "0" -
+        "false" -
+        "no" -
+        "off" -
+        "disable" -
+        "disabled" {
+            return 0
+        }
+    }
+
+    return $default_value
+}
+
+proc has_nonempty_env {names} {
+    foreach name $names {
+        if {[info exists ::env($name)] && [string trim $::env($name)] ne ""} {
+            return 1
+        }
+    }
+
+    return 0
+}
 
 # =========================================================================
 # SCRIPT CONFIGURATION
 # =========================================================================
 
-# Default connection parameters
-set timeout [expr {[info exists ::env(SSH_TIMEOUT)] ? $::env(SSH_TIMEOUT) : 30}]
-set max_attempts [expr {[info exists ::env(SSH_MAX_ATTEMPTS)] ? $::env(SSH_MAX_ATTEMPTS) : 3}]
 set default_config_path [file join $::env(HOME) ".ssh" "servers.conf"]
-set config_file [expr {[info exists ::env(SERVERS_CONFIG)] ? $::env(SERVERS_CONFIG) : $default_config_path}]
-set use_colors [expr {![info exists ::env(SSH_NO_COLOR)]}]
+set config_file [expand_path [get_first_env_value [list "SSHC_CONNECT_CONFIG" "SERVERS_CONFIG"] $default_config_path]]
+set timeout [get_first_env_int [list "SSHC_CONNECT_TIMEOUT" "SSH_TIMEOUT"] 30 1]
+set max_attempts [get_first_env_int [list "SSHC_CONNECT_MAX_ATTEMPTS" "SSH_MAX_ATTEMPTS"] 3 1]
+set keep_alive [get_first_env_bool [list "SSHC_CONNECT_KEEP_ALIVE" "SSH_KEEP_ALIVE"] 1]
+set alive_interval [get_first_env_int [list "SSHC_CONNECT_ALIVE_INTERVAL" "SSH_ALIVE_INTERVAL"] 60 1]
+set alive_count [get_first_env_int [list "SSHC_CONNECT_ALIVE_COUNT" "SSH_ALIVE_COUNT"] 3 1]
+set default_shell [get_first_env_value [list "SSHC_CONNECT_DEFAULT_SHELL" "SSH_DEFAULT_SHELL"] ""]
 
-# Keep-alive parameters
-set keep_alive [expr {[info exists ::env(SSH_KEEP_ALIVE)] ? $::env(SSH_KEEP_ALIVE) : 1}]
-set alive_interval [expr {[info exists ::env(SSH_ALIVE_INTERVAL)] ? $::env(SSH_ALIVE_INTERVAL) : 60}]
-set alive_count [expr {[info exists ::env(SSH_ALIVE_COUNT)] ? $::env(SSH_ALIVE_COUNT) : 3}]
-
-# Default shell setting
-set default_shell [expr {[info exists ::env(SSH_DEFAULT_SHELL)] ? $::env(SSH_DEFAULT_SHELL) : ""}]
+set no_color [get_first_env_bool [list "SSHC_CONNECT_NO_COLOR"] -1]
+if {$no_color == -1} {
+    set no_color [expr {[has_nonempty_env [list "SSH_NO_COLOR"]] ? 1 : 0}]
+}
+set use_colors [expr {!$no_color}]
 
 # Color codes for terminal output
 if {$use_colors} {
@@ -106,36 +206,15 @@ if {$use_colors} {
 # HELPER FUNCTIONS
 # =========================================================================
 
-# Expand home directory in path (~)
-# This function handles path expansion for key file paths
-proc expand_path {path} {
-    global ::env
-
-    if {[string match "~/*" $path]} {
-        # Handle ~/path format
-        return [file join $::env(HOME) [string range $path 2 end]]
-    } elseif {$path eq "~"} {
-        # Handle ~ by itself
-        return $::env(HOME)
-    } elseif {[string match "~*/*" $path]} {
-        # Handle ~user/path format
-        set username [string range $path 1 [expr {[string first "/" $path] - 1}]]
-        set rest [string range $path [expr {[string first "/" $path] + 1}] end]
-        # Note: This is a simplified approach. For full implementation,
-        # you would need to use platform-specific methods to get user home directories.
-        return "/home/$username/$rest"
-    }
-    return $path
-}
-
 # Load server configurations from the specified file
 # Returns a list of server configurations
 proc load_servers {filename} {
-    global COLOR_ERROR COLOR_RESET
+    global COLOR_ERROR COLOR_INFO COLOR_RESET
 
     set servers {}
     if {![file exists $filename]} {
         send_user "${COLOR_ERROR}Error: Configuration file '$filename' does not exist${COLOR_RESET}\n"
+        send_user "${COLOR_INFO}Hint: set SSHC_CONNECT_CONFIG to use a custom config file${COLOR_RESET}\n"
         exit 1
     }
 
@@ -161,7 +240,7 @@ proc load_servers {filename} {
 # Returns the server config or empty string if not found
 proc find_server_by_id {servers id} {
     # Check if ID is an integer (server number)
-    if {[string is integer $id]} {
+    if {[string is integer -strict $id]} {
         set index [expr {$id - 1}]
         if {$index >= 0 && $index < [llength $servers]} {
             return [lindex $servers $index]
@@ -180,7 +259,7 @@ proc find_server_by_id {servers id} {
 # Display server selection menu and get user choice
 # Returns the selected server configuration
 proc select_server {servers} {
-    global COLOR_HEADER COLOR_ID COLOR_HOST COLOR_NAME COLOR_RESET COLOR_INFO
+    global COLOR_ERROR COLOR_HEADER COLOR_ID COLOR_HOST COLOR_NAME COLOR_RESET COLOR_INFO
 
     send_user "\n${COLOR_HEADER}Available Servers:${COLOR_RESET}\n"
     send_user "${COLOR_HEADER}#   ID\tName\t\tHost\t\tPort\tUser${COLOR_RESET}\n"
@@ -206,7 +285,7 @@ proc select_server {servers} {
     set choice $expect_out(1,string)
 
     # Process selection - either as a number or ID
-    if {[string is integer $choice]} {
+    if {[string is integer -strict $choice]} {
         set index [expr {$choice - 1}]
         if {$index >= 0 && $index < [llength $servers]} {
             return [lindex $servers $index]
@@ -250,6 +329,7 @@ proc connect_ssh {server_info} {
         # Build SSH command with proper argument list
         set ssh_cmd [list ssh -p $port]
         lappend ssh_cmd -o "StrictHostKeyChecking=no"
+        lappend ssh_cmd -o "ConnectTimeout=$timeout"
 
         # Add keep-alive options if enabled
         if {$keep_alive} {
@@ -260,6 +340,7 @@ proc connect_ssh {server_info} {
         # Add authentication options
         if {$auth eq "key"} {
             lappend ssh_cmd -o "PubkeyAuthentication=yes"
+            lappend ssh_cmd -o "IdentitiesOnly=yes"
             lappend ssh_cmd -i $value
         }
 
@@ -267,7 +348,7 @@ proc connect_ssh {server_info} {
         lappend ssh_cmd "$user@$host"
 
         # Launch SSH with the constructed command
-        eval spawn $ssh_cmd
+        spawn {*}$ssh_cmd
 
         # Handle different SSH connection scenarios
         expect {
@@ -358,32 +439,21 @@ send_user "${COLOR_INFO}Loading server configurations...${COLOR_RESET}\n"
 set servers [load_servers $config_file]
 
 # Check for command-line argument or environment variable for server ID
+set target_id ""
 if {[llength $argv] > 0} {
     set target_id [lindex $argv 0]
-} elseif {[info exists ::env(TARGET_SERVER_ID)]} {
-    set target_id $::env(TARGET_SERVER_ID)
+} else {
+    set target_id [get_first_env_value [list "SSHC_CONNECT_SERVER_ID" "TARGET_SERVER_ID"] ""]
+    if {$target_id eq ""} {
+        set target_id [get_first_env_int [list "SSHC_CONNECT_SERVER_NUMBER" "TARGET_SERVER_NUM"] "" 1]
+    }
 }
 
 # Select server either automatically by ID or interactively
-if {[info exists target_id]} {
+if {$target_id ne ""} {
     set selected_server [find_server_by_id $servers $target_id]
     if {$selected_server eq ""} {
         send_user "${COLOR_ERROR}Error: No server found with ID or number '$target_id'${COLOR_RESET}\n"
-        exit 1
-    }
-} elseif {[info exists ::env(TARGET_SERVER_NUM)] && [string is integer $::env(TARGET_SERVER_NUM)]} {
-    # Support for numeric server selection via environment variable
-    set num $::env(TARGET_SERVER_NUM)
-    set selected_server [find_server_by_id $servers $num]
-    if {$selected_server eq ""} {
-        send_user "${COLOR_ERROR}Error: Invalid server number '$num'${COLOR_RESET}\n"
-        exit 1
-    }
-} elseif {[info exists ::env(TARGET_SERVER_ID)]} {
-    set target_id $::env(TARGET_SERVER_ID)
-    set selected_server [find_server_by_id $servers $target_id]
-    if {$selected_server eq ""} {
-        send_user "${COLOR_ERROR}Error: No server found with ID '$target_id'${COLOR_RESET}\n"
         exit 1
     }
 } else {

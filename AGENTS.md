@@ -1,4 +1,4 @@
-# CLAUDE.md - 开发指导
+# AGENTS.md - 开发指导
 
 ## 核心原则
 
