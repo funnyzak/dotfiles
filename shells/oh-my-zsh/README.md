@@ -30,6 +30,7 @@ The `custom/aliases/` directory contains a collection of alias files for various
 
 - `archive_aliases.zsh`: Shortcuts for compression and extraction operations
 - `brew_aliases.zsh`: Homebrew-related command aliases
+- `upload_aliases.zsh`: File upload helpers, including `upload-catbox`, `upload-litterbox`, `upload-freeimage`, and `upload-imgloc` for public file/image hosting
 
 To add new aliases, create a `.zsh` file in the `~/.oh-my-zsh/custom/aliases/` directory and add it to the `install_omz_aliases.sh` script for management.
 
