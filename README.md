@@ -57,6 +57,7 @@ dotfiles/
 
 ### Shell Configurations
 - **Oh My Zsh**: Comprehensive setup with custom aliases, plugins, and themes
+- **Web Aliases**: Unified `web-*` toolkit for HTTP, DNS, SSL, QR, encoding, and local server diagnostics
 - **Zsh**: Minimal configuration for lightweight environments
 - **SSH Configuration Helper**: Multi-server SSH management tool
 

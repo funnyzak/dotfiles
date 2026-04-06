@@ -32,6 +32,7 @@ The Oh My Zsh configuration provides a comprehensive setup for the Zsh shell wit
 - **Custom Aliases** (`oh-my-zsh/custom/aliases/`): A collection of aliases for various tasks and tools.
   - `archive_aliases.zsh`: Shortcuts for compression and extraction operations
   - `brew_aliases.zsh`: Homebrew-related command aliases
+  - `text_aliases.zsh`: Unified `txt-*` helpers for deduplication, case conversion, line numbering, whitespace cleanup, EOL normalization, and quick text stats
   - Add new aliases by creating `.zsh` files in the `~/.oh-my-zsh/custom/aliases/` directory
 
 - **Custom Functions** (`oh-my-zsh/custom/custom_functions.zsh`): Utility functions for common tasks.

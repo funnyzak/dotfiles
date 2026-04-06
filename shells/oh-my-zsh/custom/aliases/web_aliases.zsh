@@ -1,729 +1,1183 @@
-# Description: Web related aliases for common web tasks and utilities
+# Description: Web utilities for HTTP checks, encoding, QR, DNS, SSL, local serving and related diagnostics. Use `web-help` for more information.
 
-alias qr='() {
-  echo "Generate QR code from a string."
-  echo "Usage:"
-  echo "  qr <string_to_encode>"
+# Helper functions for web aliases
+_show_error_web_aliases() {
+  echo "$1" >&2
+  return 1
+}
 
-  if [ -z "$1" ]; then
-    echo "Error: No input string provided." >&2
-    echo "Usage: qr <string_to_encode>" >&2
+_show_usage_web_aliases() {
+  echo -e "$1"
+  return 0
+}
+
+_maybe_show_help_web_aliases() {
+  local arg_value="$1"
+  local usage_text="$2"
+
+  if [ "$arg_value" = "-h" ] || [ "$arg_value" = "--help" ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 0
+  fi
+
+  return 1
+}
+
+_check_command_web_aliases() {
+  local command_name="$1"
+
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    _show_error_web_aliases "Error: Required command \"$command_name\" not found. Please install it first."
     return 1
   fi
 
-  # Check if qrencode is installed
-  if ! command -v qrencode &> /dev/null; then
-    echo "Error: qrencode is not installed." >&2
-    echo "Please install it using your system package manager:" >&2
-    echo "  - macOS: brew install qrencode" >&2
-    echo "  - Ubuntu/Debian: sudo apt-get install qrencode" >&2
-    return 1
-  fi
+  return 0
+}
 
-  qrencode -t UTF8 "$1"
-}' # Generate QR code from a string
+_validate_positive_integer_web_aliases() {
+  local value_text="$1"
+  local label_text="${2:-value}"
 
-alias qrdecode='() {
-  echo "Decode a QR code from an image file."
-  echo "Usage:"
-  echo "  qrdecode <image_file>"
-
-  if [ -z "$1" ]; then
-    echo "Error: No input image file provided." >&2
-    echo "Usage: qrdecode <image_file>" >&2
-    return 1
-  fi
-
-  # Check if zbarimg is installed
-  if ! command -v zbarimg &> /dev/null; then
-    echo "Error: zbarimg is not installed." >&2
-    echo "Please install it using your system package manager:" >&2
-    echo "  - macOS: brew install zbar" >&2
-    echo "  - Ubuntu/Debian: sudo apt-get install zbar-tools" >&2
-    return 1
-  fi
-
-  zbarimg "$1"
-}' # Decode a QR code from an image file
-
-alias urlencode='() {
-  echo "Encode a string to URL format."
-  echo "Usage:"
-  echo "  urlencode <string_to_encode>"
-
-  if [ -z "$1" ]; then
-    echo "Error: No input string provided." >&2
-    echo "Usage: urlencode <string_to_encode>" >&2
-    return 1
-  fi
-
-  # Check if curl is installed
-  if ! command -v curl &> /dev/null; then
-    echo "Error: curl is not installed." >&2
-    echo "Please install it using your system package manager:" >&2
-    echo "  - macOS: brew install curl" >&2
-    echo "  - Ubuntu/Debian: sudo apt-get install curl" >&2
-    return 1
-  fi
-
-  # Encode the string using curl"s URL encoding feature
-  local encoded_string=$(curl -s -G --data-urlencode "$1" "" | sed "s/.*=//")
-  echo "$encoded_string"
-}' # Encode a string to URL format
-
-alias urldecode='() {
-  echo "Decode a URL encoded string."
-  echo "Usage:"
-  echo "  urldecode <url_encoded_string>"
-
-  if [ -z "$1" ]; then
-    echo "Error: No input string provided." >&2
-    echo "Usage: urldecode <url_encoded_string>" >&2
-    return 1
-  fi
-
-  # Check if curl is installed
-  if ! command -v curl &> /dev/null; then
-    echo "Error: curl is not installed." >&2
-    echo "Please install it using your system package manager:" >&2
-    echo "  - macOS: brew install curl" >&2
-    echo "  - Ubuntu/Debian: sudo apt-get install curl" >&2
-    return 1
-  fi
-
-  # Decode the string using curl"s URL decoding feature
-  local decoded_string=$(echo "$1" | sed "s/%/\\x/g" | xargs -0 printf "%b")
-  echo "$decoded_string"
-}' # Decode a URL encoded string
-
-alias b64urlencode='() {
-  echo "Encode a string to base64 URL format."
-  echo "Usage:"
-  echo "  b64urlencode <string_to_encode>"
-
-  if [ -z "$1" ]; then
-    echo "Error: No input string provided." >&2
-    echo "Usage: b64urlencode <string_to_encode>" >&2
-    return 1
-  fi
-
-  # Check if base64 is installed
-  if ! command -v base64 &> /dev/null; then
-    echo "Error: base64 command not found." >&2
-    echo "It should be available by default on most systems." >&2
-    return 1
-  fi
-
-  # Encode the string to base64 and replace '+' with '-' and '/' with '_'
-  local encoded_string=$(echo -n "$1" | base64 | tr '+/' '-_' | tr -d '=')
-  echo "$encoded_string"
-}' # Encode a string to base64 URL format
-
-alias b64decode='() {
-  echo "Decode a base64 encoded string."
-  echo "Usage:"
-  echo "  b64decode <base64_encoded_string>"
-
-  if [ -z "$1" ]; then
-    echo "Error: No input string provided." >&2
-    echo "Usage: b64decode <base64_encoded_string>" >&2
-    return 1
-  fi
-
-  # Check if base64 is installed
-  if ! command -v base64 &> /dev/null; then
-    echo "Error: base64 command not found." >&2
-    echo "It should be available by default on most systems." >&2
-    return 1
-  fi
-
-  echo "$1" | base64 --decode
-}' # Decode a base64 encoded string
-
-alias b64encode='() {
-  echo "Encode a string to base64."
-  echo "Usage:"
-  echo "  b64encode <string_to_encode>"
-
-  if [ -z "$1" ]; then
-    echo "Error: No input string provided." >&2
-    echo "Usage: b64encode <string_to_encode>" >&2
-    return 1
-  fi
-
-  # Check if base64 is installed
-  if ! command -v base64 &> /dev/null; then
-    echo "Error: base64 command not found." >&2
-    echo "It should be available by default on most systems." >&2
-    return 1
-  fi
-
-  echo "$1" | base64
-}' # Encode a string to base64
-
-alias speedtest='() {
-  echo "Test internet connection speed."
-  echo "Usage:"
-  echo "  speedtest"
-
-  # Check for required tools
-  if ! command -v curl &> /dev/null; then
-    echo "Error: curl is not installed." >&2
-    echo "Please install curl using your system package manager:" >&2
-    echo "  - macOS: brew install curl" >&2
-    echo "  - Ubuntu/Debian: sudo apt-get install curl" >&2
-    return 1
-  fi
-
-  if command -v speedtest-cli &> /dev/null; then
-    echo "Running internet speed test using speedtest-cli..."
-    speedtest-cli
-    return $?
-  elif command -v python3 &> /dev/null; then
-    echo "Running internet speed test using speedtest-cli script with Python 3..."
-    curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python3 -
-    return $?
-  elif command -v python &> /dev/null; then
-    echo "Running internet speed test using speedtest-cli script with Python..."
-    curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python -
-    return $?
-  else
-    echo "Error: Neither speedtest-cli nor python is installed." >&2
-    echo "Please install either:" >&2
-    echo "  - speedtest-cli: pip install speedtest-cli" >&2
-    echo "  - python: using your system package manager" >&2
-    return 1
-  fi
-}' # Test internet connection speed
-
-alias http-server='() {
-  echo "Start a simple HTTP server on specified port."
-  echo "Usage:"
-  echo "  http-server [port:8080]"
-
-  local port="${1:-8080}"
-
-  # Validate port number
-  if ! [[ "$port" =~ ^[0-9]+$ ]]; then
-    echo "Error: Invalid port number: $port" >&2
-    echo "Port must be a positive number." >&2
-    return 1
-  fi
-
-  if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
-    echo "Error: Port number out of range: $port" >&2
-    echo "Port must be between 1 and 65535." >&2
-    return 1
-  fi
-
-  echo "Starting HTTP server on http://localhost:$port"
-
-  # Try different methods to start an HTTP server
-  if command -v python3 &> /dev/null; then
-    python3 -m http.server "$port"
-    local status=$?
-    if [ $status -ne 0 ]; then
-      echo "Error: Failed to start HTTP server with python3." >&2
-      return $status
-    fi
-  elif command -v python &> /dev/null; then
-    # Try Python 3 module first, fall back to Python 2 if needed
-    python -m http.server "$port" 2>/dev/null || python -m SimpleHTTPServer "$port"
-    local status=$?
-    if [ $status -ne 0 ]; then
-      echo "Error: Failed to start HTTP server with python." >&2
-      return $status
-    fi
-  elif command -v npx &> /dev/null; then
-    echo "Using Node.js http-server..."
-    npx http-server -p "$port"
-    local status=$?
-    if [ $status -ne 0 ]; then
-      echo "Error: Failed to start HTTP server with npx." >&2
-      return $status
-    fi
-  else
-    echo "Error: No suitable HTTP server found." >&2
-    echo "Please install one of the following:" >&2
-    echo "  - Python: using your system package manager" >&2
-    echo "  - Node.js http-server: npm install -g http-server" >&2
-    return 1
-  fi
-}' # Start a simple HTTP server
-
-# ============================================
-# IP and Network Utilities
-# ============================================
-
-alias myip='() {
-  echo "Get your public IP address."
-  echo "Usage:"
-  echo "  myip"
-
-  if ! command -v curl &> /dev/null; then
-    echo "Error: curl is not installed." >&2
-    return 1
-  fi
-
-  echo "Fetching public IP address..."
-  local ip=$(curl -s https://api.ipify.org)
-  if [ -z "$ip" ]; then
-    echo "Error: Failed to retrieve public IP address." >&2
-    return 1
-  fi
-  echo "Public IP: $ip"
-}' # Get your public IP address
-
-alias localip='() {
-  echo "Get your local IP address."
-  echo "Usage:"
-  echo "  localip"
-
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    local ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
-    if [ -z "$ip" ]; then
-      echo "Error: Could not determine local IP address." >&2
+  case "$value_text" in
+    ""|*[!0-9]*)
+      _show_error_web_aliases "Error: $label_text must be a positive integer."
       return 1
-    fi
-    echo "Local IP: $ip"
-  else
-    # Linux
-    local ip=$(hostname -I 2>/dev/null | awk "{print \$1}")
-    if [ -z "$ip" ]; then
-      echo "Error: Could not determine local IP address." >&2
-      return 1
-    fi
-    echo "Local IP: $ip"
-  fi
-}' # Get your local IP address
+      ;;
+  esac
 
-alias ports='() {
-  echo "List all open ports and listening services."
-  echo "Usage:"
-  echo "  ports"
-
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    echo "Open ports and listening services:"
-    sudo lsof -iTCP -sTCP:LISTEN -n -P
-  else
-    # Linux
-    if command -v netstat &> /dev/null; then
-      netstat -tuln
-    elif command -v ss &> /dev/null; then
-      ss -tuln
-    else
-      echo "Error: Neither netstat nor ss is installed." >&2
-      return 1
-    fi
-  fi
-}' # List all open ports
-
-alias whois-ip='() {
-  echo "Get WHOIS information for an IP address or domain."
-  echo "Usage:"
-  echo "  whois-ip <ip_or_domain>"
-
-  if [ -z "$1" ]; then
-    echo "Error: No IP address or domain provided." >&2
-    echo "Usage: whois-ip <ip_or_domain>" >&2
+  if [ "$value_text" -le 0 ]; then
+    _show_error_web_aliases "Error: $label_text must be greater than 0."
     return 1
   fi
 
-  if ! command -v whois &> /dev/null; then
-    echo "Error: whois is not installed." >&2
-    echo "Install it using: brew install whois (macOS) or apt-get install whois (Linux)" >&2
+  return 0
+}
+
+_validate_port_web_aliases() {
+  local port_value="$1"
+
+  if ! _validate_positive_integer_web_aliases "$port_value" "Port"; then
+    return 1
+  fi
+
+  if [ "$port_value" -gt 65535 ]; then
+    _show_error_web_aliases "Error: Port must be between 1 and 65535."
+    return 1
+  fi
+
+  return 0
+}
+
+_validate_url_web_aliases() {
+  local url_value="$1"
+
+  case "$url_value" in
+    http://*|https://*)
+      return 0
+      ;;
+    *)
+      _show_error_web_aliases "Error: URL must start with http:// or https://"
+      return 1
+      ;;
+  esac
+}
+
+_read_input_web_aliases() {
+  if [ $# -gt 0 ]; then
+    printf "%s" "$*"
+    return 0
+  fi
+
+  if [ ! -t 0 ]; then
+    cat
+    return 0
+  fi
+
+  return 1
+}
+
+_is_json_web_aliases() {
+  local json_input="$1"
+
+  if command -v jq >/dev/null 2>&1; then
+    printf "%s" "$json_input" | jq . >/dev/null 2>&1
+    return $?
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    printf "%s" "$json_input" | python3 -m json.tool >/dev/null 2>&1
+    return $?
+  fi
+
+  return 1
+}
+
+_validate_json_web_aliases() {
+  local json_input="$1"
+
+  if _is_json_web_aliases "$json_input"; then
+    return 0
+  fi
+
+  _show_error_web_aliases "Error: Invalid JSON payload."
+  return 1
+}
+
+_format_json_web_aliases() {
+  local json_input="$1"
+
+  if command -v jq >/dev/null 2>&1; then
+    printf "%s" "$json_input" | jq .
+    return $?
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    printf "%s" "$json_input" | python3 -m json.tool
+    return $?
+  fi
+
+  _show_error_web_aliases "Error: JSON formatting requires jq or python3."
+  return 1
+}
+
+_minify_json_web_aliases() {
+  local json_input="$1"
+
+  if command -v jq >/dev/null 2>&1; then
+    printf "%s" "$json_input" | jq -c .
+    return $?
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    printf "%s" "$json_input" | python3 -c "import json, sys; print(json.dumps(json.load(sys.stdin), separators=(\",\", \":\")))"
+    return $?
+  fi
+
+  _show_error_web_aliases "Error: JSON minify requires jq or python3."
+  return 1
+}
+
+_print_response_web_aliases() {
+  local response_body="$1"
+
+  if _is_json_web_aliases "$response_body"; then
+    _format_json_web_aliases "$response_body"
+    return $?
+  fi
+
+  printf "%s\n" "$response_body"
+  return 0
+}
+
+_decode_base64_web_aliases() {
+  local encoded_value="$1"
+
+  if printf "%s" "$encoded_value" | base64 --decode >/dev/null 2>&1; then
+    printf "%s" "$encoded_value" | base64 --decode
+    return $?
+  fi
+
+  if printf "%s" "$encoded_value" | base64 -D >/dev/null 2>&1; then
+    printf "%s" "$encoded_value" | base64 -D
+    return $?
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c "import base64, sys
+data = sys.argv[1].strip()
+padding = \"=\" * (-len(data) % 4)
+for decoder in (base64.b64decode, base64.urlsafe_b64decode):
+    try:
+        sys.stdout.write(decoder((data + padding).encode()).decode(\"utf-8\", \"replace\"))
+        raise SystemExit(0)
+    except Exception:
+        pass
+raise SystemExit(1)" "$encoded_value"
+    return $?
+  fi
+
+  _show_error_web_aliases "Error: Failed to decode base64 data."
+  return 1
+}
+
+_encode_base64url_web_aliases() {
+  local raw_value="$1"
+
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c "import base64, sys; sys.stdout.write(base64.urlsafe_b64encode(sys.argv[1].encode()).decode().rstrip(\"=\"))" "$raw_value"
+    return $?
+  fi
+
+  printf "%s" "$raw_value" | base64 | tr -d "\r\n=" | tr "+/" "-_"
+  return $?
+}
+
+_encode_url_web_aliases() {
+  local raw_value="$1"
+
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c "import sys, urllib.parse; sys.stdout.write(urllib.parse.quote(sys.argv[1], safe=\"\"))" "$raw_value"
+    return $?
+  fi
+
+  if command -v perl >/dev/null 2>&1; then
+    perl -MURI::Escape -e "print uri_escape(\$ARGV[0])" "$raw_value"
+    return $?
+  fi
+
+  _show_error_web_aliases "Error: URL encoding requires python3 or perl."
+  return 1
+}
+
+_decode_url_web_aliases() {
+  local raw_value="$1"
+
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c "import sys, urllib.parse; sys.stdout.write(urllib.parse.unquote(sys.argv[1]))" "$raw_value"
+    return $?
+  fi
+
+  if command -v perl >/dev/null 2>&1; then
+    perl -MURI::Escape -e "print uri_unescape(\$ARGV[0])" "$raw_value"
+    return $?
+  fi
+
+  _show_error_web_aliases "Error: URL decoding requires python3 or perl."
+  return 1
+}
+
+_decode_jwt_segment_web_aliases() {
+  local token_part="$1"
+
+  if ! _check_command_web_aliases python3; then
+    return 1
+  fi
+
+  python3 -c "import base64, sys
+part = sys.argv[1].strip()
+padding = \"=\" * (-len(part) % 4)
+decoded = base64.urlsafe_b64decode((part + padding).encode())
+sys.stdout.write(decoded.decode(\"utf-8\", \"replace\"))" "$token_part"
+  return $?
+}
+
+_get_public_ip_web_aliases() {
+  local ip_value=""
+  local service_url=""
+
+  for service_url in "https://api.ipify.org" "https://ifconfig.me/ip" "https://ipinfo.io/ip"; do
+    ip_value=$(curl -fsSL --max-time 10 "$service_url" 2>/dev/null | tr -d "\r\n")
+    if [ -n "$ip_value" ]; then
+      printf "%s\n" "$ip_value"
+      return 0
+    fi
+  done
+
+  _show_error_web_aliases "Error: Failed to retrieve public IP address from all configured services."
+  return 1
+}
+
+_get_local_ip_web_aliases() {
+  local interface_name=""
+  local ip_value=""
+
+  case "$OSTYPE" in
+    darwin*)
+      interface_name=$(route -n get default 2>/dev/null | awk "/interface: / { print \$2; exit }")
+      if [ -n "$interface_name" ]; then
+        ip_value=$(ipconfig getifaddr "$interface_name" 2>/dev/null)
+      fi
+      if [ -z "$ip_value" ]; then
+        ip_value=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
+      fi
+      ;;
+    *)
+      ip_value=$(hostname -I 2>/dev/null | awk "{ print \$1 }")
+      if [ -z "$ip_value" ] && command -v ip >/dev/null 2>&1; then
+        ip_value=$(ip route get 1.1.1.1 2>/dev/null | awk "{ for (i = 1; i <= NF; i++) if (\$i == \"src\") { print \$(i + 1); exit } }")
+      fi
+      ;;
+  esac
+
+  if [ -z "$ip_value" ]; then
+    _show_error_web_aliases "Error: Failed to determine local IP address."
+    return 1
+  fi
+
+  printf "%s\n" "$ip_value"
+  return 0
+}
+
+_start_http_server_web_aliases() {
+  local port_value="$1"
+  local root_value="${2:-.}"
+
+  if [ ! -d "$root_value" ]; then
+    _show_error_web_aliases "Error: Directory not found: $root_value"
+    return 1
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    cd "$root_value" || return 1
+    python3 -m http.server "$port_value"
+    return $?
+  fi
+
+  if command -v ruby >/dev/null 2>&1; then
+    cd "$root_value" || return 1
+    ruby -run -e httpd . -p "$port_value"
+    return $?
+  fi
+
+  if command -v busybox >/dev/null 2>&1; then
+    cd "$root_value" || return 1
+    busybox httpd -f -p "$port_value" -h "."
+    return $?
+  fi
+
+  if command -v http-server >/dev/null 2>&1; then
+    cd "$root_value" || return 1
+    command http-server -p "$port_value"
+    return $?
+  fi
+
+  _show_error_web_aliases "Error: No supported local HTTP server found. Install python3, ruby, busybox, or http-server."
+  return 1
+}
+
+_extract_links_web_aliases() {
+  local page_url="$1"
+
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c "import sys
+from html.parser import HTMLParser
+from urllib.parse import urljoin
+
+class LinkParser(HTMLParser):
+    def __init__(self, base_url):
+        super().__init__()
+        self.base_url = base_url
+        self.links = set()
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() != \"a\":
+            return
+        for name, value in attrs:
+            if name.lower() == \"href\" and value:
+                self.links.add(urljoin(self.base_url, value))
+
+parser = LinkParser(sys.argv[1])
+parser.feed(sys.stdin.read())
+
+for link in sorted(parser.links):
+    print(link)" "$page_url"
+    return $?
+  fi
+
+  grep -oE "href=\\\"[^\\\"]+\\\"" | sed -E "s/^href=\\\"//; s/\\\"$//" | sort -u
+  return $?
+}
+
+# HTTP and local server aliases
+alias web-serve='() {
+  local usage_text="Start a local HTTP server.\nUsage:\n web-serve [port:8000] [directory:.]\nExamples:\n web-serve\n web-serve 9000\n web-serve 9000 ./dist"
+  local port_value="${1:-8000}"
+  local root_value="${2:-.}"
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if ! _validate_port_web_aliases "$port_value"; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  echo "Serving \"$root_value\" at http://127.0.0.1:$port_value"
+  _start_http_server_web_aliases "$port_value" "$root_value"
+}' # Start a local HTTP server
+
+alias web-speed='() {
+  local usage_text="Run an internet speed test.\nUsage:\n web-speed [tool_options]\nNotes:\n Prefers official speedtest CLI, then speedtest-cli."
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if command -v speedtest >/dev/null 2>&1; then
+    command speedtest --accept-license --accept-gdpr "$@"
+    return $?
+  fi
+
+  if command -v speedtest-cli >/dev/null 2>&1; then
+    command speedtest-cli "$@"
+    return $?
+  fi
+
+  _show_error_web_aliases "Error: No speed test CLI found. Install Ookla speedtest or speedtest-cli."
+  echo "Install examples:" >&2
+  echo "  macOS: brew install speedtest-cli" >&2
+  echo "  Linux: pip install speedtest-cli" >&2
+  return 1
+}' # Run an internet speed test
+
+alias web-ip='() {
+  local usage_text="Show the current public IP address.\nUsage:\n web-ip"
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if ! _check_command_web_aliases curl; then
+    return 1
+  fi
+
+  _get_public_ip_web_aliases
+}' # Show the current public IP address
+
+alias web-ip-local='() {
+  local usage_text="Show the current local IP address.\nUsage:\n web-ip-local"
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  _get_local_ip_web_aliases
+}' # Show the current local IP address
+
+alias web-ports='() {
+  local usage_text="List local listening TCP ports.\nUsage:\n web-ports"
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  case "$OSTYPE" in
+    darwin*)
+      if ! _check_command_web_aliases lsof; then
+        return 1
+      fi
+      lsof -nP -iTCP -sTCP:LISTEN
+      return $?
+      ;;
+    *)
+      if command -v ss >/dev/null 2>&1; then
+        ss -lntp
+        return $?
+      fi
+      if command -v lsof >/dev/null 2>&1; then
+        lsof -nP -iTCP -sTCP:LISTEN
+        return $?
+      fi
+      _show_error_web_aliases "Error: No supported port inspection tool found. Install ss or lsof."
+      return 1
+      ;;
+  esac
+}' # List local listening TCP ports
+
+alias web-whois='() {
+  local usage_text="Run WHOIS for a domain or IP.\nUsage:\n web-whois <domain_or_ip>\nExample:\n web-whois example.com"
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  if ! _check_command_web_aliases whois; then
     return 1
   fi
 
   whois "$1"
-}' # Get WHOIS information
+}' # Run WHOIS for a domain or IP
 
-# ============================================
-# HTTP Testing and Debugging
-# ============================================
+alias web-code='() {
+  local usage_text="Show the final HTTP status code for a URL.\nUsage:\n web-code <url>\nExample:\n web-code https://example.com"
 
-alias httpcode='() {
-  echo "Get HTTP status code for a URL."
-  echo "Usage:"
-  echo "  httpcode <url>"
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
 
-  if [ -z "$1" ]; then
-    echo "Error: No URL provided." >&2
-    echo "Usage: httpcode <url>" >&2
+  if [ $# -eq 0 ] || ! _validate_url_web_aliases "$1"; then
+    _show_usage_web_aliases "$usage_text"
     return 1
   fi
 
-  if ! command -v curl &> /dev/null; then
-    echo "Error: curl is not installed." >&2
+  if ! _check_command_web_aliases curl; then
     return 1
   fi
 
-  local code=$(curl -o /dev/null -s -w "%{http_code}" "$1")
-  echo "HTTP Status Code: $code"
-}' # Get HTTP status code
+  curl -sS -L -o /dev/null -w "%{http_code}\n" "$1"
+}' # Show the final HTTP status code for a URL
 
-alias headers='() {
-  echo "Get HTTP headers for a URL."
-  echo "Usage:"
-  echo "  headers <url>"
+alias web-head='() {
+  local usage_text="Show response headers for a URL.\nUsage:\n web-head <url>\nExample:\n web-head https://example.com"
 
-  if [ -z "$1" ]; then
-    echo "Error: No URL provided." >&2
-    echo "Usage: headers <url>" >&2
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ] || ! _validate_url_web_aliases "$1"; then
+    _show_usage_web_aliases "$usage_text"
     return 1
   fi
 
-  if ! command -v curl &> /dev/null; then
-    echo "Error: curl is not installed." >&2
+  if ! _check_command_web_aliases curl; then
     return 1
   fi
 
-  curl -I "$1"
-}' # Get HTTP headers
+  curl -sS -L -D - -o /dev/null "$1"
+}' # Show response headers for a URL
 
-alias curl-time='() {
-  echo "Measure request timing for a URL."
-  echo "Usage:"
-  echo "  curl-time <url>"
+alias web-time='() {
+  local usage_text="Measure request timing for a URL.\nUsage:\n web-time <url>\nExample:\n web-time https://example.com"
 
-  if [ -z "$1" ]; then
-    echo "Error: No URL provided." >&2
-    echo "Usage: curl-time <url>" >&2
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ] || ! _validate_url_web_aliases "$1"; then
+    _show_usage_web_aliases "$usage_text"
     return 1
   fi
 
-  if ! command -v curl &> /dev/null; then
-    echo "Error: curl is not installed." >&2
+  if ! _check_command_web_aliases curl; then
     return 1
   fi
 
-  curl -o /dev/null -s -w "DNS Lookup: %{time_namelookup}s\nTCP Connection: %{time_connect}s\nTLS Handshake: %{time_appconnect}s\nServer Processing: %{time_starttransfer}s\nTotal Time: %{time_total}s\n" "$1"
-}' # Measure request timing
+  curl -sS -L -o /dev/null -w "DNS Lookup: %{time_namelookup}s\nTCP Connect: %{time_connect}s\nTLS Handshake: %{time_appconnect}s\nTTFB: %{time_starttransfer}s\nTotal: %{time_total}s\n" "$1"
+}' # Measure request timing for a URL
 
-alias postjson='() {
-  echo "POST JSON data to a URL."
-  echo "Usage:"
-  echo "  postjson <url> <json_data>"
+alias web-check='() {
+  local usage_text="Show a compact HTTP summary for a URL.\nUsage:\n web-check <url>\nExample:\n web-check https://example.com"
 
-  if [ -z "$1" ] || [ -z "$2" ]; then
-    echo "Error: Missing arguments." >&2
-    echo "Usage: postjson <url> <json_data>" >&2
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ] || ! _validate_url_web_aliases "$1"; then
+    _show_usage_web_aliases "$usage_text"
     return 1
   fi
 
-  if ! command -v curl &> /dev/null; then
-    echo "Error: curl is not installed." >&2
+  if ! _check_command_web_aliases curl; then
     return 1
   fi
 
-  curl -X POST -H "Content-Type: application/json" -d "$2" "$1"
-}' # POST JSON data
+  curl -sS -L -o /dev/null -w "Final URL: %{url_effective}\nHTTP Code: %{http_code}\nRemote IP: %{remote_ip}\nScheme: %{scheme}\nRedirects: %{num_redirects}\nContent-Type: %{content_type}\nDownloaded: %{size_download} bytes\nTotal Time: %{time_total}s\n" "$1"
+}' # Show a compact HTTP summary for a URL
 
-# ============================================
-# JSON and Data Utilities
-# ============================================
+alias web-post='() {
+  local usage_text="Send JSON via HTTP POST and pretty print the response when possible.\nUsage:\n web-post <url> <json_data>\nExamples:\n web-post https://example.com/api \"{\\\"ping\\\":true}\""
+  local url_value="$1"
+  local json_value="$2"
+  local response_body=""
 
-alias jsonformat='() {
-  echo "Format/prettify JSON data."
-  echo "Usage:"
-  echo "  jsonformat <json_string>"
-  echo "  echo <json_string> | jsonformat"
-
-  if [ -n "$1" ]; then
-    echo "$1" | python3 -m json.tool
-  else
-    python3 -m json.tool
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
   fi
-}' # Format JSON data
 
-alias jsonminify='() {
-  echo "Minify JSON data."
-  echo "Usage:"
-  echo "  jsonminify <json_string>"
-  echo "  echo <json_string> | jsonminify"
-
-  if [ -n "$1" ]; then
-    echo "$1" | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin),separators=(",",":")))"
-  else
-    python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin),separators=(",",":")))"
-  fi
-}' # Minify JSON data
-
-alias jwtdecode='() {
-  echo "Decode a JWT token (header and payload only)."
-  echo "Usage:"
-  echo "  jwtdecode <jwt_token>"
-
-  if [ -z "$1" ]; then
-    echo "Error: No JWT token provided." >&2
-    echo "Usage: jwtdecode <jwt_token>" >&2
+  if [ $# -lt 2 ] || ! _validate_url_web_aliases "$url_value"; then
+    _show_usage_web_aliases "$usage_text"
     return 1
   fi
 
-  local header=$(echo "$1" | cut -d"." -f1 | base64 --decode 2>/dev/null)
-  local payload=$(echo "$1" | cut -d"." -f2 | base64 --decode 2>/dev/null)
-  
-  echo "Header:"
-  echo "$header" | python3 -m json.tool 2>/dev/null || echo "$header"
-  echo ""
-  echo "Payload:"
-  echo "$payload" | python3 -m json.tool 2>/dev/null || echo "$payload"
-}' # Decode JWT token
-
-# ============================================
-# SSL/TLS and Security
-# ============================================
-
-alias sslcheck='() {
-  echo "Check SSL certificate for a domain."
-  echo "Usage:"
-  echo "  sslcheck <domain>"
-
-  if [ -z "$1" ]; then
-    echo "Error: No domain provided." >&2
-    echo "Usage: sslcheck <domain>" >&2
+  if ! _validate_json_web_aliases "$json_value"; then
     return 1
   fi
 
-  if ! command -v openssl &> /dev/null; then
-    echo "Error: openssl is not installed." >&2
+  if ! _check_command_web_aliases curl; then
     return 1
   fi
 
-  echo | openssl s_client -servername "$1" -connect "$1:443" 2>/dev/null | openssl x509 -noout -text
-}' # Check SSL certificate
-
-alias sslexpiry='() {
-  echo "Check SSL certificate expiry date."
-  echo "Usage:"
-  echo "  sslexpiry <domain>"
-
-  if [ -z "$1" ]; then
-    echo "Error: No domain provided." >&2
-    echo "Usage: sslexpiry <domain>" >&2
+  response_body=$(curl -sS -X POST -H "Content-Type: application/json" -d "$json_value" "$url_value")
+  if [ $? -ne 0 ]; then
+    _show_error_web_aliases "Error: POST request failed."
     return 1
   fi
 
-  if ! command -v openssl &> /dev/null; then
-    echo "Error: openssl is not installed." >&2
+  _print_response_web_aliases "$response_body"
+}' # Send JSON via HTTP POST and pretty print the response
+
+alias web-cors='() {
+  local usage_text="Inspect CORS headers for a URL.\nUsage:\n web-cors <url> [origin:https://example.com] [method:GET]\nExamples:\n web-cors https://example.com/api\n web-cors https://example.com/api https://foo.bar POST"
+  local url_value="$1"
+  local origin_value="${2:-https://example.com}"
+  local method_value="${3:-GET}"
+  local header_output=""
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ] || ! _validate_url_web_aliases "$url_value"; then
+    _show_usage_web_aliases "$usage_text"
     return 1
   fi
 
-  echo | openssl s_client -servername "$1" -connect "$1:443" 2>/dev/null | openssl x509 -noout -dates
-}' # Check SSL expiry
-
-# ============================================
-# DNS Utilities
-# ============================================
-
-alias dnsflush='() {
-  echo "Flush DNS cache."
-  echo "Usage:"
-  echo "  dnsflush"
-
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    sudo dscacheutil -flushcache
-    sudo killall -HUP mDNSResponder
-    echo "DNS cache flushed successfully."
-  else
-    # Linux
-    if command -v systemd-resolve &> /dev/null; then
-      sudo systemd-resolve --flush-caches
-      echo "DNS cache flushed successfully."
-    elif command -v nscd &> /dev/null; then
-      sudo /etc/init.d/nscd restart
-      echo "DNS cache flushed successfully."
-    else
-      echo "Error: Unable to flush DNS cache. No supported DNS service found." >&2
-      return 1
-    fi
-  fi
-}' # Flush DNS cache
-
-alias digshort='() {
-  echo "Quick DNS lookup (A records only)."
-  echo "Usage:"
-  echo "  digshort <domain>"
-
-  if [ -z "$1" ]; then
-    echo "Error: No domain provided." >&2
-    echo "Usage: digshort <domain>" >&2
+  if ! _check_command_web_aliases curl; then
     return 1
   fi
 
-  if ! command -v dig &> /dev/null; then
-    echo "Error: dig is not installed." >&2
+  header_output=$(curl -sS -D - -o /dev/null -X OPTIONS -H "Origin: $origin_value" -H "Access-Control-Request-Method: $method_value" "$url_value")
+  if [ $? -ne 0 ]; then
+    _show_error_web_aliases "Error: Failed to inspect CORS headers."
     return 1
   fi
 
-  dig +short "$1"
-}' # Quick DNS lookup
+  printf "%s\n" "$header_output" | grep -Ei "^(HTTP/|access-control-|vary:|allow:)" >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    printf "%s\n" "$header_output" | grep -Ei "^(HTTP/|access-control-|vary:|allow:)"
+    return 0
+  fi
 
-# ============================================
-# Download and Web Scraping
-# ============================================
+  printf "%s\n" "$header_output"
+}' # Inspect CORS headers for a URL
 
-alias wget-mirror='() {
-  echo "Mirror a website for offline viewing."
-  echo "Usage:"
-  echo "  wget-mirror <url>"
+alias web-ua='() {
+  local usage_text="Request a URL with a custom User-Agent.\nUsage:\n web-ua <url> [user_agent]\nExample:\n web-ua https://example.com \"Mozilla/5.0\""
+  local url_value="$1"
+  local agent_value="${2:-Mozilla/5.0 (compatible; web-ua/1.0)}"
 
-  if [ -z "$1" ]; then
-    echo "Error: No URL provided." >&2
-    echo "Usage: wget-mirror <url>" >&2
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ] || ! _validate_url_web_aliases "$url_value"; then
+    _show_usage_web_aliases "$usage_text"
     return 1
   fi
 
-  if ! command -v wget &> /dev/null; then
-    echo "Error: wget is not installed." >&2
-    echo "Install it using: brew install wget (macOS) or apt-get install wget (Linux)" >&2
+  if ! _check_command_web_aliases curl; then
     return 1
   fi
 
-  wget --mirror --convert-links --adjust-extension --page-requisites --no-parent "$1"
-}' # Mirror a website
+  curl -sS -A "$agent_value" "$url_value"
+}' # Request a URL with a custom User-Agent
 
-alias extract-links='() {
-  echo "Extract all links from a webpage."
-  echo "Usage:"
-  echo "  extract-links <url>"
+alias web-watch='() {
+  local usage_text="Periodically request a URL and print HTTP code with latency.\nUsage:\n web-watch <url> [interval_seconds:5]\nExample:\n web-watch https://example.com 3"
+  local url_value="$1"
+  local interval_value="${2:-5}"
+  local line_output=""
 
-  if [ -z "$1" ]; then
-    echo "Error: No URL provided." >&2
-    echo "Usage: extract-links <url>" >&2
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ] || ! _validate_url_web_aliases "$url_value"; then
+    _show_usage_web_aliases "$usage_text"
     return 1
   fi
 
-  if ! command -v curl &> /dev/null; then
-    echo "Error: curl is not installed." >&2
+  if ! _validate_positive_integer_web_aliases "$interval_value" "Interval"; then
     return 1
   fi
 
-  curl -s "$1" | grep -oE "href=\"[^\"]*\"" | sed "s/href=\"\([^\"]*\)\"/\1/" | sort -u
-}' # Extract all links from a webpage
-
-# ============================================
-# Web Development Helpers
-# ============================================
-
-alias cors-test='() {
-  echo "Test CORS headers for a URL."
-  echo "Usage:"
-  echo "  cors-test <url> [origin]"
-
-  if [ -z "$1" ]; then
-    echo "Error: No URL provided." >&2
-    echo "Usage: cors-test <url> [origin]" >&2
+  if ! _check_command_web_aliases curl; then
     return 1
   fi
 
-  if ! command -v curl &> /dev/null; then
-    echo "Error: curl is not installed." >&2
-    return 1
-  fi
-
-  local origin="${2:-https://example.com}"
-  echo "Testing CORS with origin: $origin"
-  curl -I -H "Origin: $origin" -H "Access-Control-Request-Method: GET" "$1"
-}' # Test CORS headers
-
-alias useragent='() {
-  echo "Make a request with a custom user agent."
-  echo "Usage:"
-  echo "  useragent <url> <user_agent_string>"
-
-  if [ -z "$1" ] || [ -z "$2" ]; then
-    echo "Error: Missing arguments." >&2
-    echo "Usage: useragent <url> <user_agent_string>" >&2
-    echo "Example: useragent https://example.com \"Mozilla/5.0\"" >&2
-    return 1
-  fi
-
-  if ! command -v curl &> /dev/null; then
-    echo "Error: curl is not installed." >&2
-    return 1
-  fi
-
-  curl -A "$2" "$1"
-}' # Request with custom user agent
-
-alias webping='() {
-  echo "Continuously ping a web server (HTTP)."
-  echo "Usage:"
-  echo "  webping <url> [interval_seconds]"
-
-  if [ -z "$1" ]; then
-    echo "Error: No URL provided." >&2
-    echo "Usage: webping <url> [interval_seconds]" >&2
-    return 1
-  fi
-
-  if ! command -v curl &> /dev/null; then
-    echo "Error: curl is not installed." >&2
-    return 1
-  fi
-
-  local interval="${2:-5}"
-  echo "Pinging $1 every $interval seconds (Ctrl+C to stop)..."
-  
+  echo "Watching $url_value every ${interval_value}s. Press Ctrl+C to stop."
   while true; do
-    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
-    local code=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 "$1")
-    local time=$(curl -o /dev/null -s -w "%{time_total}" --max-time 10 "$1")
-    echo "[$timestamp] HTTP $code - ${time}s"
-    sleep "$interval"
+    line_output=$(curl -sS -L -o /dev/null -w "[%{time_total}s] HTTP %{http_code} -> %{url_effective}" --max-time 15 "$url_value" 2>/dev/null)
+    if [ $? -eq 0 ]; then
+      echo "$(date "+%Y-%m-%d %H:%M:%S") $line_output"
+    else
+      echo "$(date "+%Y-%m-%d %H:%M:%S") ERROR request failed" >&2
+    fi
+    sleep "$interval_value"
   done
-}' # Continuously ping web server
+}' # Periodically request a URL and print HTTP code with latency
 
+# JSON, JWT, and encoding aliases
+alias web-json='() {
+  local usage_text="Pretty print JSON from an argument or stdin.\nUsage:\n web-json <json_string>\n echo \"{\\\"a\\\":1}\" | web-json"
+  local input_value=""
 
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  input_value=$(_read_input_web_aliases "$@")
+  if [ $? -ne 0 ] || [ -z "$input_value" ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  if ! _validate_json_web_aliases "$input_value"; then
+    return 1
+  fi
+
+  _format_json_web_aliases "$input_value"
+}' # Pretty print JSON from an argument or stdin
+
+alias web-json-min='() {
+  local usage_text="Minify JSON from an argument or stdin.\nUsage:\n web-json-min <json_string>\n echo \"{\\\"a\\\":1}\" | web-json-min"
+  local input_value=""
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  input_value=$(_read_input_web_aliases "$@")
+  if [ $? -ne 0 ] || [ -z "$input_value" ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  if ! _validate_json_web_aliases "$input_value"; then
+    return 1
+  fi
+
+  _minify_json_web_aliases "$input_value"
+}' # Minify JSON from an argument or stdin
+
+alias web-jwt='() {
+  local usage_text="Decode a JWT header and payload.\nUsage:\n web-jwt <token>\nExample:\n web-jwt eyJhbGciOi..."
+  local token_value="$1"
+  local header_value=""
+  local payload_value=""
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  case "$token_value" in
+    *.*.*)
+      ;;
+    *)
+      _show_error_web_aliases "Error: Invalid JWT format."
+      return 1
+      ;;
+  esac
+
+  header_value=$(_decode_jwt_segment_web_aliases "${token_value%%.*}")
+  if [ $? -ne 0 ]; then
+    _show_error_web_aliases "Error: Failed to decode JWT header."
+    return 1
+  fi
+
+  payload_value=$(_decode_jwt_segment_web_aliases "$(printf "%s" "$token_value" | cut -d "." -f 2)")
+  if [ $? -ne 0 ]; then
+    _show_error_web_aliases "Error: Failed to decode JWT payload."
+    return 1
+  fi
+
+  echo "Header:"
+  if _is_json_web_aliases "$header_value"; then
+    _format_json_web_aliases "$header_value"
+  else
+    printf "%s\n" "$header_value"
+  fi
+
+  echo
+  echo "Payload:"
+  if _is_json_web_aliases "$payload_value"; then
+    _format_json_web_aliases "$payload_value"
+  else
+    printf "%s\n" "$payload_value"
+  fi
+}' # Decode a JWT header and payload
+
+alias web-b64='() {
+  local usage_text="Encode text to base64 from an argument or stdin.\nUsage:\n web-b64 <text>\n echo \"hello\" | web-b64"
+  local input_value=""
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  input_value=$(_read_input_web_aliases "$@")
+  if [ $? -ne 0 ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  printf "%s" "$input_value" | base64 | tr -d "\r\n"
+  echo
+}' # Encode text to base64 from an argument or stdin
+
+alias web-b64d='() {
+  local usage_text="Decode base64 or base64url text.\nUsage:\n web-b64d <encoded_text>\nExample:\n web-b64d aGVsbG8="
+  local input_value="$1"
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  _decode_base64_web_aliases "$input_value"
+  local decode_status=$?
+  if [ $decode_status -ne 0 ]; then
+    return $decode_status
+  fi
+  echo
+}' # Decode base64 or base64url text
+
+alias web-b64url='() {
+  local usage_text="Encode text to URL-safe base64 without padding.\nUsage:\n web-b64url <text>\n echo \"hello\" | web-b64url"
+  local input_value=""
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  input_value=$(_read_input_web_aliases "$@")
+  if [ $? -ne 0 ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  _encode_base64url_web_aliases "$input_value"
+  echo
+}' # Encode text to URL-safe base64 without padding
+
+alias web-urlenc='() {
+  local usage_text="Percent-encode text for URLs.\nUsage:\n web-urlenc <text>\n echo \"a b\" | web-urlenc"
+  local input_value=""
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  input_value=$(_read_input_web_aliases "$@")
+  if [ $? -ne 0 ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  _encode_url_web_aliases "$input_value"
+  echo
+}' # Percent-encode text for URLs
+
+alias web-urldec='() {
+  local usage_text="Decode percent-encoded URL text.\nUsage:\n web-urldec <encoded_text>\nExample:\n web-urldec hello%20world"
+  local input_value=""
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  input_value=$(_read_input_web_aliases "$@")
+  if [ $? -ne 0 ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  _decode_url_web_aliases "$input_value"
+  echo
+}' # Decode percent-encoded URL text
+
+alias web-qr='() {
+  local usage_text="Generate a terminal QR code from text.\nUsage:\n web-qr <text>\n echo \"https://example.com\" | web-qr"
+  local input_value=""
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if ! _check_command_web_aliases qrencode; then
+    return 1
+  fi
+
+  input_value=$(_read_input_web_aliases "$@")
+  if [ $? -ne 0 ] || [ -z "$input_value" ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  qrencode -t UTF8 "$input_value"
+}' # Generate a terminal QR code from text
+
+alias web-qrd='() {
+  local usage_text="Decode a QR code from an image.\nUsage:\n web-qrd <image_path>\nExample:\n web-qrd ./qr.png"
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  if [ ! -f "$1" ]; then
+    _show_error_web_aliases "Error: File not found: $1"
+    return 1
+  fi
+
+  if ! _check_command_web_aliases zbarimg; then
+    return 1
+  fi
+
+  zbarimg --quiet --raw "$1"
+}' # Decode a QR code from an image
+
+# DNS, SSL, and web content aliases
+alias web-dns='() {
+  local usage_text="Run a quick DNS lookup.\nUsage:\n web-dns <domain> [record_type:A]\nExamples:\n web-dns example.com\n web-dns example.com MX"
+  local domain_value="$1"
+  local type_value="${2:-A}"
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  if ! _check_command_web_aliases dig; then
+    return 1
+  fi
+
+  dig +short "$domain_value" "$type_value"
+}' # Run a quick DNS lookup
+
+alias web-dns-flush='() {
+  local usage_text="Flush the local DNS cache.\nUsage:\n web-dns-flush"
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  case "$OSTYPE" in
+    darwin*)
+      sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder
+      return $?
+      ;;
+    *)
+      if command -v resolvectl >/dev/null 2>&1; then
+        sudo resolvectl flush-caches
+        return $?
+      fi
+      if command -v systemd-resolve >/dev/null 2>&1; then
+        sudo systemd-resolve --flush-caches
+        return $?
+      fi
+      if command -v service >/dev/null 2>&1; then
+        sudo service nscd restart >/dev/null 2>&1 && return 0
+        sudo service dnsmasq restart >/dev/null 2>&1 && return 0
+      fi
+      _show_error_web_aliases "Error: Could not find a supported DNS cache service to flush."
+      return 1
+      ;;
+  esac
+}' # Flush the local DNS cache
+
+alias web-cert='() {
+  local usage_text="Show certificate subject, issuer, dates, and SANs.\nUsage:\n web-cert <host> [port:443]\nExamples:\n web-cert example.com\n web-cert example.com 8443"
+  local host_value="$1"
+  local port_value="${2:-443}"
+  local cert_output=""
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  if ! _validate_port_web_aliases "$port_value"; then
+    return 1
+  fi
+
+  if ! _check_command_web_aliases openssl; then
+    return 1
+  fi
+
+  cert_output=$(echo | openssl s_client -servername "$host_value" -connect "$host_value:$port_value" 2>/dev/null | openssl x509 -noout -subject -issuer -dates -ext subjectAltName 2>/dev/null)
+  if [ $? -ne 0 ] || [ -z "$cert_output" ]; then
+    _show_error_web_aliases "Error: Failed to fetch certificate from $host_value:$port_value"
+    return 1
+  fi
+
+  printf "%s\n" "$cert_output"
+}' # Show certificate subject, issuer, dates, and SANs
+
+alias web-cert-exp='() {
+  local usage_text="Show certificate expiry and remaining days.\nUsage:\n web-cert-exp <host> [port:443]\nExamples:\n web-cert-exp example.com\n web-cert-exp example.com 8443"
+  local host_value="$1"
+  local port_value="${2:-443}"
+  local expiry_line=""
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ]; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  if ! _validate_port_web_aliases "$port_value"; then
+    return 1
+  fi
+
+  if ! _check_command_web_aliases openssl; then
+    return 1
+  fi
+
+  if ! _check_command_web_aliases python3; then
+    return 1
+  fi
+
+  expiry_line=$(echo | openssl s_client -servername "$host_value" -connect "$host_value:$port_value" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null)
+  if [ $? -ne 0 ] || [ -z "$expiry_line" ]; then
+    _show_error_web_aliases "Error: Failed to read certificate expiry from $host_value:$port_value"
+    return 1
+  fi
+
+  python3 -c "import datetime, sys
+raw = sys.argv[1].split(\"=\", 1)[1]
+expiry = datetime.datetime.strptime(raw, \"%b %d %H:%M:%S %Y %Z\").replace(tzinfo=datetime.timezone.utc)
+now = datetime.datetime.now(datetime.timezone.utc)
+remaining = expiry - now
+print(f\"Expires: {raw}\")
+print(f\"Days Left: {remaining.days}\")" "$expiry_line"
+}' # Show certificate expiry and remaining days
+
+alias web-links='() {
+  local usage_text="Extract links from a web page.\nUsage:\n web-links <url>\nExample:\n web-links https://example.com"
+  local url_value="$1"
+  local html_content=""
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ] || ! _validate_url_web_aliases "$url_value"; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  if ! _check_command_web_aliases curl; then
+    return 1
+  fi
+
+  html_content=$(curl -fsSL --compressed "$url_value")
+  if [ $? -ne 0 ] || [ -z "$html_content" ]; then
+    _show_error_web_aliases "Error: Failed to fetch HTML from $url_value"
+    return 1
+  fi
+
+  printf "%s" "$html_content" | _extract_links_web_aliases "$url_value"
+}' # Extract links from a web page
+
+alias web-mirror='() {
+  local usage_text="Mirror a site for offline viewing.\nUsage:\n web-mirror <url> [output_directory:.]\nExample:\n web-mirror https://example.com ./mirror"
+  local url_value="$1"
+  local output_value="${2:-.}"
+
+  if _maybe_show_help_web_aliases "$1" "$usage_text"; then
+    return 0
+  fi
+
+  if [ $# -eq 0 ] || ! _validate_url_web_aliases "$url_value"; then
+    _show_usage_web_aliases "$usage_text"
+    return 1
+  fi
+
+  if ! _check_command_web_aliases wget; then
+    return 1
+  fi
+
+  mkdir -p "$output_value"
+  if [ $? -ne 0 ]; then
+    _show_error_web_aliases "Error: Failed to create output directory: $output_value"
+    return 1
+  fi
+
+  wget --mirror --convert-links --adjust-extension --page-requisites --no-parent --directory-prefix="$output_value" "$url_value"
+}' # Mirror a site for offline viewing
+
+# Help and compatibility aliases
 alias web-help='() {
-  echo "Web-related aliases and functions:"
+  echo "Web aliases with unified \"web-\" prefix:"
   echo ""
-  echo "📡 IP and Network Utilities:"
-  echo "  myip                Get your public IP address"
-  echo "  localip             Get your local IP address"
-  echo "  ports               List all open ports and listening services"
-  echo "  whois-ip <domain>   Get WHOIS information for an IP or domain"
+  echo "HTTP and local server:"
+  echo "  web-serve [port] [dir]      Start a local HTTP server"
+  echo "  web-speed                   Run an internet speed test"
+  echo "  web-code <url>              Show final HTTP status code"
+  echo "  web-head <url>              Show response headers"
+  echo "  web-time <url>              Show request timing details"
+  echo "  web-check <url>             Show compact HTTP summary"
+  echo "  web-post <url> <json>       POST JSON and pretty print response"
+  echo "  web-cors <url> [origin] [method] Inspect CORS headers"
+  echo "  web-ua <url> [ua]           Request with a custom User-Agent"
+  echo "  web-watch <url> [seconds]   Poll a URL repeatedly"
   echo ""
-  echo "🌐 HTTP Testing and Debugging:"
-  echo "  httpcode <url>      Get HTTP status code for a URL"
-  echo "  headers <url>       Get HTTP headers for a URL"
-  echo "  curl-time <url>     Measure request timing for a URL"
-  echo "  postjson <url> <json> POST JSON data to a URL"
-  echo "  cors-test <url> [origin] Test CORS headers"
-  echo "  useragent <url> <ua> Make request with custom user agent"
-  echo "  webping <url> [sec] Continuously ping a web server"
+  echo "Network and DNS:"
+  echo "  web-ip                      Show public IP"
+  echo "  web-ip-local                Show local IP"
+  echo "  web-ports                   Show local listening TCP ports"
+  echo "  web-whois <host>            WHOIS lookup"
+  echo "  web-dns <domain> [type]     Quick DNS lookup"
+  echo "  web-dns-flush               Flush local DNS cache"
   echo ""
-  echo "🔐 SSL/TLS and Security:"
-  echo "  sslcheck <domain>   Check SSL certificate for a domain"
-  echo "  sslexpiry <domain>  Check SSL certificate expiry date"
+  echo "JSON, JWT, and encoding:"
+  echo "  web-json [json]             Pretty print JSON"
+  echo "  web-json-min [json]         Minify JSON"
+  echo "  web-jwt <token>             Decode JWT header and payload"
+  echo "  web-b64 [text]              Base64 encode"
+  echo "  web-b64d <text>             Base64 or base64url decode"
+  echo "  web-b64url [text]           URL-safe base64 encode"
+  echo "  web-urlenc [text]           URL encode"
+  echo "  web-urldec [text]           URL decode"
+  echo "  web-qr [text]               Generate a QR code"
+  echo "  web-qrd <image>             Decode a QR code image"
   echo ""
-  echo "🗂️  JSON and Data Utilities:"
-  echo "  jsonformat [json]   Format/prettify JSON data"
-  echo "  jsonminify [json]   Minify JSON data"
-  echo "  jwtdecode <token>   Decode a JWT token (header and payload)"
+  echo "Certificates and content:"
+  echo "  web-cert <host> [port]      Show certificate summary"
+  echo "  web-cert-exp <host> [port]  Show certificate expiry"
+  echo "  web-links <url>             Extract page links"
+  echo "  web-mirror <url> [dir]      Mirror a site with wget"
   echo ""
-  echo "🔤 Encoding/Decoding:"
-  echo "  qr <string>         Generate a QR code from a string"
-  echo "  qrdecode <file>     Decode a QR code from an image file"
-  echo "  urlencode <string>  Encode a string to URL format"
-  echo "  urldecode <string>  Decode a URL encoded string"
-  echo "  b64encode <string>  Encode a string to base64"
-  echo "  b64decode <string>  Decode a base64 encoded string"
-  echo "  b64urlencode <str>  Encode a string to base64 URL format"
-  echo ""
-  echo "🌍 DNS Utilities:"
-  echo "  dnsflush            Flush DNS cache"
-  echo "  digshort <domain>   Quick DNS lookup (A records only)"
-  echo ""
-  echo "📥 Download and Web Scraping:"
-  echo "  wget-mirror <url>   Mirror a website for offline viewing"
-  echo "  extract-links <url> Extract all links from a webpage"
-  echo ""
-  echo "🛠️  Web Development:"
-  echo "  http-server [port]  Start a simple HTTP server (default: 8080)"
-  echo "  speedtest           Test internet connection speed"
-}' # Display help for web-related aliases and functions
+  echo "Backward-compatible legacy aliases are still available and map to the new web-* names."
+}' # Show help for unified web aliases
+
+alias qr="web-qr"
+alias qrdecode="web-qrd"
+alias urlencode="web-urlenc"
+alias urldecode="web-urldec"
+alias b64encode="web-b64"
+alias b64decode="web-b64d"
+alias b64urlencode="web-b64url"
+alias speedtest="web-speed"
+alias http-server="web-serve"
+alias myip="web-ip"
+alias localip="web-ip-local"
+alias ports="web-ports"
+alias whois-ip="web-whois"
+alias httpcode="web-code"
+alias headers="web-head"
+alias curl-time="web-time"
+alias postjson="web-post"
+alias jsonformat="web-json"
+alias jsonminify="web-json-min"
+alias jwtdecode="web-jwt"
+alias sslcheck="web-cert"
+alias sslexpiry="web-cert-exp"
+alias dnsflush="web-dns-flush"
+alias digshort="web-dns"
+alias wget-mirror="web-mirror"
+alias extract-links="web-links"
+alias cors-test="web-cors"
+alias useragent="web-ua"
+alias webping="web-watch"
