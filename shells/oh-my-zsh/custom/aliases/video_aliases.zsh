@@ -537,12 +537,27 @@ alias vdo-convert='() {
     output_file="${input_file%.*}.${target_format}"
     echo "Converting $input_file to ${target_format} format..."
 
-    if ffmpeg -i "$input_file" -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 256k -ac 2 "$output_file"; then
-      echo "Conversion complete, exported to $output_file"
-    else
-      echo "Error: Video conversion failed" >&2
-      return 1
-    fi
+    # Check if target format is audio-only (mp3, wav, etc.)
+    case "$target_format" in
+      mp3|wav|aac|ogg|flac|m4a)
+        # Audio-only conversion
+        if ffmpeg -i "$input_file" -vn -c:a libmp3lame -b:a 320k -ar 44100 -ac 2 "$output_file"; then
+          echo "Conversion complete, exported to $output_file"
+        else
+          echo "Error: Audio conversion failed" >&2
+          return 1
+        fi
+        ;;
+      *)
+        # Video conversion
+        if ffmpeg -i "$input_file" -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 256k -ac 2 "$output_file"; then
+          echo "Conversion complete, exported to $output_file"
+        else
+          echo "Error: Video conversion failed" >&2
+          return 1
+        fi
+        ;;
+    esac
   done
 }' # Convert video to specified format
 
