@@ -27,11 +27,9 @@ check_command() {
 
 # Check for curl or wget
 if check_command curl; then
-  DOWNLOAD_CMD="curl -sSL"
-  DOWNLOAD_OUT="-o"
+  DOWNLOAD_TOOL="curl"
 elif check_command wget; then
-  DOWNLOAD_CMD="wget -q"
-  DOWNLOAD_OUT="-O"
+  DOWNLOAD_TOOL="wget"
 else
   echo "Error: Neither curl nor wget found. Please install one of them and try again." >&2
   exit 1
@@ -93,8 +91,10 @@ fi
 # Download a single alias file
 download_alias() {
   local file="$1"
-  local url="${remote_base_url}${file}"
   local dest="${download_dir}/${file}"
+  local tmp_dest="${dest}.tmp.$$"
+  local base_url
+  local url
 
   if [[ -f "$dest" && "$overwrite" == "false" ]]; then
     echo -e "${YELLOW}Skipping ${file} (already exists)${RESET}"
@@ -108,14 +108,31 @@ download_alias() {
     echo -e "${BLUE}Downloading ${file}${RESET}"
   fi
 
-  if $DOWNLOAD_CMD "$url" $DOWNLOAD_OUT "$dest"; then
-    echo -e "${GREEN}Successfully downloaded ${file}${RESET}"
-    return 0
-  else
-    echo -e "${RED}Failed to download ${file}${RESET}" >&2
-    ((download_errors++))
-    return 1
-  fi
+  rm -f "$tmp_dest"
+
+  for base_url in "${download_base_urls[@]}"; do
+    url="${base_url}${file}"
+
+    if [[ "$verbose" == "true" ]]; then
+      echo -e "${BLUE}Trying ${url}${RESET}"
+    fi
+
+    if download_to_file "$url" "$tmp_dest" && is_valid_alias_file "$tmp_dest"; then
+      mv "$tmp_dest" "$dest"
+      echo -e "${GREEN}Successfully downloaded ${file}${RESET}"
+      return 0
+    fi
+
+    rm -f "$tmp_dest"
+
+    if [[ "$verbose" == "true" ]]; then
+      echo -e "${YELLOW}Rejected download from ${url}${RESET}"
+    fi
+  done
+
+  echo -e "${RED}Failed to download ${file}${RESET}" >&2
+  ((download_errors++))
+  return 1
 }
 
 # Parse comma-separated list into array - POSIX compatible version
@@ -137,16 +154,29 @@ parse_comma_list() {
   printf "%s\n" "${result[@]}"
 }
 
-detect_best_url() {
-  local timeout=3
-  local urls=("$@")
+ensure_trailing_slash() {
+  local url="$1"
+  if [[ "$url" == */ ]]; then
+    echo "$url"
+  else
+    echo "${url}/"
+  fi
+}
 
-  for url in "${urls[@]}"; do
-    if curl -s --connect-timeout "$timeout" "$url" >/dev/null 2>&1; then
-      echo "$url"
-      return
-    fi
-  done
+download_to_file() {
+  local url="$1"
+  local dest="$2"
+
+  if [[ "$DOWNLOAD_TOOL" == "curl" ]]; then
+    curl -fsSL "$url" -o "$dest"
+  else
+    wget -q -O "$dest" "$url"
+  fi
+}
+
+is_valid_alias_file() {
+  local alias_file="$1"
+  [[ -s "$alias_file" ]] && head -n 1 "$alias_file" | grep -q "^# Description:"
 }
 
 # Default settings
@@ -154,17 +184,12 @@ download_dir="${ZSH:-$HOME/.oh-my-zsh}/custom/aliases"
 overwrite="true"
 verbose="false"
 force="false"
+custom_url="false"
 download_errors=0  # Initialize download error counter
 
 # Define the base URL for the remote aliases files
-remote_base_url="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/"
-remote_base_url_cn="https://gitee.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/"
-
-remote_base_url=$(detect_best_url "$remote_base_url_cn" "$remote_base_url")
-# Use China-specific URL if CN=true
-if [ "$CN" = "true" ]; then
-  remote_base_url="$remote_base_url_cn"
-fi
+remote_base_url="${OMZ_ALIASES_REMOTE_BASE_URL:-https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/}"
+remote_base_url_cn="${OMZ_ALIASES_REMOTE_BASE_URL_CN:-https://gitee.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/shells/oh-my-zsh/custom/aliases/}"
 
 default_alias_files="archive_aliases.zsh,audio_aliases.zsh,base_aliases.zsh,bria_aliases.zsh,directory_aliases.zsh,docker_aliases.zsh,docker_app_aliases.zsh,filesystem_aliases.zsh,git_aliases.zsh,help_aliases.zsh,image_aliases.zsh,ip_aliases.zsh,minio_aliases.zsh,network_aliases.zsh,notification_aliases.zsh,other_aliases.zsh,srv_aliases.zsh,ssh_aliases.zsh,ssh_server_aliases.zsh,ssl_aliases.zsh,system_aliases.zsh,tcpdump_aliases.zsh,url_aliases.zsh,video_aliases.zsh,vps_aliases.zsh,web_aliases.zsh,zsh_config_aliases.zsh,environment_aliases.zsh,calc_aliases.zsh,log_aliases.zsh,mysql_aliases.zsh,group_aliases.zsh,download_aliases.zsh,upload_aliases.zsh,domain_aliases.zsh,claudecode_aliases.zsh,netcat_aliases.zsh,codex_aliases.zsh,upload_aliases.zsh"
 
@@ -192,6 +217,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -u|--url)
       remote_base_url="$2"
+      custom_url="true"
       shift 2
       ;;
     -s|--default-list)
@@ -221,9 +247,19 @@ if [[ ! -d "$download_dir" ]]; then
   fi
 fi
 
-# Make sure the remote_base_url ends with a slash
-if ! echo "$remote_base_url" | grep -q '/$'; then
-  remote_base_url="${remote_base_url}/"
+remote_base_url=$(ensure_trailing_slash "$remote_base_url")
+remote_base_url_cn=$(ensure_trailing_slash "$remote_base_url_cn")
+
+download_base_urls=()
+if [[ "$custom_url" == "true" ]]; then
+  download_base_urls=("$remote_base_url")
+else
+  download_base_urls=("$remote_base_url_cn" "$remote_base_url")
+fi
+
+if [[ ${#download_base_urls[@]} -eq 0 ]]; then
+  echo -e "${RED}No valid remote URL configured${RESET}" >&2
+  exit 1
 fi
 
 if [[ ${#files_to_download[@]} -eq 0 ]]; then
@@ -242,7 +278,7 @@ fi
 
 # Download the files
 echo -e "${BLUE}Downloading aliases to $download_dir${RESET}"
-echo -e "${BLUE}Using remote URL: $remote_base_url${RESET}"
+echo -e "${BLUE}Preferred remote URL: ${download_base_urls[0]}${RESET}"
 # List Alias files to be downloaded
 echo -e "${BLUE}Files to download:${RESET}"
 for file in "${files_to_download[@]}"; do

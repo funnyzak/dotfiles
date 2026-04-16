@@ -137,6 +137,8 @@ The `tools/install_omz_aliases.sh` script is a tool for downloading Oh My Zsh al
 - Support for custom download directories and repository URLs
 - Options for overwriting existing files
 - Automatic detection of the best URL source (with China acceleration support)
+- Per-file source fallback: each file is tried against all configured sources in order, so a single inaccessible source does not block remaining files
+- Content validity check: downloaded content must begin with `# Description:` on the first line; invalid or error responses (e.g. HTTP 451) are discarded and retried from the next source
 
 **Usage Examples**:
 ```bash
