@@ -57,6 +57,7 @@ dotfiles/
 
 ### Shell Configurations
 - **Oh My Zsh**: Comprehensive setup with custom aliases, plugins, and themes
+- **Image Aliases**: ImageMagick-based helpers for resize, format conversion, auto-trim, background fill, sprite generation, and batch processing
 - **Web Aliases**: Unified `web-*` toolkit for HTTP, DNS, SSL, QR, encoding, and local server diagnostics
 - **Zsh**: Minimal configuration for lightweight environments
 - **SSH Configuration Helper**: Multi-server SSH management tool

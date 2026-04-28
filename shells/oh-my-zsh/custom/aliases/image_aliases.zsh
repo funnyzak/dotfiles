@@ -280,6 +280,360 @@ _image_aliases_apply_background() {
     "$source_path" -gravity center -composite "$target_path"
 }
 
+_image_aliases_trim_geometry() {
+  local source_path="$1"
+  local trim_mode="${2:-auto}"
+  local fuzz_value="${3:-8%}"
+  local magick_cmd=$(_image_aliases_magick_cmd)
+  local effective_mode="$trim_mode"
+  local image_opaque=""
+  local crop_geometry=""
+
+  if [ "$effective_mode" = "auto" ]; then
+    image_opaque=$($magick_cmd identify -format "%[opaque]" "$source_path" 2>/dev/null)
+    if [ "$image_opaque" = "False" ]; then
+      effective_mode="transparent"
+    else
+      effective_mode="white"
+    fi
+  fi
+
+  case "$effective_mode" in
+    white)
+      crop_geometry=$(
+        $magick_cmd "$source_path" \
+          -alpha off \
+          -fuzz "$fuzz_value" \
+          -transparent white \
+          -alpha extract \
+          -morphology Open Diamond:1 \
+          -trim \
+          -format "%wx%h%X%Y" \
+          info: 2>/dev/null
+      )
+      ;;
+    transparent)
+      crop_geometry=$(
+        $magick_cmd "$source_path" \
+          -alpha extract \
+          -morphology Open Diamond:1 \
+          -trim \
+          -format "%wx%h%X%Y" \
+          info: 2>/dev/null
+      )
+      ;;
+    *)
+      echo "Error: Unsupported trim mode \"$trim_mode\"." >&2
+      return 1
+      ;;
+  esac
+
+  if ! echo "$crop_geometry" | grep -qE "^[0-9]+x[0-9]+[+][0-9]+[+][0-9]+$"; then
+    crop_geometry=$($magick_cmd identify -format "%wx%h+0+0" "$source_path" 2>/dev/null)
+  fi
+
+  if [ -z "$crop_geometry" ]; then
+    echo "Error: Failed to determine crop geometry for \"$source_path\"." >&2
+    return 1
+  fi
+
+  printf "%s\n" "$crop_geometry"
+}
+
+_image_aliases_trim_apply() {
+  local source_path="$1"
+  local target_path="$2"
+  local trim_mode="${3:-auto}"
+  local fuzz_value="${4:-8%}"
+  local margin_size="${5:-0}"
+  local margin_color="${6:-white}"
+  local magick_cmd=$(_image_aliases_magick_cmd)
+  local crop_geometry=""
+  local -a trim_args
+
+  crop_geometry=$(_image_aliases_trim_geometry "$source_path" "$trim_mode" "$fuzz_value") || return 1
+
+  trim_args=("$source_path" -crop "$crop_geometry" +repage)
+  if [ "$margin_size" -gt 0 ]; then
+    trim_args+=(-bordercolor "$margin_color" -border "${margin_size}x${margin_size}")
+  fi
+
+  $magick_cmd "${trim_args[@]}" "$target_path"
+}
+
+_image_aliases_trim_types_pattern() {
+  local types_value="${1:-jpg,jpeg,png,gif,bmp,webp,heic,tif,tiff}"
+
+  printf "%s" "$types_value" \
+    | tr "[:upper:]" "[:lower:]" \
+    | sed "s/[[:space:]]//g; s/[.]//g; s/^,*//; s/,*$//; s/,,*/,/g; s/,/|/g"
+}
+
+_image_aliases_trim_command() {
+  if [ $# -eq 0 ]; then
+    echo "Automatically trim white or transparent borders from a file or directory of images."
+    echo "Usage: img-autocrop <image_or_dir> [options]"
+    echo "Options:"
+    echo "  -m, --mode <auto|white|transparent>  Trim mode (default: auto)"
+    echo "  -f, --fuzz <percent>                 Color tolerance for trim (default: 8%)"
+    echo "  -b, --margin <pixels>                Add margin after trim (default: 0)"
+    echo "  -c, --margin-color <color>           Margin color (default: white or none)"
+    echo "  -t, --types <exts>                   Directory source extensions, comma-separated"
+    echo "  -F, --format <ext>                   Output format override, for example png"
+    echo "  -s, --suffix <text>                  Output filename suffix"
+    echo "  -o, --output <path>                  File output path or directory output root"
+    echo "  -r, --recursive                      Include subdirectories when source is a directory"
+    echo "  -h, --help                           Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  img-autocrop logo.png"
+    echo "  img-autocrop scan.jpg -m white -f 12%"
+    echo "  img-autocrop ./screenshots -t png,webp -r"
+    echo "  img-autocrop ./assets -m transparent -b 12 -F png -o ./trimmed"
+    return 0
+  fi
+
+  local source_path=""
+  local trim_mode="auto"
+  local fuzz_value="8"
+  local margin_size="0"
+  local margin_color=""
+  local types_value="jpg,jpeg,png,gif,bmp,webp,heic,tif,tiff"
+  local output_format=""
+  local suffix=""
+  local output_path=""
+  local recursive=false
+  local processed=0
+  local errors=0
+  local found=0
+  local target_path=""
+  local output_root=""
+  local types_pattern=""
+  local normalized_source_path=""
+  local normalized_output_root=""
+  local -a find_args
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -m|--mode)
+        if [ $# -lt 2 ]; then
+          echo "Error: Missing value for $1." >&2
+          return 1
+        fi
+        trim_mode="$2"
+        shift 2
+        ;;
+      -f|--fuzz)
+        if [ $# -lt 2 ]; then
+          echo "Error: Missing value for $1." >&2
+          return 1
+        fi
+        fuzz_value="$2"
+        shift 2
+        ;;
+      -b|--margin)
+        if [ $# -lt 2 ]; then
+          echo "Error: Missing value for $1." >&2
+          return 1
+        fi
+        margin_size="$2"
+        shift 2
+        ;;
+      -c|--margin-color)
+        if [ $# -lt 2 ]; then
+          echo "Error: Missing value for $1." >&2
+          return 1
+        fi
+        margin_color="$2"
+        shift 2
+        ;;
+      -t|--types)
+        if [ $# -lt 2 ]; then
+          echo "Error: Missing value for $1." >&2
+          return 1
+        fi
+        types_value="$2"
+        shift 2
+        ;;
+      -F|--format)
+        if [ $# -lt 2 ]; then
+          echo "Error: Missing value for $1." >&2
+          return 1
+        fi
+        output_format="$2"
+        shift 2
+        ;;
+      -s|--suffix)
+        if [ $# -lt 2 ]; then
+          echo "Error: Missing value for $1." >&2
+          return 1
+        fi
+        suffix="$2"
+        shift 2
+        ;;
+      -o|--output)
+        if [ $# -lt 2 ]; then
+          echo "Error: Missing value for $1." >&2
+          return 1
+        fi
+        output_path="$2"
+        shift 2
+        ;;
+      -r|--recursive)
+        recursive=true
+        shift
+        ;;
+      -h|--help)
+        _image_aliases_trim_command
+        return 0
+        ;;
+      *)
+        if [ -z "$source_path" ]; then
+          source_path="$1"
+        else
+          echo "Error: Unknown argument \"$1\"." >&2
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [ -z "$source_path" ]; then
+    echo "Error: Image or directory path is required." >&2
+    return 1
+  fi
+
+  case "$trim_mode" in
+    auto|white|transparent)
+      ;;
+    *)
+      echo "Error: Unsupported trim mode \"$trim_mode\". Use auto, white, or transparent." >&2
+      return 1
+      ;;
+  esac
+
+  if ! echo "$fuzz_value" | grep -qE "^[0-9]+([.][0-9]+)?%?$"; then
+    echo "Error: Invalid fuzz value \"$fuzz_value\". Use values like 5, 8%, or 12.5%." >&2
+    return 1
+  fi
+  if [[ "$fuzz_value" != *% ]]; then
+    fuzz_value="${fuzz_value}%"
+  fi
+
+  if ! echo "$margin_size" | grep -qE "^[0-9]+$"; then
+    echo "Error: Margin must be a non-negative integer." >&2
+    return 1
+  fi
+
+  if [ -n "$output_format" ]; then
+    output_format="$(printf "%s" "$output_format" | tr "[:upper:]" "[:lower:]")"
+    output_format="${output_format#.}"
+    if ! echo "$output_format" | grep -qE "^[a-z0-9]+$"; then
+      echo "Error: Invalid output format \"$output_format\"." >&2
+      return 1
+    fi
+  fi
+
+  types_pattern=$(_image_aliases_trim_types_pattern "$types_value")
+  if [ -z "$types_pattern" ]; then
+    echo "Error: At least one file extension is required for --types." >&2
+    return 1
+  fi
+
+  _image_aliases_check_imagemagick || return 1
+  _image_aliases_validate_path "$source_path" || return 1
+
+  if [ -z "$margin_color" ]; then
+    if [ "$trim_mode" = "transparent" ]; then
+      margin_color="none"
+    else
+      margin_color="white"
+    fi
+  fi
+
+  if [ -f "$source_path" ]; then
+    local file_suffix="${suffix:-_trimmed}"
+    local source_name="$(basename "$source_path")"
+    local source_stem="${source_name%.*}"
+    local file_ext="${output_format:-${source_path##*.}}"
+
+    if [ -n "$output_path" ]; then
+      if [ -d "$output_path" ] || [ "${output_path%/}" != "$output_path" ]; then
+        local output_dir="${output_path%/}"
+        if [ -z "$output_dir" ]; then
+          output_dir="$output_path"
+        fi
+
+        if ! mkdir -p "$output_dir"; then
+          echo "Error: Failed to create output directory \"$output_dir\"." >&2
+          return 1
+        fi
+
+        target_path="$output_dir/${source_stem}${file_suffix}.${file_ext#.}"
+      else
+        target_path="$output_path"
+      fi
+    else
+      target_path="${source_path%.*}${file_suffix}.${file_ext#.}"
+    fi
+
+    if _image_aliases_trim_apply "$source_path" "$target_path" "$trim_mode" "$fuzz_value" "$margin_size" "$margin_color"; then
+      echo "Trimmed image saved to $target_path"
+      return 0
+    fi
+
+    echo "Error: Failed to trim \"$source_path\"." >&2
+    return 1
+  fi
+
+  output_root="${output_path:-$source_path/trimmed_${trim_mode}}"
+  normalized_source_path="${source_path:A}"
+  normalized_output_root="${output_root:A}"
+  if [ "$normalized_output_root" = "$normalized_source_path" ]; then
+    echo "Error: Output directory must be different from source directory." >&2
+    return 1
+  fi
+
+  find_args=("$source_path")
+  if [ "$recursive" != "true" ]; then
+    find_args+=(-maxdepth 1)
+  fi
+  find_args+=("(" -path "$output_root" -o -path "$output_root/*" ")" -prune -o -type f -print0)
+
+  while IFS= read -r -d "" img; do
+    local img_ext="${img##*.}"
+    local normalized_ext="$(printf "%s" "$img_ext" | tr "[:upper:]" "[:lower:]")"
+
+    if ! echo "$normalized_ext" | grep -qE "^(${types_pattern})$"; then
+      continue
+    fi
+
+    found=$((found + 1))
+    target_path=$(_image_aliases_dir_output_file "$source_path" "$img" "$output_root" "$output_format" "$suffix") || {
+      errors=$((errors + 1))
+      continue
+    }
+
+    if _image_aliases_trim_apply "$img" "$target_path" "$trim_mode" "$fuzz_value" "$margin_size" "$margin_color"; then
+      echo "Processed: $img -> $target_path"
+      processed=$((processed + 1))
+    else
+      echo "Error: Failed to trim $img" >&2
+      errors=$((errors + 1))
+    fi
+  done < <(find "${find_args[@]}")
+
+  if [ "$found" -eq 0 ]; then
+    echo "Error: No image files matched the requested input." >&2
+    return 1
+  fi
+
+  echo "Trim complete: $processed file(s) processed, $errors error(s)"
+  echo "Output saved to: $output_root"
+  [ "$errors" -eq 0 ]
+}
+
 _image_aliases_resize_command() {
   if [ $# -eq 0 ]; then
     echo "Resize image or directory of images."
@@ -1549,6 +1903,14 @@ alias img-metadata='() {
 # Image Cropping Functions
 # --------------------------------
 
+alias img-autocrop='() {
+  _image_aliases_trim_command "$@"
+}' # Auto-trim white or transparent borders from a file or directory
+
+alias img-trim='() {
+  _image_aliases_trim_command "$@"
+}' # Short alias for automatic border trimming
+
 alias img-crop='() {
   echo "Crop an image to specified dimensions."
   echo "Usage: img-crop <image_file> <width>x<height>+<x_offset>+<y_offset>"
@@ -2142,6 +2504,8 @@ alias image-help='() {
   echo "  img-metadata         - Extract EXIF metadata from image files"
   echo
   echo "Image Cropping:"
+  echo "  img-autocrop         - Auto-trim white or transparent borders"
+  echo "  img-trim             - Short alias of img-autocrop"
   echo "  img-crop             - Crop an image to specified dimensions"
   echo "  img-crop-center      - Crop an image from the center"
   echo

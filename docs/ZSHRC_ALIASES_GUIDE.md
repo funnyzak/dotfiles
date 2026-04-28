@@ -290,6 +290,59 @@ alias convert-image='() {
 }'
 ```
 
+### Batch Image Processing Example
+```bash
+# Good: Single command supports file and directory workflows
+alias img-autocrop='() {
+    echo -e "Automatically trim white or transparent borders from a file or directory of images.\nUsage:\n img-autocrop <image_or_dir> [--mode auto|white|transparent] [--types jpg,png,webp] [--format png] [--output path] [--recursive]"
+
+    if [ $# -eq 0 ]; then
+        echo "Error: Image or directory path is required." >&2
+        return 1
+    fi
+
+    local source_path="$1"
+    local trim_mode="auto"
+    local types_value="jpg,jpeg,png,gif,bmp,webp,heic,tif,tiff"
+    local output_format=""
+    local output_path=""
+    local recursive=false
+
+    while [ $# -gt 1 ]; do
+        case "$2" in
+            -m|--mode)
+                trim_mode="$3"
+                shift 2
+                ;;
+            -t|--types)
+                types_value="$3"
+                shift 2
+                ;;
+            -F|--format)
+                output_format="$3"
+                shift 2
+                ;;
+            -o|--output)
+                output_path="$3"
+                shift 2
+                ;;
+            -r|--recursive)
+                recursive=true
+                shift
+                ;;
+            *)
+                echo "Error: Unknown option: $2" >&2
+                return 1
+                ;;
+        esac
+    done
+
+    # Keep file and directory handling in one entrypoint, but validate each option clearly.
+}'
+```
+
+This pattern is recommended for image aliases that need to support both single-file execution and batch directory processing with filters such as `--types`, `--format`, and `--recursive`.
+
 ### Temporary File Management Examples
 ```bash
 # Good: Temporary file with proper cleanup
