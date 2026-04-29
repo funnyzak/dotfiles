@@ -402,7 +402,7 @@ shells/oh-my-zsh/custom/aliases/
 ├── network_aliases.zsh          # Network tools and utilities
 ├── notification_aliases.zsh     # System notifications
 ├── other_aliases.zsh            # Miscellaneous aliases
-├── pdf_aliases.zsh              # PDF processing tools
+├── pdf_aliases.zsh              # PDF processing and watermarking tools
 ├── srv_aliases.zsh              # Server management
 ├── ssh_aliases.zsh               # SSH connection management
 ├── ssh_server_aliases.zsh       # SSH server configuration
@@ -415,6 +415,10 @@ shells/oh-my-zsh/custom/aliases/
 ├── environment_aliases.zsh     # Environment variable management
 └── zsh_config_aliases.zsh      # Zsh configuration management
 ```
+
+### PDF aliases notes
+
+`pdf_aliases.zsh` includes `pdf-watermark` for text or image watermarks. It requires `python3` and the `PyMuPDF` Python package for real processing. Keep `--dry-run` side-effect free, preserve transparent image alpha channels, and guard overwrite flows against duplicate output targets in batch runs. Non-ASCII text should render with a CJK-capable font by default, while `--font` can override the font. Shell examples should use straight ASCII quotes because mixed smart and ASCII quotes can leave the shell waiting for a closing quote.
 
 ## Testing and Validation
 
