@@ -1588,11 +1588,13 @@ _image_aliases_background_command() {
 # Basic Image Processing
 # --------------------------------
 
-alias img-resize='() {
+_image_aliases_cmd_img_resize() {
   _image_aliases_resize_command "$@"
-}' # Resize image to specified dimensions with named parameters
+}
 
-alias img-resize-dir='() {
+alias img-resize='_image_aliases_cmd_img_resize' # Resize image to specified dimensions with named parameters
+
+_image_aliases_cmd_img_resize_dir() {
   if [ $# -eq 0 ]; then
     echo "Compatibility wrapper for img-resize."
     echo "Usage: img-resize-dir <source_dir> <size> [quality:100]"
@@ -1603,14 +1605,16 @@ alias img-resize-dir='() {
   local size="${2:-200x}"
   local quality="${3:-100}"
   _image_aliases_resize_command "$source_dir" -s "$size" -q "$quality" -r -o "$source_dir/$size"
-}' # Batch resize images in directory and all subdirectories, output to mirrored structure
+}
+
+alias img-resize-dir='_image_aliases_cmd_img_resize_dir' # Batch resize images in directory and all subdirectories, output to mirrored structure
 
 
 # --------------------------------
 # Format Conversion
 # --------------------------------
 
-alias img-convert-format='() {
+_image_aliases_cmd_img_convert_format() {
   echo "Convert image files to different format."
   echo "Usage: img-convert-format <source_path> <new_extension>"
   echo "       img-convert-format <source_dir> <new_extension>"
@@ -1671,13 +1675,15 @@ alias img-convert-format='() {
 
   echo "Conversion complete: $count file(s) converted, $errors error(s)"
   [ $errors -eq 0 ] || return 1
-}' # Convert image files to different format
+}
+
+alias img-convert-format='_image_aliases_cmd_img_convert_format' # Convert image files to different format
 
 # --------------------------------
 # Image Effects
 # --------------------------------
 
-alias img-opacity='() {
+_image_aliases_cmd_img_opacity() {
   if [ $# -lt 2 ]; then
     echo "Adjust image opacity."
     echo "Usage: img-opacity <source_image> <opacity_percent:50>"
@@ -1696,9 +1702,11 @@ alias img-opacity='() {
     echo "Error: Failed to adjust image opacity." >&2
     return 1
   fi
-}' # Adjust image opacity
+}
 
-alias img-rotate='() {
+alias img-opacity='_image_aliases_cmd_img_opacity' # Adjust image opacity
+
+_image_aliases_cmd_img_rotate() {
   if [ $# -lt 2 ]; then
     echo "Rotate image."
     echo "Usage: img-rotate <source_image> <rotation_degrees:90>"
@@ -1717,21 +1725,27 @@ alias img-rotate='() {
     echo "Error: Failed to rotate image." >&2
     return 1
   fi
-}' # Rotate image
+}
 
-alias img-grayscale-binary='() {
+alias img-rotate='_image_aliases_cmd_img_rotate' # Rotate image
+
+_image_aliases_cmd_img_grayscale_binary() {
   _image_aliases_grayscale_command binary "$@"
-}' # Convert image to grayscale and binarize
+}
 
-alias img-grayscale='() {
+alias img-grayscale-binary='_image_aliases_cmd_img_grayscale_binary' # Convert image to grayscale and binarize
+
+_image_aliases_cmd_img_grayscale() {
   _image_aliases_grayscale_command normal "$@"
-}' # Convert image to grayscale
+}
+
+alias img-grayscale='_image_aliases_cmd_img_grayscale' # Convert image to grayscale
 
 # --------------------------------
 # Batch Processing
 # --------------------------------
 
-alias img-grayscale-binary-dir='() {
+_image_aliases_cmd_img_grayscale_binary_dir() {
   if [ $# -eq 0 ]; then
     echo "Compatibility wrapper for img-grayscale-binary."
     echo "Usage: img-grayscale-binary-dir <source_dir>"
@@ -1739,9 +1753,11 @@ alias img-grayscale-binary-dir='() {
   fi
 
   _image_aliases_grayscale_command binary "$1" -o "$1/gray_binary"
-}' # Convert directory of images to grayscale and binarize
+}
 
-alias img-grayscale-dir='() {
+alias img-grayscale-binary-dir='_image_aliases_cmd_img_grayscale_binary_dir' # Convert directory of images to grayscale and binarize
+
+_image_aliases_cmd_img_grayscale_dir() {
   if [ $# -eq 0 ]; then
     echo "Compatibility wrapper for img-grayscale."
     echo "Usage: img-grayscale-dir <source_dir>"
@@ -1749,17 +1765,21 @@ alias img-grayscale-dir='() {
   fi
 
   _image_aliases_grayscale_command normal "$1" -o "$1/gray"
-}' # Convert directory of images to grayscale
+}
+
+alias img-grayscale-dir='_image_aliases_cmd_img_grayscale_dir' # Convert directory of images to grayscale
 
 # --------------------------------
 # Image Splitting
 # --------------------------------
 
-alias img-split='() {
+_image_aliases_cmd_img_split() {
   _image_aliases_split_command "$@"
-}' # Split image into multiple parts based on grid dimensions
+}
 
-alias img-split-dir='() {
+alias img-split='_image_aliases_cmd_img_split' # Split image into multiple parts based on grid dimensions
+
+_image_aliases_cmd_img_split_dir() {
   if [ $# -eq 0 ]; then
     echo "Compatibility wrapper for img-split."
     echo "Usage: img-split-dir <source_dir> [options]"
@@ -1769,29 +1789,37 @@ alias img-split-dir='() {
   local source_dir="$1"
   shift
   _image_aliases_split_command "$source_dir" -o "split_output" "$@"
-}' # Split multiple images in a directory into parts based on grid dimensions
+}
+
+alias img-split-dir='_image_aliases_cmd_img_split_dir' # Split multiple images in a directory into parts based on grid dimensions
 
 # --------------------------------
 # Image Merging
 # --------------------------------
 
-alias img-dir-to-pdf='() {
+_image_aliases_cmd_img_dir_to_pdf() {
   _image_aliases_to_pdf_command "$@"
-}' # Merge directory of images into PDF
+}
 
-alias img-to-pdf='() {
+alias img-dir-to-pdf='_image_aliases_cmd_img_dir_to_pdf' # Merge directory of images into PDF
+
+_image_aliases_cmd_img_to_pdf() {
   _image_aliases_to_pdf_command "$@"
-}' # Convert single image to PDF
+}
+
+alias img-to-pdf='_image_aliases_cmd_img_to_pdf' # Convert single image to PDF
 
 # --------------------------------
 # Watermarking
 # --------------------------------
 
-alias img-watermark='() {
+_image_aliases_cmd_img_watermark() {
   _image_aliases_watermark_command "$@"
-}' # Add watermark to image
+}
 
-alias img-watermark-dir='() {
+alias img-watermark='_image_aliases_cmd_img_watermark' # Add watermark to image
+
+_image_aliases_cmd_img_watermark_dir() {
   if [ $# -lt 2 ]; then
     echo "Compatibility wrapper for img-watermark."
     echo "Usage: img-watermark-dir <watermark_image> <source_dir> [position:southeast] [opacity:100]"
@@ -1803,13 +1831,15 @@ alias img-watermark-dir='() {
   local position="${3:-southeast}"
   local opacity="${4:-100}"
   _image_aliases_watermark_command "$source_dir" "$watermark_path" -p "$position" -a "$opacity" -o "$source_dir/watermarked"
-}' # Batch add watermark to images
+}
+
+alias img-watermark-dir='_image_aliases_cmd_img_watermark_dir' # Batch add watermark to images
 
 # --------------------------------
 # Image Optimization
 # --------------------------------
 
-alias img-optimize-batch='() {
+_image_aliases_cmd_img_optimize_batch() {
   if [ $# -eq 0 ]; then
     echo "Batch optimize images by size."
     echo "Usage: img-optimize-batch [directory:.] [width:1024] [quality:85]"
@@ -1837,13 +1867,15 @@ alias img-optimize-batch='() {
 
   echo "Batch image optimization complete: $processed files processed, $errors errors"
   [ $errors -eq 0 ] || return 1
-}' # Batch optimize images by size
+}
+
+alias img-optimize-batch='_image_aliases_cmd_img_optimize_batch' # Batch optimize images by size
 
 # --------------------------------
 # New Image Information Functions
 # --------------------------------
 
-alias img-info='() {
+_image_aliases_cmd_img_info() {
   echo "Display basic information about image files."
   echo "Usage: img-info <image_file> [more_files...]"
 
@@ -1867,9 +1899,11 @@ alias img-info='() {
   done
 
   return $result_status
-}' # Display basic information about image files
+}
 
-alias img-metadata='() {
+alias img-info='_image_aliases_cmd_img_info' # Display basic information about image files
+
+_image_aliases_cmd_img_metadata() {
   echo "Extract EXIF metadata from image files."
   echo "Usage: img-metadata <image_file> [more_files...]"
 
@@ -1897,21 +1931,27 @@ alias img-metadata='() {
   done
 
   return $result_status
-}' # Extract EXIF metadata from image files
+}
+
+alias img-metadata='_image_aliases_cmd_img_metadata' # Extract EXIF metadata from image files
 
 # --------------------------------
 # Image Cropping Functions
 # --------------------------------
 
-alias img-autocrop='() {
+_image_aliases_cmd_img_autocrop() {
   _image_aliases_trim_command "$@"
-}' # Auto-trim white or transparent borders from a file or directory
+}
 
-alias img-trim='() {
+alias img-autocrop='_image_aliases_cmd_img_autocrop' # Auto-trim white or transparent borders from a file or directory
+
+_image_aliases_cmd_img_trim() {
   _image_aliases_trim_command "$@"
-}' # Short alias for automatic border trimming
+}
 
-alias img-crop='() {
+alias img-trim='_image_aliases_cmd_img_trim' # Short alias for automatic border trimming
+
+_image_aliases_cmd_img_crop() {
   echo "Crop an image to specified dimensions."
   echo "Usage: img-crop <image_file> <width>x<height>+<x_offset>+<y_offset>"
   echo "Example: img-crop photo.jpg 300x200+50+30"
@@ -1935,9 +1975,11 @@ alias img-crop='() {
     echo "Error: Failed to crop image." >&2
     return 1
   fi
-}' # Crop an image to specified dimensions
+}
 
-alias img-crop-center='() {
+alias img-crop='_image_aliases_cmd_img_crop' # Crop an image to specified dimensions
+
+_image_aliases_cmd_img_crop_center() {
   echo "Crop an image from the center."
   echo "Usage: img-crop-center <image_file> <width>x<height>"
   echo "Example: img-crop-center photo.jpg 300x200"
@@ -1961,27 +2003,33 @@ alias img-crop-center='() {
     echo "Error: Failed to crop image from center." >&2
     return 1
   fi
-}' # Crop an image from the center
+}
+
+alias img-crop-center='_image_aliases_cmd_img_crop_center' # Crop an image from the center
 
 # --------------------------------
 # Image Compression Functions
 # --------------------------------
 
-alias img-compress='() {
+_image_aliases_cmd_img_compress() {
   _image_aliases_compress_command "$@"
-}' # Compress an image while preserving dimensions
+}
 
-alias img-compress-dir='() {
+alias img-compress='_image_aliases_cmd_img_compress' # Compress an image while preserving dimensions
+
+_image_aliases_cmd_img_compress_dir() {
   local dir="${1:-.}"
   local quality="${2:-75}"
   _image_aliases_compress_command "$dir" -q "$quality" -r -o "$dir/compressed_q${quality}"
-}' # Batch compress all images in a directory and all subdirectories, output to mirrored structure
+}
+
+alias img-compress-dir='_image_aliases_cmd_img_compress_dir' # Batch compress all images in a directory and all subdirectories, output to mirrored structure
 
 # --------------------------------
 # Image Joining Functions
 # --------------------------------
 
-alias img-join-horizontal='() {
+_image_aliases_cmd_img_join_horizontal() {
   echo "Join multiple images horizontally."
   echo "Usage: img-join-horizontal <output_file> <image1> <image2> [more_images...]"
 
@@ -2014,9 +2062,11 @@ alias img-join-horizontal='() {
     echo "Error: Failed to join images horizontally." >&2
     return 1
   fi
-}' # Join multiple images horizontally
+}
 
-alias img-join-vertical='() {
+alias img-join-horizontal='_image_aliases_cmd_img_join_horizontal' # Join multiple images horizontally
+
+_image_aliases_cmd_img_join_vertical() {
   echo "Join multiple images vertically."
   echo "Usage: img-join-vertical <output_file> <image1> <image2> [more_images...]"
 
@@ -2049,13 +2099,15 @@ alias img-join-vertical='() {
     echo "Error: Failed to join images vertically." >&2
     return 1
   fi
-}' # Join multiple images vertically
+}
+
+alias img-join-vertical='_image_aliases_cmd_img_join_vertical' # Join multiple images vertically
 
 # --------------------------------
 # Image Special Effects
 # --------------------------------
 
-alias img-sepia='() {
+_image_aliases_cmd_img_sepia() {
   echo "Apply sepia tone effect to an image."
   echo "Usage: img-sepia <image_file> [more_files...]"
 
@@ -2080,9 +2132,11 @@ alias img-sepia='() {
   done
 
   return $result_status
-}' # Apply sepia tone effect to an image
+}
 
-alias img-blur='() {
+alias img-sepia='_image_aliases_cmd_img_sepia' # Apply sepia tone effect to an image
+
+_image_aliases_cmd_img_blur() {
   echo "Apply blur effect to an image."
   echo "Usage: img-blur <image_file> [radius:5] [more_files...]"
 
@@ -2120,13 +2174,15 @@ alias img-blur='() {
   done
 
   return $result_status
-}' # Apply blur effect to an image
+}
+
+alias img-blur='_image_aliases_cmd_img_blur' # Apply blur effect to an image
 
 # --------------------------------
 # Image Background Functions
 # --------------------------------
 
-alias img-add-bg='() {
+_image_aliases_cmd_img_add_bg() {
   if [ $# -lt 2 ]; then
     _image_aliases_background_command
     return 0
@@ -2136,9 +2192,11 @@ alias img-add-bg='() {
   local background_path="$2"
   shift 2
   _image_aliases_background_command "$source_path" --image "$background_path" "$@"
-}' # Add background image to foreground image
+}
 
-alias img-add-bg-dir='() {
+alias img-add-bg='_image_aliases_cmd_img_add_bg' # Add background image to foreground image
+
+_image_aliases_cmd_img_add_bg_dir() {
   if [ $# -lt 2 ]; then
     echo "Compatibility wrapper for img-add-bg."
     echo "Usage: img-add-bg-dir <foreground_dir> <background_image> [output_dir]"
@@ -2149,9 +2207,11 @@ alias img-add-bg-dir='() {
   local background_path="$2"
   local output_dir="${3:-$source_dir/with_background}"
   _image_aliases_background_command "$source_dir" --image "$background_path" -r -o "$output_dir"
-}' # Add background image to all images in a directory
+}
 
-alias img-add-color-background='() {
+alias img-add-bg-dir='_image_aliases_cmd_img_add_bg_dir' # Add background image to all images in a directory
+
+_image_aliases_cmd_img_add_color_background() {
   if [ $# -lt 2 ]; then
     _image_aliases_background_command
     return 0
@@ -2161,13 +2221,15 @@ alias img-add-color-background='() {
   local background_color="$2"
   shift 2
   _image_aliases_background_command "$source_path" --color "$background_color" "$@"
-}' # Add solid color background to image(s)
+}
+
+alias img-add-color-background='_image_aliases_cmd_img_add_color_background' # Add solid color background to image(s)
 
 # --------------------------------
 # Sprite Generation Functions
 # --------------------------------
 
-alias img-sprite='() {
+_image_aliases_cmd_img_sprite() {
   echo "Generate sprite sheet from images in a directory."
   echo "Usage: img-sprite <source_dir> [columns:6] [resize_spec:original]"
   echo "Note: Output sprite will be saved at the same level as the source directory."
@@ -2260,9 +2322,11 @@ alias img-sprite='() {
   fi
 
   return 0
-}' # Generate sprite sheet from images in a directory
+}
 
-alias img-sprite-multi='() {
+alias img-sprite='_image_aliases_cmd_img_sprite' # Generate sprite sheet from images in a directory
+
+_image_aliases_cmd_img_sprite_multi() {
   echo "Generate sprite sheets from multiple directories (subdirectories of parent directory)."
   echo "Usage: img-sprite-multi <parent_dir> [columns:6] [resize_spec:original]"
   echo "Note: Each sprite will be saved at the same level as its source subdirectory."
@@ -2316,7 +2380,7 @@ alias img-sprite-multi='() {
     fi
 
     # Generate sprite for this directory
-    if img-sprite "$subdir" "$columns" "$resize_spec" >/dev/null 2>&1; then
+    if _image_aliases_cmd_img_sprite "$subdir" "$columns" "$resize_spec" >/dev/null 2>&1; then
       echo "  ✓ Generated sprite for $(basename "$subdir") ($img_count images)"
       processed=$((processed+1))
     else
@@ -2333,9 +2397,11 @@ alias img-sprite-multi='() {
   echo "  Resize: $resize_spec"
 
   [ $errors -eq 0 ] || return 1
-}' # Generate sprite sheets from multiple directories
+}
 
-alias img-sprite-batch='() {
+alias img-sprite-multi='_image_aliases_cmd_img_sprite_multi' # Generate sprite sheets from multiple directories
+
+_image_aliases_cmd_img_sprite_batch() {
   echo "Generate sprite sheets with different configurations from a directory."
   echo "Usage: img-sprite-batch <source_dir> [resize_specs...]"
   echo "Note: All sprites will be saved at the same level as the source directory."
@@ -2376,7 +2442,7 @@ alias img-sprite-batch='() {
   for resize_spec in "${resize_specs[@]}"; do
     echo "Creating sprite with resize: $resize_spec"
 
-    if img-sprite "$source_dir" 6 "$resize_spec" >/dev/null 2>&1; then
+    if _image_aliases_cmd_img_sprite "$source_dir" 6 "$resize_spec" >/dev/null 2>&1; then
       echo "  ✓ Generated sprite with resize: $resize_spec"
       processed=$((processed+1))
     else
@@ -2391,13 +2457,15 @@ alias img-sprite-batch='() {
   echo "  Errors: $errors sprites"
 
   [ $errors -eq 0 ] || return 1
-}' # Generate sprite sheets with different configurations
+}
+
+alias img-sprite-batch='_image_aliases_cmd_img_sprite_batch' # Generate sprite sheets with different configurations
 
 # --------------------------------
 # Batch Rename Functions
 # --------------------------------
 
-alias img-rename-sequential='() {
+_image_aliases_cmd_img_rename_sequential() {
   echo "Rename images in a directory with sequential numbering."
   echo "Usage: img-rename-sequential <directory> <prefix>"
   echo "Example: img-rename-sequential vacation_photos vacation"
@@ -2448,29 +2516,41 @@ alias img-rename-sequential='() {
 
   echo "Renamed $((count-1-errors)) files with prefix \"$prefix\""
   [ $errors -eq 0 ] || return 1
-}' # Rename images in a directory with sequential numbering
+}
 
-alias img-gray='() {
+alias img-rename-sequential='_image_aliases_cmd_img_rename_sequential' # Rename images in a directory with sequential numbering
+
+_image_aliases_cmd_img_gray() {
   _image_aliases_grayscale_command normal "$@"
-}' # Short alias for grayscale conversion
+}
 
-alias img-graybin='() {
+alias img-gray='_image_aliases_cmd_img_gray' # Short alias for grayscale conversion
+
+_image_aliases_cmd_img_graybin() {
   _image_aliases_grayscale_command binary "$@"
-}' # Short alias for grayscale binary conversion
+}
 
-alias img-pdf='() {
+alias img-graybin='_image_aliases_cmd_img_graybin' # Short alias for grayscale binary conversion
+
+_image_aliases_cmd_img_pdf() {
   _image_aliases_to_pdf_command "$@"
-}' # Short alias for image-to-pdf conversion
+}
 
-alias img-wm='() {
+alias img-pdf='_image_aliases_cmd_img_pdf' # Short alias for image-to-pdf conversion
+
+_image_aliases_cmd_img_wm() {
   _image_aliases_watermark_command "$@"
-}' # Short alias for watermarking
+}
 
-alias img-bg='() {
+alias img-wm='_image_aliases_cmd_img_wm' # Short alias for watermarking
+
+_image_aliases_cmd_img_bg() {
   _image_aliases_background_command "$@"
-}' # Generic background command with image or color mode
+}
 
-alias image-help='() {
+alias img-bg='_image_aliases_cmd_img_bg' # Generic background command with image or color mode
+
+_image_aliases_cmd_image_help() {
   echo "Image Processing Aliases Help"
   echo "============================"
   echo "This module provides aliases for common image processing operations."
@@ -2541,12 +2621,18 @@ alias image-help='() {
   echo "  img-watermark-dir, img-add-bg-dir"
   echo
   echo "For more details about a specific command, just run the command without arguments."
-}' # Help function showing all available image processing aliases
+}
 
-alias img-help='() {
-  image-help
-}' # Alias to call the help function
+alias image-help='_image_aliases_cmd_image_help' # Help function showing all available image processing aliases
 
-alias img-aliases='() {
-  image-help
-}' # Alias to call the help function
+_image_aliases_cmd_img_help() {
+  _image_aliases_cmd_image_help
+}
+
+alias img-help='_image_aliases_cmd_img_help' # Alias to call the help function
+
+_image_aliases_cmd_img_aliases() {
+  _image_aliases_cmd_image_help
+}
+
+alias img-aliases='_image_aliases_cmd_img_aliases' # Alias to call the help function

@@ -134,13 +134,20 @@ fi
 best_remote_url_prefix() {
   local REMOTE_URL_PREFIX="https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/${REPO_BRANCH:-main}/"
   local REMOTE_URL_PREFIX_CN="https://gitee.com/funnyzak/dotfiles/raw/${REPO_BRANCH:-main}/"
+  local PROBE_PATH="shells/oh-my-zsh/zshrc.zsh-template"
 
-  # Check if CN mirror is accessible
-  if curl -s --connect-timeout 2 "https://gitee.com" >/dev/null 2>&1; then
-    REMOTE_URL_PREFIX=$REMOTE_URL_PREFIX_CN
+  # Prefer GitHub raw/CDN; only use the CN mirror when GitHub content is unavailable.
+  if curl -fsSL --connect-timeout 2 --max-time 5 -o /dev/null "${REMOTE_URL_PREFIX}${PROBE_PATH}"; then
+    echo "$REMOTE_URL_PREFIX"
+    return 0
   fi
 
-  echo $REMOTE_URL_PREFIX
+  if curl -fsSL --connect-timeout 2 --max-time 5 -o /dev/null "${REMOTE_URL_PREFIX_CN}${PROBE_PATH}"; then
+    echo "$REMOTE_URL_PREFIX_CN"
+    return 0
+  fi
+
+  echo "$REMOTE_URL_PREFIX"
 }
 
 # Load zsh-autosuggestions and zsh-syntax-highlighting plugins

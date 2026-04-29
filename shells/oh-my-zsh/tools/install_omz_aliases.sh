@@ -254,7 +254,7 @@ download_base_urls=()
 if [[ "$custom_url" == "true" ]]; then
   download_base_urls=("$remote_base_url")
 else
-  download_base_urls=("$remote_base_url_cn" "$remote_base_url")
+  download_base_urls=("$remote_base_url" "$remote_base_url_cn")
 fi
 
 if [[ ${#download_base_urls[@]} -eq 0 ]]; then

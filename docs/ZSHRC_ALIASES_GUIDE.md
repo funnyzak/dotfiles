@@ -9,10 +9,16 @@ This guide is specifically designed for developers working with zshrc alias file
 ## Core Requirements
 
 ### Function Format
-All aliases must be defined as functions using the standard format:
+Expose commands with a normal alias that points to a wrapper function:
 ```bash
-alias function_name='() { ... }'
+_category_aliases_command_name() {
+  # command logic
+}
+
+alias command-name='_category_aliases_command_name'
 ```
+
+Avoid `alias command-name='() { ... }'`. It works on macOS zsh, but can fail on Linux servers with older zsh versions or compatibility-mode startup.
 
 ### String Handling
 - **No single quotes** in function body code
@@ -63,7 +69,7 @@ process_file "$temp_file"
 
 ### Function Template
 ```bash
-alias function_name='() {
+_category_aliases_function_name() {
     # Usage information
     echo -e "Function description.\nUsage:\n function_name <required_param> [--option value] [--flag]"
 
@@ -106,7 +112,9 @@ alias function_name='() {
         echo "Error: Command failed for parameter: $param" >&2
         return 1
     fi
-}'
+}
+
+alias function-name='_category_aliases_function_name'
 ```
 
 ### Usage Information Format
@@ -173,12 +181,20 @@ echo -e " bria-bg-remove photo.png --format png --output output.png"
 # Section 1: Basic Functions
 # -------------------------
 
-alias basic-function='() { ... }' # Description
+_category_aliases_basic_function() {
+  # Basic function logic
+}
+
+alias basic-function='_category_aliases_basic_function' # Description
 
 # Section 2: Advanced Functions
 # -----------------------------
 
-alias advanced-function='() { ... }' # Description
+_category_aliases_advanced_function() {
+  # Advanced function logic
+}
+
+alias advanced-function='_category_aliases_advanced_function' # Description
 
 # Helper Functions
 # ----------------
@@ -244,7 +260,7 @@ fi
 ### Parameter Parsing Examples
 ```bash
 # Good: Named parameters with short and long options
-alias convert-image='() {
+_image_aliases_convert_image() {
     echo -e "Convert image to different format.\nUsage:\n convert-image <input_file> [--format jpg|png|webp] [--quality 1-100] [--output path]"
 
     if [ $# -eq 0 ]; then
@@ -287,13 +303,15 @@ alias convert-image='() {
             return 1
             ;;
     esac
-}'
+}
+
+alias convert-image='_image_aliases_convert_image'
 ```
 
 ### Batch Image Processing Example
 ```bash
 # Good: Single command supports file and directory workflows
-alias img-autocrop='() {
+_image_aliases_img_autocrop() {
     echo -e "Automatically trim white or transparent borders from a file or directory of images.\nUsage:\n img-autocrop <image_or_dir> [--mode auto|white|transparent] [--types jpg,png,webp] [--format png] [--output path] [--recursive]"
 
     if [ $# -eq 0 ]; then
@@ -338,7 +356,9 @@ alias img-autocrop='() {
     done
 
     # Keep file and directory handling in one entrypoint, but validate each option clearly.
-}'
+}
+
+alias img-autocrop='_image_aliases_img_autocrop'
 ```
 
 This pattern is recommended for image aliases that need to support both single-file execution and batch directory processing with filters such as `--types`, `--format`, and `--recursive`.
@@ -346,7 +366,7 @@ This pattern is recommended for image aliases that need to support both single-f
 ### Temporary File Management Examples
 ```bash
 # Good: Temporary file with proper cleanup
-alias process-large-file='() {
+_filesystem_aliases_process_large_file() {
     echo -e "Process large file safely with temporary storage.\nUsage:\n process-large-file <input_file> [--output path]"
 
     if [ $# -eq 0 ]; then
@@ -376,7 +396,9 @@ alias process-large-file='() {
 
     # Move final result to output location
     mv "$temp_dir/intermediate" "$output_file"
-}'
+}
+
+alias process-large-file='_filesystem_aliases_process_large_file'
 ```
 
 ## Current Alias Files
@@ -442,7 +464,7 @@ function_name --help  # Should show usage
 
 ## Best Practices Summary
 
-1. **Always use function format**: `alias name='() { ... }'`
+1. **Use wrapper functions**: `_category_aliases_command_name() { ... }` plus `alias command-name='_category_aliases_command_name'`
 2. **No single quotes in function body**
 3. **Use local variables exclusively**
 4. **Always use `mktemp` for temporary files and directories**
