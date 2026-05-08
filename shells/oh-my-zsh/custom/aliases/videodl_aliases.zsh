@@ -171,7 +171,7 @@ _extract_urls_from_text_videodl_aliases() {
   fi
 
   if command -v python3 >/dev/null 2>&1; then
-    python3 - <<\PY
+    python3 -c '
 import re
 import sys
 
@@ -183,7 +183,7 @@ for line in sys.stdin:
         url = tail_pattern.sub("", match.group(0))
         if url:
             print(url)
-PY
+'
     return 0
   fi
 
@@ -209,6 +209,34 @@ _resolve_url_input_videodl_aliases() {
   echo "$raw_input"
 }
 
+_resolve_videodl_python_videodl_aliases() {
+  _check_command_videodl_aliases videodl || return 1
+
+  local videodl_path=""
+  videodl_path="$(command -v videodl)"
+
+  local shebang_line=""
+  shebang_line="$(head -n 1 "$videodl_path" 2>/dev/null)"
+  case "$shebang_line" in
+    '#!'*)
+      ;;
+    *)
+      _show_error_videodl_aliases "Error: Failed to resolve videodl Python interpreter from \"$videodl_path\"."
+      return 1
+      ;;
+  esac
+
+  local python_path="${shebang_line#\#!}"
+  python_path="${python_path%% *}"
+
+  if [ -z "$python_path" ] || [ ! -x "$python_path" ]; then
+    _show_error_videodl_aliases "Error: Resolved videodl Python interpreter \"$python_path\" is not executable."
+    return 1
+  fi
+
+  echo "$python_path"
+}
+
 _emit_parsed_download_options_videodl_aliases() {
   local raw_input="$1"
   local output_dir="$2"
@@ -223,6 +251,24 @@ _emit_parsed_download_options_videodl_aliases() {
   printf "THREAD_COUNT=%s\n" "$thread_count"
   printf "__EXTRA_ARGS__\n"
   printf "%s\n" "${extra_args[@]}"
+}
+
+_emit_parsed_query_options_videodl_aliases() {
+  local raw_input="$1"
+  local allowed_sources="$2"
+  local common_only="$3"
+  local output_dir="$4"
+  local proxy_url="$5"
+  local thread_count="$6"
+  local output_format="$7"
+
+  printf "RAW_INPUT=%s\n" "$raw_input"
+  printf "ALLOWED_SOURCES=%s\n" "$allowed_sources"
+  printf "COMMON_ONLY=%s\n" "$common_only"
+  printf "OUTPUT_DIR=%s\n" "$output_dir"
+  printf "PROXY_URL=%s\n" "$proxy_url"
+  printf "THREAD_COUNT=%s\n" "$thread_count"
+  printf "OUTPUT_FORMAT=%s\n" "$output_format"
 }
 
 _parse_single_download_args_videodl_aliases() {
@@ -277,6 +323,77 @@ _parse_single_download_args_videodl_aliases() {
   done
 
   _emit_parsed_download_options_videodl_aliases "$raw_input" "$output_dir" "$proxy_url" "$thread_count" "${extra_args[@]}"
+}
+
+_parse_single_query_args_videodl_aliases() {
+  local raw_input=""
+  local allowed_sources=""
+  local common_only="false"
+  local output_dir=""
+  local proxy_url=""
+  local thread_count=""
+  local output_format="plain"
+  local current_arg=""
+
+  while [ $# -gt 0 ]; do
+    current_arg="$1"
+    case "$current_arg" in
+      -a|--client)
+        if [ -z "$2" ]; then
+          _show_error_videodl_aliases "Error: Missing client name after $1."
+          return 1
+        fi
+        allowed_sources="$2"
+        shift 2
+        ;;
+      -g|--common)
+        common_only="true"
+        shift
+        ;;
+      -d|--dir)
+        if [ -z "$2" ]; then
+          _show_error_videodl_aliases "Error: Missing output directory after $1."
+          return 1
+        fi
+        output_dir="$2"
+        shift 2
+        ;;
+      -p|--proxy)
+        if [ -z "$2" ]; then
+          _show_error_videodl_aliases "Error: Missing proxy URL after $1."
+          return 1
+        fi
+        proxy_url="$2"
+        shift 2
+        ;;
+      -t|--threads)
+        if [ -z "$2" ]; then
+          _show_error_videodl_aliases "Error: Missing thread count after $1."
+          return 1
+        fi
+        thread_count="$2"
+        shift 2
+        ;;
+      -j|--json)
+        output_format="json"
+        shift
+        ;;
+      -*)
+        _show_error_videodl_aliases "Error: Unknown option \"$1\"."
+        return 1
+        ;;
+      *)
+        if [ -z "$raw_input" ]; then
+          raw_input="$current_arg"
+        else
+          raw_input="$raw_input $current_arg"
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  _emit_parsed_query_options_videodl_aliases "$raw_input" "$allowed_sources" "$common_only" "$output_dir" "$proxy_url" "$thread_count" "$output_format"
 }
 
 _parse_download_options_videodl_aliases() {
@@ -376,6 +493,52 @@ _read_parsed_download_options_videodl_aliases() {
   VDL_PARSED_EXTRA_ARGS=("${extra_args[@]}")
 }
 
+_read_parsed_query_options_videodl_aliases() {
+  local parsed_args="$1"
+  local raw_input=""
+  local allowed_sources=""
+  local common_only="false"
+  local output_dir=""
+  local proxy_url=""
+  local thread_count=""
+  local output_format="plain"
+  local line=""
+
+  while IFS= read -r line; do
+    case "$line" in
+      RAW_INPUT=*)
+        raw_input="${line#RAW_INPUT=}"
+        ;;
+      ALLOWED_SOURCES=*)
+        allowed_sources="${line#ALLOWED_SOURCES=}"
+        ;;
+      COMMON_ONLY=*)
+        common_only="${line#COMMON_ONLY=}"
+        ;;
+      OUTPUT_DIR=*)
+        output_dir="${line#OUTPUT_DIR=}"
+        ;;
+      PROXY_URL=*)
+        proxy_url="${line#PROXY_URL=}"
+        ;;
+      THREAD_COUNT=*)
+        thread_count="${line#THREAD_COUNT=}"
+        ;;
+      OUTPUT_FORMAT=*)
+        output_format="${line#OUTPUT_FORMAT=}"
+        ;;
+    esac
+  done <<< "$parsed_args"
+
+  typeset -g VDL_QUERY_RAW_INPUT="$raw_input"
+  typeset -g VDL_QUERY_ALLOWED_SOURCES="$allowed_sources"
+  typeset -g VDL_QUERY_COMMON_ONLY="$common_only"
+  typeset -g VDL_QUERY_OUTPUT_DIR="$output_dir"
+  typeset -g VDL_QUERY_PROXY_URL="$proxy_url"
+  typeset -g VDL_QUERY_THREAD_COUNT="$thread_count"
+  typeset -g VDL_QUERY_OUTPUT_FORMAT="$output_format"
+}
+
 _run_preset_videodl_aliases() {
   local allowed_sources="$1"
   local common_only="$2"
@@ -464,6 +627,334 @@ _run_videodl_videodl_aliases() {
   videodl "${args[@]}"
 }
 
+_run_videodl_url_query_videodl_aliases() {
+  local url="$1"
+  local allowed_sources="$2"
+  local common_only="$3"
+  local output_dir="$4"
+  local proxy_url="$5"
+  local thread_count="$6"
+  local output_format="$7"
+
+  url="$(_resolve_url_input_videodl_aliases "$url")"
+  _validate_url_videodl_aliases "$url" || return 1
+  _check_command_videodl_aliases videodl || return 1
+
+  local videodl_python=""
+  videodl_python="$(_resolve_videodl_python_videodl_aliases)" || return 1
+
+  local clients_csv="$allowed_sources"
+  if [ -z "$clients_csv" ]; then
+    clients_csv="$(_known_clients_csv_videodl_aliases)"
+  fi
+
+  local init_cfg=""
+  local requests_cfg=""
+  local threadings_cfg=""
+
+  if [ -n "$output_dir" ] || [ -n "$proxy_url" ] || [ -n "$thread_count" ]; then
+    _check_command_videodl_aliases python3 || return 1
+  fi
+
+  if [ -n "$output_dir" ]; then
+    local output_dir_abs=""
+    output_dir_abs="$(_resolve_output_dir_videodl_aliases "$output_dir")" || return 1
+    init_cfg="$(_build_work_dir_cfg_videodl_aliases "$output_dir_abs" "$clients_csv")" || {
+      _show_error_videodl_aliases "Error: Failed to build videodl work_dir config."
+      return 1
+    }
+  fi
+
+  if [ -n "$proxy_url" ]; then
+    requests_cfg="$(_build_requests_overrides_videodl_aliases "$proxy_url" "$clients_csv")" || {
+      _show_error_videodl_aliases "Error: Failed to build proxy config."
+      return 1
+    }
+  fi
+
+  if [ -n "$thread_count" ]; then
+    _validate_threads_videodl_aliases "$thread_count" || return 1
+    threadings_cfg="$(_build_threadings_cfg_videodl_aliases "$thread_count" "$clients_csv")" || {
+      _show_error_videodl_aliases "Error: Failed to build threading config."
+      return 1
+    }
+  fi
+
+  "$videodl_python" - "$url" "$allowed_sources" "$common_only" "$init_cfg" "$requests_cfg" "$threadings_cfg" "$output_format" <<\PY
+import json
+import sys
+
+from videodl.videodl import VideoClient
+
+
+def normalize_url(value):
+    if not value:
+        return ""
+    if isinstance(value, str):
+        return value
+    url_attr = getattr(value, "url", None)
+    if isinstance(url_attr, str) and url_attr:
+        return url_attr
+    return str(value)
+
+
+def load_json(value):
+    return json.loads(value) if value else {}
+
+
+index_url = sys.argv[1]
+allowed_sources_csv = sys.argv[2]
+common_only = sys.argv[3] == "true"
+init_cfg = load_json(sys.argv[4])
+requests_overrides = load_json(sys.argv[5])
+clients_threadings = load_json(sys.argv[6])
+output_format = sys.argv[7]
+
+allowed_sources = [item.strip() for item in allowed_sources_csv.split(",") if item.strip()]
+video_client = VideoClient(
+    allowed_video_sources=allowed_sources,
+    init_video_clients_cfg=init_cfg,
+    clients_threadings=clients_threadings,
+    requests_overrides=requests_overrides,
+    apply_common_video_clients_only=common_only,
+)
+
+video_infos = video_client.parsefromurl(url=index_url) or []
+items = []
+
+for video_info in video_infos:
+    item = {
+        "source": getattr(video_info, "source", ""),
+        "title": getattr(video_info, "title", ""),
+        "download_url": normalize_url(getattr(video_info, "download_url", "")),
+        "audio_download_url": normalize_url(getattr(video_info, "audio_download_url", "")),
+        "ext": getattr(video_info, "ext", ""),
+        "audio_ext": getattr(video_info, "audio_ext", ""),
+        "cover_url": getattr(video_info, "cover_url", None),
+        "identifier": getattr(video_info, "identifier", ""),
+        "save_path": getattr(video_info, "save_path", ""),
+        "audio_save_path": getattr(video_info, "audio_save_path", ""),
+        "download_with_ffmpeg": bool(getattr(video_info, "download_with_ffmpeg", False)),
+        "enable_nm3u8dlre": getattr(video_info, "enable_nm3u8dlre", None),
+    }
+    if item["download_url"]:
+        items.append(item)
+
+if not items:
+    print(f"Error: No download URLs resolved for {index_url}.", file=sys.stderr)
+    sys.exit(1)
+
+if output_format == "json":
+    print(json.dumps(items, ensure_ascii=False, indent=2))
+    sys.exit(0)
+
+if output_format == "json-compact":
+    print(json.dumps(items, ensure_ascii=False))
+    sys.exit(0)
+
+seen = set()
+for item in items:
+    download_url = item["download_url"]
+    if download_url in seen:
+        continue
+    print(download_url)
+    seen.add(download_url)
+PY
+}
+
+_run_videodl_url_query_batch_videodl_aliases() {
+  local input_mode="$1"
+  shift
+
+  local input_file=""
+  local allowed_sources=""
+  local common_only="false"
+  local output_dir=""
+  local proxy_url=""
+  local thread_count=""
+  local output_format="plain"
+
+  if [ "$input_mode" = "file" ]; then
+    input_file="$1"
+    shift
+    _validate_file_videodl_aliases "$input_file" || return 1
+  fi
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -a|--client)
+        if [ -z "$2" ]; then
+          _show_error_videodl_aliases "Error: Missing client name after $1."
+          return 1
+        fi
+        allowed_sources="$2"
+        shift 2
+        ;;
+      -g|--common)
+        common_only="true"
+        shift
+        ;;
+      -d|--dir)
+        if [ -z "$2" ]; then
+          _show_error_videodl_aliases "Error: Missing output directory after $1."
+          return 1
+        fi
+        output_dir="$2"
+        shift 2
+        ;;
+      -p|--proxy)
+        if [ -z "$2" ]; then
+          _show_error_videodl_aliases "Error: Missing proxy URL after $1."
+          return 1
+        fi
+        proxy_url="$2"
+        shift 2
+        ;;
+      -t|--threads)
+        if [ -z "$2" ]; then
+          _show_error_videodl_aliases "Error: Missing thread count after $1."
+          return 1
+        fi
+        thread_count="$2"
+        shift 2
+        ;;
+      -j|--json)
+        output_format="json"
+        shift
+        ;;
+      *)
+        _show_error_videodl_aliases "Error: Unknown option \"$1\"."
+        return 1
+        ;;
+    esac
+  done
+
+  (
+    local temp_urls_file=""
+    local temp_jsonl_file=""
+    local temp_error_file=""
+    temp_urls_file="$(mktemp)" || {
+      _show_error_videodl_aliases "Error: Failed to create temporary file."
+      exit 1
+    }
+    temp_jsonl_file="$(mktemp)" || {
+      rm -f "$temp_urls_file"
+      _show_error_videodl_aliases "Error: Failed to create temporary JSON file."
+      exit 1
+    }
+    temp_error_file="$(mktemp)" || {
+      rm -f "$temp_urls_file" "$temp_jsonl_file"
+      _show_error_videodl_aliases "Error: Failed to create temporary error file."
+      exit 1
+    }
+    trap 'rm -f "$temp_urls_file" "$temp_jsonl_file" "$temp_error_file"' EXIT INT TERM
+
+    if [ "$input_mode" = "file" ]; then
+      cat "$input_file" | _extract_urls_from_text_videodl_aliases | awk "!seen[\$0]++" > "$temp_urls_file"
+    else
+      cat | _extract_urls_from_text_videodl_aliases | awk "!seen[\$0]++" > "$temp_urls_file"
+    fi
+
+    local url_count=""
+    url_count="$(wc -l < "$temp_urls_file" | tr -d " ")"
+
+    if [ -z "$url_count" ] || [ "$url_count" -eq 0 ]; then
+      _show_error_videodl_aliases "Error: No valid URLs found in batch input."
+      exit 1
+    fi
+
+    local current_index=0
+    local success_count=0
+    local failure_count=0
+    local current_url=""
+    local query_output=""
+    local error_message=""
+    local json_entry=""
+
+    while IFS= read -r current_url; do
+      [ -z "$current_url" ] && continue
+      current_index=$((current_index + 1))
+      : > "$temp_error_file"
+
+      if query_output="$(_run_videodl_url_query_videodl_aliases "$current_url" "$allowed_sources" "$common_only" "$output_dir" "$proxy_url" "$thread_count" "$([ "$output_format" = "json" ] && echo "json-compact" || echo "plain")" 2>"$temp_error_file")"; then
+        success_count=$((success_count + 1))
+        if [ "$output_format" = "json" ]; then
+          json_entry="$(python3 - "$current_url" "$query_output" <<\PY
+import json
+import sys
+
+input_url = sys.argv[1]
+results = json.loads(sys.argv[2])
+print(json.dumps({
+    "input_url": input_url,
+    "success": True,
+    "results": results,
+}, ensure_ascii=False))
+PY
+)"
+          printf "%s\n" "$json_entry" >> "$temp_jsonl_file"
+        else
+          echo "[$current_index/$url_count] $current_url"
+          while IFS= read -r output_line; do
+            [ -n "$output_line" ] && printf "  %s\n" "$output_line"
+          done <<< "$query_output"
+        fi
+      else
+        failure_count=$((failure_count + 1))
+        error_message="$(tr '\n' ' ' < "$temp_error_file" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
+        [ -z "$error_message" ] && error_message="Unknown error."
+
+        if [ "$output_format" = "json" ]; then
+          json_entry="$(python3 - "$current_url" "$error_message" <<\PY
+import json
+import sys
+
+print(json.dumps({
+    "input_url": sys.argv[1],
+    "success": False,
+    "error": sys.argv[2],
+    "results": [],
+}, ensure_ascii=False))
+PY
+)"
+          printf "%s\n" "$json_entry" >> "$temp_jsonl_file"
+        else
+          echo "[$current_index/$url_count] $current_url"
+          echo "  Error: $error_message" >&2
+        fi
+      fi
+    done < "$temp_urls_file"
+
+    if [ "$output_format" = "json" ]; then
+      python3 - "$temp_jsonl_file" "$url_count" "$success_count" "$failure_count" <<\PY
+import json
+import sys
+
+items = []
+with open(sys.argv[1], encoding="utf-8") as handle:
+    for line in handle:
+        line = line.strip()
+        if line:
+            items.append(json.loads(line))
+
+print(json.dumps({
+    "total": int(sys.argv[2]),
+    "success": int(sys.argv[3]),
+    "failed": int(sys.argv[4]),
+    "items": items,
+}, ensure_ascii=False, indent=2))
+PY
+    else
+      echo "Batch finished. Total: $url_count, Success: $success_count, Failed: $failure_count"
+    fi
+
+    if [ "$failure_count" -gt 0 ]; then
+      exit 1
+    fi
+    exit 0
+  )
+}
+
 _run_videodl_batch_videodl_aliases() {
   local input_mode="$1"
   shift
@@ -475,13 +966,6 @@ _run_videodl_batch_videodl_aliases() {
   local proxy_url=""
   local thread_count=""
   local extra_args=()
-  local temp_urls_file=""
-
-  _cleanup_temp_urls_file_videodl_aliases() {
-    if [ -n "$temp_urls_file" ] && [ -f "$temp_urls_file" ]; then
-      rm -f "$temp_urls_file"
-    fi
-  }
 
   if [ "$input_mode" = "file" ]; then
     input_file="$1"
@@ -539,51 +1023,52 @@ _run_videodl_batch_videodl_aliases() {
     esac
   done
 
-  temp_urls_file="$(mktemp)" || {
-    _show_error_videodl_aliases "Error: Failed to create temporary file."
-    return 1
-  }
+  (
+    local temp_urls_file=""
+    temp_urls_file="$(mktemp)" || {
+      _show_error_videodl_aliases "Error: Failed to create temporary file."
+      exit 1
+    }
+    trap 'rm -f "$temp_urls_file"' EXIT INT TERM
 
-  if [ "$input_mode" = "file" ]; then
-    cat "$input_file" | _extract_urls_from_text_videodl_aliases | awk "!seen[\$0]++" > "$temp_urls_file"
-  else
-    cat | _extract_urls_from_text_videodl_aliases | awk "!seen[\$0]++" > "$temp_urls_file"
-  fi
-
-  local url_count=""
-  url_count="$(wc -l < "$temp_urls_file" | tr -d " ")"
-
-  if [ -z "$url_count" ] || [ "$url_count" -eq 0 ]; then
-    _cleanup_temp_urls_file_videodl_aliases
-    _show_error_videodl_aliases "Error: No valid URLs found in batch input."
-    return 1
-  fi
-
-  local current_index=0
-  local success_count=0
-  local failure_count=0
-  local current_url=""
-
-  while IFS= read -r current_url; do
-    [ -z "$current_url" ] && continue
-    current_index=$((current_index + 1))
-    echo "[$current_index/$url_count] $current_url"
-    if _run_videodl_videodl_aliases "$current_url" "$allowed_sources" "$common_only" "$output_dir" "$proxy_url" "$thread_count" "${extra_args[@]}"; then
-      success_count=$((success_count + 1))
+    if [ "$input_mode" = "file" ]; then
+      cat "$input_file" | _extract_urls_from_text_videodl_aliases | awk "!seen[\$0]++" > "$temp_urls_file"
     else
-      failure_count=$((failure_count + 1))
-      echo "Warning: Failed to download \"$current_url\"." >&2
+      cat | _extract_urls_from_text_videodl_aliases | awk "!seen[\$0]++" > "$temp_urls_file"
     fi
-  done < "$temp_urls_file"
 
-  _cleanup_temp_urls_file_videodl_aliases
+    local url_count=""
+    url_count="$(wc -l < "$temp_urls_file" | tr -d " ")"
 
-  echo "Batch finished. Total: $url_count, Success: $success_count, Failed: $failure_count"
+    if [ -z "$url_count" ] || [ "$url_count" -eq 0 ]; then
+      _show_error_videodl_aliases "Error: No valid URLs found in batch input."
+      exit 1
+    fi
 
-  if [ "$failure_count" -gt 0 ]; then
-    return 1
-  fi
-  return 0
+    local current_index=0
+    local success_count=0
+    local failure_count=0
+    local current_url=""
+
+    while IFS= read -r current_url; do
+      [ -z "$current_url" ] && continue
+      current_index=$((current_index + 1))
+      echo "[$current_index/$url_count] $current_url"
+      if _run_videodl_videodl_aliases "$current_url" "$allowed_sources" "$common_only" "$output_dir" "$proxy_url" "$thread_count" "${extra_args[@]}"; then
+        success_count=$((success_count + 1))
+      else
+        failure_count=$((failure_count + 1))
+        echo "Warning: Failed to download \"$current_url\"." >&2
+      fi
+    done < "$temp_urls_file"
+
+    echo "Batch finished. Total: $url_count, Success: $success_count, Failed: $failure_count"
+
+    if [ "$failure_count" -gt 0 ]; then
+      exit 1
+    fi
+    exit 0
+  )
 }
 
 _vdl_help_videodl_aliases() {
@@ -592,8 +1077,12 @@ _vdl_help_videodl_aliases() {
   echo "Core:"
   echo "  vdl <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra videodl args]"
   echo "  vdl-ui [extra videodl args]"
+  echo "  vdl-url <url_or_share_text> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json]"
+  echo "  vdl-url-batch <text_file> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json]"
+  echo "  vdl-url-batch-stdin [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json]"
   echo "  vdl-client <client1[,client2]> <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra args]"
   echo "  vdl-common <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra args]"
+  echo "  vdl-url prints resolved download URLs only; some results may be m3u8 or ffmpeg-oriented URLs instead of a final mp4 file URL."
   echo ""
   echo "Presets:"
   echo "  vdl-dy <url_or_share_text>      : Short-video preset via SnapAnyVideoClient"
@@ -634,6 +1123,37 @@ alias vdl-ui='() {
   _check_command_videodl_aliases videodl || return 1
   videodl "$@"
 }' # Start videodl interactive mode
+
+alias vdl-url='() {
+  if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    echo -e "Resolve parsed download URLs with videodl without downloading.\nUsage:\n vdl-url <url_or_share_text> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json]\n\nExamples:\n vdl-url \"https://www.bilibili.com/video/BV13x41117TL\"\n vdl-url \"8.99 复制打开抖音，看看... https://v.douyin.com/abc123/ ...\" --client \"SnapAnyVideoClient\"\n vdl-url \"https://example.com/video\" --proxy http://127.0.0.1:7890 --json\n\nNotes:\n The resolved download_url may be a direct media URL, an m3u8 playlist, or an ffmpeg-oriented URL rather than a final mp4 file URL."
+    return 0
+  fi
+
+  local parsed_args=""
+  parsed_args="$(_parse_single_query_args_videodl_aliases "$@")" || return 1
+  _read_parsed_query_options_videodl_aliases "$parsed_args"
+
+  _run_videodl_url_query_videodl_aliases "$VDL_QUERY_RAW_INPUT" "$VDL_QUERY_ALLOWED_SOURCES" "$VDL_QUERY_COMMON_ONLY" "$VDL_QUERY_OUTPUT_DIR" "$VDL_QUERY_PROXY_URL" "$VDL_QUERY_THREAD_COUNT" "$VDL_QUERY_OUTPUT_FORMAT"
+}' # Resolve parsed download URLs only
+
+alias vdl-url-batch='() {
+  if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    echo -e "Batch resolve parsed download URLs from a text file.\nUsage:\n vdl-url-batch <text_file> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json]\n\nExamples:\n vdl-url-batch urls.txt\n vdl-url-batch notes.txt --client \"BilibiliVideoClient\" --json\n vdl-url-batch mixed.txt --common --proxy http://127.0.0.1:7890\n\nNotes:\n The batch command extracts all URLs from the input, removes duplicates, then resolves each URL without downloading."
+    return 0
+  fi
+
+  _run_videodl_url_query_batch_videodl_aliases "file" "$@"
+}' # Batch resolve parsed download URLs from a text file
+
+alias vdl-url-batch-stdin='() {
+  if [ $# -gt 0 ] && { [ "$1" = "-h" ] || [ "$1" = "--help" ]; }; then
+    echo -e "Batch resolve parsed download URLs from stdin.\nUsage:\n vdl-url-batch-stdin [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json]\n\nExamples:\n cat urls.txt | vdl-url-batch-stdin\n rg -o \"https://[^ ]+\" notes.md | vdl-url-batch-stdin --json\n printf \"share https://example.com/video\" | vdl-url-batch-stdin --common"
+    return 0
+  fi
+
+  _run_videodl_url_query_batch_videodl_aliases "stdin" "$@"
+}' # Batch resolve parsed download URLs from stdin
 
 alias vdl-client='() {
   if [ $# -lt 2 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
