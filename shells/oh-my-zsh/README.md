@@ -31,7 +31,7 @@ The `custom/aliases/` directory contains a collection of alias files for various
 - `archive_aliases.zsh`: Shortcuts for compression and extraction operations
 - `brew_aliases.zsh`: Homebrew-related command aliases
 - `text_aliases.zsh`: Unified `txt-*` aliases for deduplication, case conversion, line numbering, whitespace cleanup, EOL normalization, and quick text statistics
-- `videodl_aliases.zsh`: Unified `vdl-*` aliases for `videodl`, including presets, dependency checks, single-link share-text extraction, parsed download-URL inspection via `vdl-url`, batch URL inspection via `vdl-url-batch`, and batch helpers that extract URLs from mixed text lines
+- `videodl_aliases.zsh`: Unified `vdl-*` aliases for `videodl`, including presets, dependency checks, single-link share-text extraction, media-aware inspection via `vdl-url`, batch resource inspection via `vdl-url-batch`, batch helpers that extract URLs from mixed text lines, default related-cover downloads for `vdl*` download aliases, and fallback cover detection for aggregator-style responses such as SnapAny image media entries
 - `vps_aliases.zsh`: Linux VPS helpers for NodeQuality, YABS, vps-audit, and quick server inspection
 - `upload_aliases.zsh`: File upload helpers, including `upload-catbox`, `upload-litterbox`, `upload-freeimage`, and `upload-imgloc` for public file/image hosting
 

@@ -209,6 +209,38 @@ _resolve_url_input_videodl_aliases() {
   echo "$raw_input"
 }
 
+_extract_url_host_videodl_aliases() {
+  local url="$1"
+  local host="${url#*://}"
+  host="${host%%/*}"
+  host="${host%%\?*}"
+  host="${host%%:*}"
+  echo "$host"
+}
+
+_apply_auto_client_preferences_videodl_aliases() {
+  local url="$1"
+  local allowed_sources="$2"
+  local common_only="$3"
+
+  typeset -g VDL_EFFECTIVE_ALLOWED_SOURCES="$allowed_sources"
+  typeset -g VDL_EFFECTIVE_COMMON_ONLY="$common_only"
+
+  if [ -n "$allowed_sources" ] || [ "$common_only" = "true" ]; then
+    return 0
+  fi
+
+  local url_host=""
+  url_host="$(_extract_url_host_videodl_aliases "$url")"
+
+  case "$url_host" in
+    douyin.com|*.douyin.com|iesdouyin.com|*.iesdouyin.com|tiktok.com|*.tiktok.com|kuaishou.com|*.kuaishou.com|xiaohongshu.com|*.xiaohongshu.com|xhslink.com|*.xhslink.com|rednote.com|*.rednote.com)
+      VDL_EFFECTIVE_ALLOWED_SOURCES="SnapAnyVideoClient"
+      VDL_EFFECTIVE_COMMON_ONLY="true"
+      ;;
+  esac
+}
+
 _resolve_videodl_python_videodl_aliases() {
   _check_command_videodl_aliases videodl || return 1
 
@@ -242,13 +274,15 @@ _emit_parsed_download_options_videodl_aliases() {
   local output_dir="$2"
   local proxy_url="$3"
   local thread_count="$4"
-  shift 4
+  local download_cover="$5"
+  shift 5
   local extra_args=("$@")
 
   printf "RAW_INPUT=%s\n" "$raw_input"
   printf "OUTPUT_DIR=%s\n" "$output_dir"
   printf "PROXY_URL=%s\n" "$proxy_url"
   printf "THREAD_COUNT=%s\n" "$thread_count"
+  printf "DOWNLOAD_COVER=%s\n" "$download_cover"
   printf "__EXTRA_ARGS__\n"
   printf "%s\n" "${extra_args[@]}"
 }
@@ -261,6 +295,7 @@ _emit_parsed_query_options_videodl_aliases() {
   local proxy_url="$5"
   local thread_count="$6"
   local output_format="$7"
+  local include_cover="$8"
 
   printf "RAW_INPUT=%s\n" "$raw_input"
   printf "ALLOWED_SOURCES=%s\n" "$allowed_sources"
@@ -269,6 +304,7 @@ _emit_parsed_query_options_videodl_aliases() {
   printf "PROXY_URL=%s\n" "$proxy_url"
   printf "THREAD_COUNT=%s\n" "$thread_count"
   printf "OUTPUT_FORMAT=%s\n" "$output_format"
+  printf "INCLUDE_COVER=%s\n" "$include_cover"
 }
 
 _parse_single_download_args_videodl_aliases() {
@@ -276,6 +312,7 @@ _parse_single_download_args_videodl_aliases() {
   local output_dir=""
   local proxy_url=""
   local thread_count=""
+  local download_cover="true"
   local extra_args=()
   local current_arg=""
 
@@ -306,6 +343,10 @@ _parse_single_download_args_videodl_aliases() {
         thread_count="$2"
         shift 2
         ;;
+      --no-cover)
+        download_cover="false"
+        shift
+        ;;
       --)
         shift
         extra_args=("$@")
@@ -322,7 +363,7 @@ _parse_single_download_args_videodl_aliases() {
     esac
   done
 
-  _emit_parsed_download_options_videodl_aliases "$raw_input" "$output_dir" "$proxy_url" "$thread_count" "${extra_args[@]}"
+  _emit_parsed_download_options_videodl_aliases "$raw_input" "$output_dir" "$proxy_url" "$thread_count" "$download_cover" "${extra_args[@]}"
 }
 
 _parse_single_query_args_videodl_aliases() {
@@ -333,6 +374,7 @@ _parse_single_query_args_videodl_aliases() {
   local proxy_url=""
   local thread_count=""
   local output_format="plain"
+  local include_cover="false"
   local current_arg=""
 
   while [ $# -gt 0 ]; do
@@ -378,6 +420,14 @@ _parse_single_query_args_videodl_aliases() {
         output_format="json"
         shift
         ;;
+      -m|--meta)
+        output_format="meta"
+        shift
+        ;;
+      --include-cover)
+        include_cover="true"
+        shift
+        ;;
       -*)
         _show_error_videodl_aliases "Error: Unknown option \"$1\"."
         return 1
@@ -393,13 +443,14 @@ _parse_single_query_args_videodl_aliases() {
     esac
   done
 
-  _emit_parsed_query_options_videodl_aliases "$raw_input" "$allowed_sources" "$common_only" "$output_dir" "$proxy_url" "$thread_count" "$output_format"
+  _emit_parsed_query_options_videodl_aliases "$raw_input" "$allowed_sources" "$common_only" "$output_dir" "$proxy_url" "$thread_count" "$output_format" "$include_cover"
 }
 
 _parse_download_options_videodl_aliases() {
   local output_dir=""
   local proxy_url=""
   local thread_count=""
+  local download_cover="true"
   local extra_args=()
 
   while [ $# -gt 0 ]; do
@@ -428,6 +479,10 @@ _parse_download_options_videodl_aliases() {
         thread_count="$2"
         shift 2
         ;;
+      --no-cover)
+        download_cover="false"
+        shift
+        ;;
       --)
         shift
         extra_args=("$@")
@@ -444,7 +499,7 @@ _parse_download_options_videodl_aliases() {
     esac
   done
 
-  _emit_parsed_download_options_videodl_aliases "" "$output_dir" "$proxy_url" "$thread_count" "${extra_args[@]}"
+  _emit_parsed_download_options_videodl_aliases "" "$output_dir" "$proxy_url" "$thread_count" "$download_cover" "${extra_args[@]}"
 }
 
 _read_parsed_download_options_videodl_aliases() {
@@ -453,6 +508,7 @@ _read_parsed_download_options_videodl_aliases() {
   local output_dir=""
   local proxy_url=""
   local thread_count=""
+  local download_cover="true"
   local extra_args=()
   local parse_mode="header"
   local line=""
@@ -477,6 +533,9 @@ _read_parsed_download_options_videodl_aliases() {
         THREAD_COUNT=*)
           thread_count="${line#THREAD_COUNT=}"
           ;;
+        DOWNLOAD_COVER=*)
+          download_cover="${line#DOWNLOAD_COVER=}"
+          ;;
       esac
       continue
     fi
@@ -489,6 +548,7 @@ _read_parsed_download_options_videodl_aliases() {
   typeset -g VDL_PARSED_OUTPUT_DIR="$output_dir"
   typeset -g VDL_PARSED_PROXY_URL="$proxy_url"
   typeset -g VDL_PARSED_THREAD_COUNT="$thread_count"
+  typeset -g VDL_PARSED_DOWNLOAD_COVER="$download_cover"
   typeset -ga VDL_PARSED_EXTRA_ARGS
   VDL_PARSED_EXTRA_ARGS=("${extra_args[@]}")
 }
@@ -502,6 +562,7 @@ _read_parsed_query_options_videodl_aliases() {
   local proxy_url=""
   local thread_count=""
   local output_format="plain"
+  local include_cover="false"
   local line=""
 
   while IFS= read -r line; do
@@ -527,6 +588,9 @@ _read_parsed_query_options_videodl_aliases() {
       OUTPUT_FORMAT=*)
         output_format="${line#OUTPUT_FORMAT=}"
         ;;
+      INCLUDE_COVER=*)
+        include_cover="${line#INCLUDE_COVER=}"
+        ;;
     esac
   done <<< "$parsed_args"
 
@@ -537,6 +601,7 @@ _read_parsed_query_options_videodl_aliases() {
   typeset -g VDL_QUERY_PROXY_URL="$proxy_url"
   typeset -g VDL_QUERY_THREAD_COUNT="$thread_count"
   typeset -g VDL_QUERY_OUTPUT_FORMAT="$output_format"
+  typeset -g VDL_QUERY_INCLUDE_COVER="$include_cover"
 }
 
 _run_preset_videodl_aliases() {
@@ -548,7 +613,7 @@ _run_preset_videodl_aliases() {
   parsed_args="$(_parse_single_download_args_videodl_aliases "$@")" || return 1
   _read_parsed_download_options_videodl_aliases "$parsed_args"
 
-  _run_videodl_videodl_aliases "$VDL_PARSED_RAW_INPUT" "$allowed_sources" "$common_only" "$VDL_PARSED_OUTPUT_DIR" "$VDL_PARSED_PROXY_URL" "$VDL_PARSED_THREAD_COUNT" "${VDL_PARSED_EXTRA_ARGS[@]}"
+  _run_videodl_videodl_aliases "$VDL_PARSED_RAW_INPUT" "$allowed_sources" "$common_only" "$VDL_PARSED_OUTPUT_DIR" "$VDL_PARSED_PROXY_URL" "$VDL_PARSED_THREAD_COUNT" "$VDL_PARSED_DOWNLOAD_COVER" "${VDL_PARSED_EXTRA_ARGS[@]}"
 }
 
 _run_videodl_videodl_aliases() {
@@ -558,12 +623,16 @@ _run_videodl_videodl_aliases() {
   local output_dir="$4"
   local proxy_url="$5"
   local thread_count="$6"
-  shift 6
+  local download_cover="$7"
+  shift 7
   local extra_args=("$@")
 
   url="$(_resolve_url_input_videodl_aliases "$url")"
   _validate_url_videodl_aliases "$url" || return 1
   _check_command_videodl_aliases videodl || return 1
+  _apply_auto_client_preferences_videodl_aliases "$url" "$allowed_sources" "$common_only"
+  allowed_sources="$VDL_EFFECTIVE_ALLOWED_SOURCES"
+  common_only="$VDL_EFFECTIVE_COMMON_ONLY"
 
   local args=()
   args+=("-i" "$url")
@@ -623,8 +692,205 @@ _run_videodl_videodl_aliases() {
     args+=("${extra_args[@]}")
   fi
 
+  local cover_metadata_json=""
+  if [ "$download_cover" = "true" ]; then
+    cover_metadata_json="$(_run_videodl_url_query_videodl_aliases "$url" "$allowed_sources" "$common_only" "$output_dir" "$proxy_url" "$thread_count" "json-compact" "false" 2>/dev/null)" || cover_metadata_json=""
+  fi
+
   echo "videodl => $url"
-  videodl "${args[@]}"
+  if ! videodl "${args[@]}"; then
+    return 1
+  fi
+
+  if [ "$download_cover" = "true" ] && [ -n "$cover_metadata_json" ]; then
+    _download_videodl_covers_videodl_aliases "$cover_metadata_json" "$proxy_url" || true
+  fi
+}
+
+_download_videodl_covers_videodl_aliases() {
+  local metadata_json="$1"
+  local proxy_url="$2"
+
+  if [ -z "$metadata_json" ]; then
+    return 0
+  fi
+
+  local videodl_python=""
+  videodl_python="$(_resolve_videodl_python_videodl_aliases)" || return 1
+
+  local metadata_file=""
+  metadata_file="$(mktemp)" || {
+    _show_error_videodl_aliases "Error: Failed to create temporary metadata file for cover download."
+    return 1
+  }
+  trap 'rm -f "$metadata_file"' EXIT INT TERM
+  printf "%s" "$metadata_json" > "$metadata_file"
+
+  "$videodl_python" - "$metadata_file" "$proxy_url" <<\PY
+import json
+import mimetypes
+import os
+import shutil
+import sys
+import tempfile
+import urllib.parse
+import urllib.request
+
+
+IMAGE_EXTS = {"jpg", "jpeg", "png", "webp", "gif", "bmp", "avif", "heic", "heif"}
+CONTENT_TYPE_EXTS = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/bmp": "bmp",
+    "image/x-ms-bmp": "bmp",
+    "image/avif": "avif",
+    "image/heic": "heic",
+    "image/heif": "heif",
+}
+
+
+def normalize_text(value):
+    if value is None:
+        return ""
+    return str(value)
+
+
+def infer_ext_from_url(url):
+    path = urllib.parse.urlparse(url).path
+    _, ext = os.path.splitext(path)
+    ext = ext.lower().lstrip(".")
+    return ext if ext in IMAGE_EXTS else ""
+
+
+def infer_ext_from_headers(response):
+    content_type = normalize_text(response.headers.get("Content-Type", "")).split(";")[0].strip().lower()
+    if content_type in CONTENT_TYPE_EXTS:
+        return CONTENT_TYPE_EXTS[content_type]
+    guessed = mimetypes.guess_extension(content_type)
+    if guessed:
+        guessed = guessed.lower().lstrip(".")
+        if guessed in IMAGE_EXTS:
+            return guessed
+    return ""
+
+
+def infer_ext_from_file(file_path):
+    with open(file_path, "rb") as handle:
+        header = handle.read(32)
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if header.startswith(b"\xff\xd8\xff"):
+        return "jpg"
+    if header[:6] in {b"GIF87a", b"GIF89a"}:
+        return "gif"
+    if header.startswith(b"BM"):
+        return "bmp"
+    if header.startswith(b"RIFF") and header[8:12] == b"WEBP":
+        return "webp"
+    if len(header) >= 12 and header[4:12] == b"ftypavif":
+        return "avif"
+    if len(header) >= 12 and header[4:12] in {b"ftypheic", b"ftypheif"}:
+        return "heic"
+    return ""
+
+
+def derive_cover_base_path(item):
+    save_path = normalize_text(item.get("save_path"))
+    audio_save_path = normalize_text(item.get("audio_save_path"))
+    base_path = save_path or audio_save_path
+    if not base_path:
+        return ""
+    stem, _ = os.path.splitext(base_path)
+    return stem + ".cover"
+
+
+def should_download_cover(item):
+    cover_url = normalize_text(item.get("cover_url"))
+    if not cover_url:
+        return False
+    if not (normalize_text(item.get("download_url")) or normalize_text(item.get("audio_download_url"))):
+        return False
+    return bool(derive_cover_base_path(item))
+
+
+def build_opener(proxy_url):
+    handlers = []
+    if proxy_url:
+        handlers.append(urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}))
+    return urllib.request.build_opener(*handlers)
+
+
+def download_cover(item, opener):
+    cover_url = normalize_text(item.get("cover_url"))
+    cover_base_path = derive_cover_base_path(item)
+    if not cover_url or not cover_base_path:
+        return ("skip", "")
+
+    url_ext = infer_ext_from_url(cover_url)
+    final_path = f"{cover_base_path}.{url_ext or 'jpg'}"
+    if os.path.exists(final_path) and os.path.getsize(final_path) > 0:
+        return ("exists", final_path)
+
+    os.makedirs(os.path.dirname(final_path), exist_ok=True)
+
+    headers = {"User-Agent": "Mozilla/5.0"}
+    request = urllib.request.Request(cover_url, headers=headers)
+    temp_handle = tempfile.NamedTemporaryFile(delete=False, dir=os.path.dirname(final_path), suffix=".cover.tmp")
+    temp_handle.close()
+    temp_path = temp_handle.name
+
+    try:
+        with opener.open(request, timeout=60) as response, open(temp_path, "wb") as output_handle:
+            shutil.copyfileobj(response, output_handle)
+            header_ext = infer_ext_from_headers(response)
+
+        file_ext = infer_ext_from_file(temp_path)
+        final_ext = url_ext or header_ext or file_ext or "jpg"
+        final_path = f"{cover_base_path}.{final_ext}"
+
+        if os.path.exists(final_path):
+          os.remove(final_path)
+        os.replace(temp_path, final_path)
+        return ("downloaded", final_path)
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    items = json.load(handle)
+
+proxy_url = normalize_text(sys.argv[2])
+opener = build_opener(proxy_url)
+printed_header = False
+
+for item in items:
+    if not should_download_cover(item):
+        continue
+    try:
+        status, path = download_cover(item, opener)
+    except Exception as exc:
+        if not printed_header:
+            print("Cover download results:")
+            printed_header = True
+        print(f"  warning: {normalize_text(item.get('title')) or normalize_text(item.get('identifier')) or item.get('cover_url')} -> {exc}")
+        continue
+
+    if status not in {"downloaded", "exists"}:
+        continue
+    if not printed_header:
+        print("Cover download results:")
+        printed_header = True
+    action = "saved" if status == "downloaded" else "exists"
+    print(f"  {action}: {path}")
+PY
+  local exit_code=$?
+  rm -f "$metadata_file"
+  trap - EXIT INT TERM
+  return $exit_code
 }
 
 _run_videodl_url_query_videodl_aliases() {
@@ -635,10 +901,14 @@ _run_videodl_url_query_videodl_aliases() {
   local proxy_url="$5"
   local thread_count="$6"
   local output_format="$7"
+  local include_cover="$8"
 
   url="$(_resolve_url_input_videodl_aliases "$url")"
   _validate_url_videodl_aliases "$url" || return 1
   _check_command_videodl_aliases videodl || return 1
+  _apply_auto_client_preferences_videodl_aliases "$url" "$allowed_sources" "$common_only"
+  allowed_sources="$VDL_EFFECTIVE_ALLOWED_SOURCES"
+  common_only="$VDL_EFFECTIVE_COMMON_ONLY"
 
   local videodl_python=""
   videodl_python="$(_resolve_videodl_python_videodl_aliases)" || return 1
@@ -680,7 +950,7 @@ _run_videodl_url_query_videodl_aliases() {
     }
   fi
 
-  "$videodl_python" - "$url" "$allowed_sources" "$common_only" "$init_cfg" "$requests_cfg" "$threadings_cfg" "$output_format" <<\PY
+  "$videodl_python" - "$url" "$allowed_sources" "$common_only" "$init_cfg" "$requests_cfg" "$threadings_cfg" "$output_format" "$include_cover" <<\PY
 import json
 import sys
 
@@ -702,6 +972,72 @@ def load_json(value):
     return json.loads(value) if value else {}
 
 
+def normalize_text(value):
+    if value is None:
+        return ""
+    return str(value)
+
+
+def normalize_http_url(value):
+    normalized = normalize_url(value)
+    if normalized.startswith(("http://", "https://")):
+        return normalized
+    return ""
+
+
+def derive_cover_url(video_info):
+    cover_url = normalize_http_url(getattr(video_info, "cover_url", ""))
+    if cover_url:
+        return cover_url
+
+    raw_data = getattr(video_info, "raw_data", None)
+    if not isinstance(raw_data, dict):
+        return ""
+
+    for key in ("preview_url", "cover_url", "thumbnail", "image", "poster"):
+        candidate = normalize_http_url(raw_data.get(key))
+        if candidate:
+            return candidate
+
+    medias = raw_data.get("medias")
+    if not isinstance(medias, list):
+        return ""
+
+    media_preview_candidates = []
+    for media in medias:
+        if not isinstance(media, dict):
+            continue
+        media_type = normalize_text(media.get("media_type")).lower()
+        if media_type == "image":
+            for key in ("resource_url", "preview_url", "image", "thumbnail", "cover"):
+                candidate = normalize_http_url(media.get(key))
+                if candidate:
+                    return candidate
+        else:
+            for key in ("preview_url", "image", "thumbnail", "cover"):
+                candidate = normalize_http_url(media.get(key))
+                if candidate:
+                    media_preview_candidates.append(candidate)
+
+    return media_preview_candidates[0] if media_preview_candidates else ""
+
+
+def detect_media_kind(item):
+    image_exts = {"jpg", "jpeg", "png", "webp", "gif", "bmp", "avif", "heic", "heif"}
+    ext = normalize_text(item.get("ext")).lower().lstrip(".")
+    if item.get("download_url") and ext in image_exts:
+        return "image"
+    if item.get("download_url") and item.get("audio_download_url"):
+        return "video_with_audio"
+    if item.get("download_url"):
+        return "video"
+    if item.get("audio_download_url"):
+        return "audio_only"
+    if item.get("cover_url"):
+        return "cover_only"
+    return "unknown"
+
+
 index_url = sys.argv[1]
 allowed_sources_csv = sys.argv[2]
 common_only = sys.argv[3] == "true"
@@ -709,6 +1045,7 @@ init_cfg = load_json(sys.argv[4])
 requests_overrides = load_json(sys.argv[5])
 clients_threadings = load_json(sys.argv[6])
 output_format = sys.argv[7]
+include_cover = sys.argv[8] == "true"
 
 allowed_sources = [item.strip() for item in allowed_sources_csv.split(",") if item.strip()]
 video_client = VideoClient(
@@ -724,24 +1061,25 @@ items = []
 
 for video_info in video_infos:
     item = {
-        "source": getattr(video_info, "source", ""),
-        "title": getattr(video_info, "title", ""),
+        "source": normalize_text(getattr(video_info, "source", "")),
+        "title": normalize_text(getattr(video_info, "title", "")),
         "download_url": normalize_url(getattr(video_info, "download_url", "")),
         "audio_download_url": normalize_url(getattr(video_info, "audio_download_url", "")),
-        "ext": getattr(video_info, "ext", ""),
-        "audio_ext": getattr(video_info, "audio_ext", ""),
-        "cover_url": getattr(video_info, "cover_url", None),
-        "identifier": getattr(video_info, "identifier", ""),
-        "save_path": getattr(video_info, "save_path", ""),
-        "audio_save_path": getattr(video_info, "audio_save_path", ""),
+        "ext": normalize_text(getattr(video_info, "ext", "")),
+        "audio_ext": normalize_text(getattr(video_info, "audio_ext", "")),
+        "cover_url": derive_cover_url(video_info),
+        "identifier": normalize_text(getattr(video_info, "identifier", "")),
+        "save_path": normalize_text(getattr(video_info, "save_path", "")),
+        "audio_save_path": normalize_text(getattr(video_info, "audio_save_path", "")),
         "download_with_ffmpeg": bool(getattr(video_info, "download_with_ffmpeg", False)),
         "enable_nm3u8dlre": getattr(video_info, "enable_nm3u8dlre", None),
     }
-    if item["download_url"]:
+    item["media_kind"] = detect_media_kind(item)
+    if item["download_url"] or item["audio_download_url"] or item["cover_url"]:
         items.append(item)
 
 if not items:
-    print(f"Error: No download URLs resolved for {index_url}.", file=sys.stderr)
+    print(f"Error: No downloadable or cover resources resolved for {index_url}.", file=sys.stderr)
     sys.exit(1)
 
 if output_format == "json":
@@ -752,13 +1090,43 @@ if output_format == "json-compact":
     print(json.dumps(items, ensure_ascii=False))
     sys.exit(0)
 
+if output_format == "meta":
+    for idx, item in enumerate(items, start=1):
+        print(f"[{idx}] media_kind={item['media_kind']} source={item['source']} title={item['title']}")
+        if item["download_url"]:
+            print(f"download_url={item['download_url']}")
+        if item["audio_download_url"]:
+            print(f"audio_download_url={item['audio_download_url']}")
+        if item["cover_url"]:
+            print(f"cover_url={item['cover_url']}")
+        if item["ext"]:
+            print(f"ext={item['ext']}")
+        if item["audio_ext"] and item["audio_download_url"]:
+            print(f"audio_ext={item['audio_ext']}")
+        if item["save_path"]:
+            print(f"save_path={item['save_path']}")
+        if item["audio_save_path"] and item["audio_download_url"]:
+            print(f"audio_save_path={item['audio_save_path']}")
+    sys.exit(0)
+
 seen = set()
 for item in items:
-    download_url = item["download_url"]
-    if download_url in seen:
-        continue
-    print(download_url)
-    seen.add(download_url)
+    emit_urls = []
+    if item["download_url"]:
+        emit_urls.append(item["download_url"])
+    elif item["cover_url"]:
+        emit_urls.append(item["cover_url"])
+    elif item["audio_download_url"]:
+        emit_urls.append(item["audio_download_url"])
+
+    if include_cover and item["cover_url"] and item["cover_url"] not in emit_urls:
+        emit_urls.append(item["cover_url"])
+
+    for current_url in emit_urls:
+        if current_url in seen:
+            continue
+        print(current_url)
+        seen.add(current_url)
 PY
 }
 
@@ -773,6 +1141,7 @@ _run_videodl_url_query_batch_videodl_aliases() {
   local proxy_url=""
   local thread_count=""
   local output_format="plain"
+  local include_cover="false"
 
   if [ "$input_mode" = "file" ]; then
     input_file="$1"
@@ -820,6 +1189,14 @@ _run_videodl_url_query_batch_videodl_aliases() {
         ;;
       -j|--json)
         output_format="json"
+        shift
+        ;;
+      -m|--meta)
+        output_format="meta"
+        shift
+        ;;
+      --include-cover)
+        include_cover="true"
         shift
         ;;
       *)
@@ -876,7 +1253,7 @@ _run_videodl_url_query_batch_videodl_aliases() {
       current_index=$((current_index + 1))
       : > "$temp_error_file"
 
-      if query_output="$(_run_videodl_url_query_videodl_aliases "$current_url" "$allowed_sources" "$common_only" "$output_dir" "$proxy_url" "$thread_count" "$([ "$output_format" = "json" ] && echo "json-compact" || echo "plain")" 2>"$temp_error_file")"; then
+      if query_output="$(_run_videodl_url_query_videodl_aliases "$current_url" "$allowed_sources" "$common_only" "$output_dir" "$proxy_url" "$thread_count" "$([ "$output_format" = "json" ] && echo "json-compact" || echo "$output_format")" "$include_cover" 2>"$temp_error_file")"; then
         success_count=$((success_count + 1))
         if [ "$output_format" = "json" ]; then
           json_entry="$(python3 - "$current_url" "$query_output" <<\PY
@@ -965,6 +1342,7 @@ _run_videodl_batch_videodl_aliases() {
   local output_dir=""
   local proxy_url=""
   local thread_count=""
+  local download_cover="true"
   local extra_args=()
 
   if [ "$input_mode" = "file" ]; then
@@ -1011,6 +1389,10 @@ _run_videodl_batch_videodl_aliases() {
         thread_count="$2"
         shift 2
         ;;
+      --no-cover)
+        download_cover="false"
+        shift
+        ;;
       --)
         shift
         extra_args=("$@")
@@ -1054,7 +1436,7 @@ _run_videodl_batch_videodl_aliases() {
       [ -z "$current_url" ] && continue
       current_index=$((current_index + 1))
       echo "[$current_index/$url_count] $current_url"
-      if _run_videodl_videodl_aliases "$current_url" "$allowed_sources" "$common_only" "$output_dir" "$proxy_url" "$thread_count" "${extra_args[@]}"; then
+      if _run_videodl_videodl_aliases "$current_url" "$allowed_sources" "$common_only" "$output_dir" "$proxy_url" "$thread_count" "$download_cover" "${extra_args[@]}"; then
         success_count=$((success_count + 1))
       else
         failure_count=$((failure_count + 1))
@@ -1075,14 +1457,16 @@ _vdl_help_videodl_aliases() {
   echo "Videodl aliases help"
   echo ""
   echo "Core:"
-  echo "  vdl <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra videodl args]"
+  echo "  vdl <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [--no-cover] [-- extra videodl args]"
   echo "  vdl-ui [extra videodl args]"
-  echo "  vdl-url <url_or_share_text> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json]"
-  echo "  vdl-url-batch <text_file> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json]"
-  echo "  vdl-url-batch-stdin [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json]"
-  echo "  vdl-client <client1[,client2]> <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra args]"
-  echo "  vdl-common <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra args]"
-  echo "  vdl-url prints resolved download URLs only; some results may be m3u8 or ffmpeg-oriented URLs instead of a final mp4 file URL."
+  echo "  vdl-url <url_or_share_text> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json|--meta] [--include-cover]"
+  echo "  vdl-url-batch <text_file> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json|--meta] [--include-cover]"
+  echo "  vdl-url-batch-stdin [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json|--meta] [--include-cover]"
+  echo "  vdl-client <client1[,client2]> <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [--no-cover] [-- extra args]"
+  echo "  vdl-common <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [--no-cover] [-- extra args]"
+  echo "  vdl-url can expose media_kind, cover_url, and audio_download_url; some results may be m3u8, cover-only, or ffmpeg-oriented resources."
+  echo "  Download aliases save related video covers by default; use --no-cover to disable the extra cover fetch step."
+  echo "  Generic vdl/vdl-batch commands auto prefer SnapAnyVideoClient for Douyin/TikTok/Kuaishou/Rednote links unless you explicitly pass --client or --common."
   echo ""
   echo "Presets:"
   echo "  vdl-dy <url_or_share_text>      : Short-video preset via SnapAnyVideoClient"
@@ -1103,7 +1487,7 @@ _vdl_help_videodl_aliases() {
 # Core aliases
 alias vdl='() {
   if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo -e "Download a video with videodl.\nUsage:\n vdl <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra videodl args]\n\nExamples:\n vdl \"https://www.bilibili.com/video/BV13x41117TL\"\n vdl \"8.99 复制打开抖音，看看... https://v.douyin.com/abc123/ ...\"\n vdl \"https://www.douyin.com/jingxuan?modal_id=7569541184671974899\" --dir ~/Downloads/videos\n vdl \"https://example.com/video\" --proxy http://127.0.0.1:7890 --threads 8 -- --version"
+    echo -e "Download a video with videodl.\nUsage:\n vdl <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [--no-cover] [-- extra videodl args]\n\nExamples:\n vdl \"https://www.bilibili.com/video/BV13x41117TL\"\n vdl \"8.99 复制打开抖音，看看... https://v.douyin.com/abc123/ ...\"\n vdl \"https://www.douyin.com/jingxuan?modal_id=7569541184671974899\" --dir ~/Downloads/videos\n vdl \"https://example.com/video\" --proxy http://127.0.0.1:7890 --threads 8 --no-cover -- --version\n\nNotes:\n Download aliases save the related video cover in the same directory by default.\n Generic mode auto prefers SnapAnyVideoClient for Douyin/TikTok/Kuaishou/Rednote links unless you explicitly pass --client or --common."
     return 0
   fi
 
@@ -1111,7 +1495,7 @@ alias vdl='() {
   parsed_args="$(_parse_single_download_args_videodl_aliases "$@")" || return 1
   _read_parsed_download_options_videodl_aliases "$parsed_args"
 
-  _run_videodl_videodl_aliases "$VDL_PARSED_RAW_INPUT" "" "false" "$VDL_PARSED_OUTPUT_DIR" "$VDL_PARSED_PROXY_URL" "$VDL_PARSED_THREAD_COUNT" "${VDL_PARSED_EXTRA_ARGS[@]}"
+  _run_videodl_videodl_aliases "$VDL_PARSED_RAW_INPUT" "" "false" "$VDL_PARSED_OUTPUT_DIR" "$VDL_PARSED_PROXY_URL" "$VDL_PARSED_THREAD_COUNT" "$VDL_PARSED_DOWNLOAD_COVER" "${VDL_PARSED_EXTRA_ARGS[@]}"
 }' # Generic videodl wrapper
 
 alias vdl-ui='() {
@@ -1126,7 +1510,7 @@ alias vdl-ui='() {
 
 alias vdl-url='() {
   if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo -e "Resolve parsed download URLs with videodl without downloading.\nUsage:\n vdl-url <url_or_share_text> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json]\n\nExamples:\n vdl-url \"https://www.bilibili.com/video/BV13x41117TL\"\n vdl-url \"8.99 复制打开抖音，看看... https://v.douyin.com/abc123/ ...\" --client \"SnapAnyVideoClient\"\n vdl-url \"https://example.com/video\" --proxy http://127.0.0.1:7890 --json\n\nNotes:\n The resolved download_url may be a direct media URL, an m3u8 playlist, or an ffmpeg-oriented URL rather than a final mp4 file URL."
+    echo -e "Resolve parsed media resources with videodl without downloading.\nUsage:\n vdl-url <url_or_share_text> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json|--meta] [--include-cover]\n\nExamples:\n vdl-url \"https://www.bilibili.com/video/BV13x41117TL\"\n vdl-url \"8.99 复制打开抖音，看看... https://v.douyin.com/abc123/ ...\" --client \"SnapAnyVideoClient\" --meta\n vdl-url \"https://example.com/video\" --proxy http://127.0.0.1:7890 --json\n\nNotes:\n JSON output includes media_kind. Plain output defaults to the main downloadable resource, falls back to cover_url when only cover data exists, and can optionally append cover_url with --include-cover."
     return 0
   fi
 
@@ -1134,12 +1518,12 @@ alias vdl-url='() {
   parsed_args="$(_parse_single_query_args_videodl_aliases "$@")" || return 1
   _read_parsed_query_options_videodl_aliases "$parsed_args"
 
-  _run_videodl_url_query_videodl_aliases "$VDL_QUERY_RAW_INPUT" "$VDL_QUERY_ALLOWED_SOURCES" "$VDL_QUERY_COMMON_ONLY" "$VDL_QUERY_OUTPUT_DIR" "$VDL_QUERY_PROXY_URL" "$VDL_QUERY_THREAD_COUNT" "$VDL_QUERY_OUTPUT_FORMAT"
+  _run_videodl_url_query_videodl_aliases "$VDL_QUERY_RAW_INPUT" "$VDL_QUERY_ALLOWED_SOURCES" "$VDL_QUERY_COMMON_ONLY" "$VDL_QUERY_OUTPUT_DIR" "$VDL_QUERY_PROXY_URL" "$VDL_QUERY_THREAD_COUNT" "$VDL_QUERY_OUTPUT_FORMAT" "$VDL_QUERY_INCLUDE_COVER"
 }' # Resolve parsed download URLs only
 
 alias vdl-url-batch='() {
   if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo -e "Batch resolve parsed download URLs from a text file.\nUsage:\n vdl-url-batch <text_file> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json]\n\nExamples:\n vdl-url-batch urls.txt\n vdl-url-batch notes.txt --client \"BilibiliVideoClient\" --json\n vdl-url-batch mixed.txt --common --proxy http://127.0.0.1:7890\n\nNotes:\n The batch command extracts all URLs from the input, removes duplicates, then resolves each URL without downloading."
+    echo -e "Batch resolve parsed media resources from a text file.\nUsage:\n vdl-url-batch <text_file> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json|--meta] [--include-cover]\n\nExamples:\n vdl-url-batch urls.txt\n vdl-url-batch notes.txt --client \"BilibiliVideoClient\" --json\n vdl-url-batch mixed.txt --common --proxy http://127.0.0.1:7890 --meta\n\nNotes:\n The batch command extracts all URLs from the input, removes duplicates, then resolves each URL without downloading. JSON output aggregates per-input results with media_kind metadata."
     return 0
   fi
 
@@ -1148,7 +1532,7 @@ alias vdl-url-batch='() {
 
 alias vdl-url-batch-stdin='() {
   if [ $# -gt 0 ] && { [ "$1" = "-h" ] || [ "$1" = "--help" ]; }; then
-    echo -e "Batch resolve parsed download URLs from stdin.\nUsage:\n vdl-url-batch-stdin [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json]\n\nExamples:\n cat urls.txt | vdl-url-batch-stdin\n rg -o \"https://[^ ]+\" notes.md | vdl-url-batch-stdin --json\n printf \"share https://example.com/video\" | vdl-url-batch-stdin --common"
+    echo -e "Batch resolve parsed media resources from stdin.\nUsage:\n vdl-url-batch-stdin [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--json|--meta] [--include-cover]\n\nExamples:\n cat urls.txt | vdl-url-batch-stdin\n rg -o \"https://[^ ]+\" notes.md | vdl-url-batch-stdin --json\n printf \"share https://example.com/video\" | vdl-url-batch-stdin --common --meta"
     return 0
   fi
 
@@ -1157,7 +1541,7 @@ alias vdl-url-batch-stdin='() {
 
 alias vdl-client='() {
   if [ $# -lt 2 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo -e "Download using specified videodl client names.\nUsage:\n vdl-client <client1[,client2]> <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra args]\n\nExamples:\n vdl-client \"BilibiliVideoClient\" \"https://www.bilibili.com/video/BV13x41117TL\"\n vdl-client \"SnapAnyVideoClient\" \"8.99 复制打开抖音，看看... https://v.douyin.com/abc123/ ...\"\n vdl-client \"SnapAnyVideoClient,VideoFKVideoClient\" \"https://www.tiktok.com/@user/video/123\" --dir ~/Downloads"
+    echo -e "Download using specified videodl client names.\nUsage:\n vdl-client <client1[,client2]> <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [--no-cover] [-- extra args]\n\nExamples:\n vdl-client \"BilibiliVideoClient\" \"https://www.bilibili.com/video/BV13x41117TL\"\n vdl-client \"SnapAnyVideoClient\" \"8.99 复制打开抖音，看看... https://v.douyin.com/abc123/ ...\"\n vdl-client \"SnapAnyVideoClient,VideoFKVideoClient\" \"https://www.tiktok.com/@user/video/123\" --dir ~/Downloads"
     return 0
   fi
 
@@ -1167,12 +1551,12 @@ alias vdl-client='() {
   parsed_args="$(_parse_single_download_args_videodl_aliases "$@")" || return 1
   _read_parsed_download_options_videodl_aliases "$parsed_args"
 
-  _run_videodl_videodl_aliases "$VDL_PARSED_RAW_INPUT" "$allowed_sources" "false" "$VDL_PARSED_OUTPUT_DIR" "$VDL_PARSED_PROXY_URL" "$VDL_PARSED_THREAD_COUNT" "${VDL_PARSED_EXTRA_ARGS[@]}"
+  _run_videodl_videodl_aliases "$VDL_PARSED_RAW_INPUT" "$allowed_sources" "false" "$VDL_PARSED_OUTPUT_DIR" "$VDL_PARSED_PROXY_URL" "$VDL_PARSED_THREAD_COUNT" "$VDL_PARSED_DOWNLOAD_COVER" "${VDL_PARSED_EXTRA_ARGS[@]}"
 }' # Download using specified client names
 
 alias vdl-common='() {
   if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo -e "Download using common videodl parsers only.\nUsage:\n vdl-common <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra args]\n\nExamples:\n vdl-common \"https://www.douyin.com/jingxuan?modal_id=7569541184671974899\"\n vdl-common \"8.99 复制打开抖音，看看... https://v.douyin.com/abc123/ ...\"\n vdl-common \"https://v.qq.com/x/cover/xxx.html\" --dir ~/Downloads"
+    echo -e "Download using common videodl parsers only.\nUsage:\n vdl-common <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [--no-cover] [-- extra args]\n\nExamples:\n vdl-common \"https://www.douyin.com/jingxuan?modal_id=7569541184671974899\"\n vdl-common \"8.99 复制打开抖音，看看... https://v.douyin.com/abc123/ ...\"\n vdl-common \"https://v.qq.com/x/cover/xxx.html\" --dir ~/Downloads"
     return 0
   fi
 
@@ -1180,13 +1564,13 @@ alias vdl-common='() {
   parsed_args="$(_parse_single_download_args_videodl_aliases "$@")" || return 1
   _read_parsed_download_options_videodl_aliases "$parsed_args"
 
-  _run_videodl_videodl_aliases "$VDL_PARSED_RAW_INPUT" "" "true" "$VDL_PARSED_OUTPUT_DIR" "$VDL_PARSED_PROXY_URL" "$VDL_PARSED_THREAD_COUNT" "${VDL_PARSED_EXTRA_ARGS[@]}"
+  _run_videodl_videodl_aliases "$VDL_PARSED_RAW_INPUT" "" "true" "$VDL_PARSED_OUTPUT_DIR" "$VDL_PARSED_PROXY_URL" "$VDL_PARSED_THREAD_COUNT" "$VDL_PARSED_DOWNLOAD_COVER" "${VDL_PARSED_EXTRA_ARGS[@]}"
 }' # Download using common parsers only
 
 # Preset aliases
 alias vdl-dy='() {
   if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo -e "Short-video preset for Douyin, TikTok, Kuaishou, and Rednote style links.\nUsage:\n vdl-dy <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra args]"
+    echo -e "Short-video preset for Douyin, TikTok, Kuaishou, and Rednote style links.\nUsage:\n vdl-dy <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [--no-cover] [-- extra args]"
     return 0
   fi
 
@@ -1195,7 +1579,7 @@ alias vdl-dy='() {
 
 alias vdl-bili='() {
   if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo -e "Bilibili native preset.\nUsage:\n vdl-bili <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra args]"
+    echo -e "Bilibili native preset.\nUsage:\n vdl-bili <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [--no-cover] [-- extra args]"
     return 0
   fi
 
@@ -1204,7 +1588,7 @@ alias vdl-bili='() {
 
 alias vdl-film='() {
   if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo -e "Long-video preset for common film and TV platforms.\nUsage:\n vdl-film <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra args]"
+    echo -e "Long-video preset for common film and TV platforms.\nUsage:\n vdl-film <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [--no-cover] [-- extra args]"
     return 0
   fi
 
@@ -1213,7 +1597,7 @@ alias vdl-film='() {
 
 alias vdl-social='() {
   if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo -e "Social-media preset with multiple common parsers.\nUsage:\n vdl-social <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [-- extra args]"
+    echo -e "Social-media preset with multiple common parsers.\nUsage:\n vdl-social <url_or_share_text> [--dir DIR] [--proxy URL] [--threads N] [--no-cover] [-- extra args]"
     return 0
   fi
 
@@ -1223,7 +1607,7 @@ alias vdl-social='() {
 # Batch aliases
 alias vdl-batch='() {
   if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo -e "Batch download videodl links from a text file.\nUsage:\n vdl-batch <text_file> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [-- extra args]\n\nExamples:\n vdl-batch urls.txt\n vdl-batch notes.txt --client \"BilibiliVideoClient\" --dir ~/Downloads/videos\n vdl-batch mixed.txt --common --proxy http://127.0.0.1:7890"
+    echo -e "Batch download videodl links from a text file.\nUsage:\n vdl-batch <text_file> [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--no-cover] [-- extra args]\n\nExamples:\n vdl-batch urls.txt\n vdl-batch notes.txt --client \"BilibiliVideoClient\" --dir ~/Downloads/videos\n vdl-batch mixed.txt --common --proxy http://127.0.0.1:7890"
     return 0
   fi
 
@@ -1232,7 +1616,7 @@ alias vdl-batch='() {
 
 alias vdl-batch-stdin='() {
   if [ $# -gt 0 ] && { [ "$1" = "-h" ] || [ "$1" = "--help" ]; }; then
-    echo -e "Batch download videodl links from stdin.\nUsage:\n vdl-batch-stdin [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [-- extra args]\n\nExamples:\n cat urls.txt | vdl-batch-stdin\n rg -o \"https://[^ ]+\" notes.md | vdl-batch-stdin --common"
+    echo -e "Batch download videodl links from stdin.\nUsage:\n vdl-batch-stdin [--client CLIENTS] [--common] [--dir DIR] [--proxy URL] [--threads N] [--no-cover] [-- extra args]\n\nExamples:\n cat urls.txt | vdl-batch-stdin\n rg -o \"https://[^ ]+\" notes.md | vdl-batch-stdin --common"
     return 0
   fi
 
