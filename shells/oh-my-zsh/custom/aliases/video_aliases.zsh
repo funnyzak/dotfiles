@@ -1088,10 +1088,10 @@ alias vdo-duration='() {
 # Video Trimming & Splitting
 #------------------------------------------------------------------------------
 
-alias vdo-trim-video='() {
+alias vdo-trim='() {
   echo "Trim a video file between start and end time."
   echo "Usage:"
-  echo "  vdo-trim-video <video_file_path> <start_time> <duration>"
+  echo "  vdo-trim <video_file_path> <start_time> <duration>"
   echo "Time format examples: 00:01:30 (1m30s), 00:00:45 (45s)"
 
   if [ $# -lt 3 ]; then
@@ -1116,10 +1116,10 @@ alias vdo-trim-video='() {
   fi
 }' # Trim video to specified start time and duration
 
-alias vdo-split-video='() {
+alias vdo-split='() {
   echo "Split a video file into segments of specified duration."
   echo "Usage:"
-  echo "  vdo-split-video <video_file_path> <segment_duration>"
+  echo "  vdo-split <video_file_path> <segment_duration>"
   echo "Duration format examples: 00:10:00 (10min), 00:30:00 (30min)"
 
   if [ $# -lt 2 ]; then
@@ -1167,6 +1167,94 @@ alias vdo-batch-extract-frame='() {
   echo "Example: vdo-batch-export-frames <dir> --mode time --start <time> --end <time>"
   return 1
 }' # Legacy: Extract frames at specified time from multiple videos
+
+#------------------------------------------------------------------------------
+# First Frame Extraction
+#------------------------------------------------------------------------------
+
+alias vdo-first-frame='() {
+  if [ $# -eq 0 ]; then
+    echo "Extract the first frame from a video."
+    echo "Usage:"
+    echo "  vdo-first-frame <video_file_path> [output_format:jpg]"
+    echo "  vdo-first-frame video.mp4           # -> video_first_frame.jpg"
+    echo "  vdo-first-frame video.mp4 png       # -> video_first_frame.png"
+    return 1
+  fi
+
+  local input_file="$1"
+  local fmt="${2:-jpg}"
+
+  _vdo_validate_file "$input_file" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  if [[ ! "$fmt" =~ ^(jpg|png|bmp)$ ]]; then
+    echo "Error: Unsupported format \"$fmt\". Use jpg, png, or bmp." >&2
+    return 1
+  fi
+
+  local basename="${input_file%.*}"
+  local output_file="${basename}_first_frame.${fmt}"
+
+  if ffmpeg -i "$input_file" -vframes 1 -q:v 2 -y "$output_file" 2>/dev/null; then
+    echo "First frame extracted: $output_file"
+  else
+    echo "Error: Failed to extract first frame from $input_file" >&2
+    return 1
+  fi
+}' # Extract the first frame from a single video file
+
+alias vdo-dir-first-frame='() {
+  if [ $# -eq 0 ]; then
+    echo "Extract the first frame from all videos in a directory."
+    echo "Usage:"
+    echo "  vdo-dir-first-frame <video_directory> [source_extension:mp4] [output_format:jpg]"
+    echo "  vdo-dir-first-frame ./videos"
+    echo "  vdo-dir-first-frame ./videos mp4 png"
+    return 1
+  fi
+
+  local vdo_folder="$1"
+  local vdo_ext="${2:-mp4}"
+  local fmt="${3:-jpg}"
+
+  _vdo_validate_dir "$vdo_folder" || return 1
+  _vdo_check_ffmpeg || return 1
+
+  if [[ ! "$fmt" =~ ^(jpg|png|bmp)$ ]]; then
+    echo "Error: Unsupported format \"$fmt\". Use jpg, png, or bmp." >&2
+    return 1
+  fi
+
+  local file_count
+  file_count=$(find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | wc -l)
+  if [ "$file_count" -eq 0 ]; then
+    echo "Error: No ${vdo_ext} files found in $vdo_folder" >&2
+    return 1
+  fi
+
+  local out_dir="${vdo_folder}/first_frames"
+  mkdir -p "$out_dir"
+  local errors=0
+
+  find "$vdo_folder" -maxdepth 1 -type f -iname "*.${vdo_ext}" | while read -r file; do
+    local filename
+    filename="$(basename "$file" ".${vdo_ext}")"
+    local output_file="${out_dir}/${filename}_first_frame.${fmt}"
+    echo "Extracting first frame from $file..."
+    if ! ffmpeg -i "$file" -vframes 1 -q:v 2 -y "$output_file" 2>/dev/null; then
+      echo "Error: Failed to extract first frame from $file" >&2
+      ((errors++))
+    fi
+  done
+
+  if [ "$errors" -eq 0 ]; then
+    echo "Batch first frame extraction complete, saved to $out_dir"
+  else
+    echo "Warning: Completed with $errors errors" >&2
+    return 1
+  fi
+}' # Extract the first frame from all videos in a directory
 
 #------------------------------------------------------------------------------
 # Advanced Frame Export Functions
@@ -2852,10 +2940,12 @@ alias vdo-help='() {
   echo "  vdo-duration <file>            - Show the duration of a video file"
   echo ""
   echo "Trimming & Splitting:"
-  echo "  vdo-trim-video <file> <start> <duration> - Trim video between start and duration"
-  echo "  vdo-split-video <file> <segment_duration> - Split video into segments of specified duration"
+  echo "  vdo-trim <file> <start> <duration> - Trim video between start and duration"
+  echo "  vdo-split <file> <segment_duration> - Split video into segments of specified duration"
   echo ""
   echo "Frame Extraction:"
+  echo "  vdo-first-frame <file> [format]      - Extract the first frame from a video (default: jpg)"
+  echo "  vdo-dir-first-frame <dir> [ext] [fmt] - Extract first frames from all videos in a directory"
   echo "  vdo-export-frames <file> [options]   - Export frames with advanced options (time range, fps, count)"
   echo "  vdo-batch-export-frames <dir> [options] - Batch export frames from videos with advanced options"
   echo "  Note: Legacy functions (vdo-extract-frame, vdo-extract-frames, vdo-batch-extract-frame) are deprecated"
