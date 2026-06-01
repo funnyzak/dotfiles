@@ -1088,32 +1088,89 @@ alias vdo-duration='() {
 # Video Trimming & Splitting
 #------------------------------------------------------------------------------
 
+_vdo_trim_single() {
+  local input_file="$1"
+  local start_time="$2"
+  local duration="$3"
+  local output_file="$4"
+
+  echo "Trimming $input_file from $start_time for $duration..."
+  if ffmpeg -ss "$start_time" -i "$input_file" -t "$duration" -c:v copy -c:a copy "$output_file"; then
+    echo "Trimming complete, exported to $output_file"
+    return 0
+  fi
+
+  echo "Error: Video trimming failed for $input_file" >&2
+  return 1
+}
+
 alias vdo-trim='() {
-  echo "Trim a video file between start and end time."
+  echo "Trim a video file, or batch trim video files in a directory."
   echo "Usage:"
-  echo "  vdo-trim <video_file_path> <start_time> <duration>"
+  echo "  vdo-trim <video_file_path|video_directory> <start_time> <duration> [source_extension:mp4]"
   echo "Time format examples: 00:01:30 (1m30s), 00:00:45 (45s)"
+  echo "Directory example: vdo-trim ./videos 00:00:05 00:00:10 mov"
 
   if [ $# -lt 3 ]; then
     return 1
   fi
 
-  input_file="$1"
-  start_time="$2"
-  duration="$3"
+  local input_path="$1"
+  local start_time="$2"
+  local duration="$3"
+  local source_extension="${4:-mp4}"
+  source_extension="${source_extension#.}"
 
-  _vdo_validate_file "$input_file" || return 1
-  _vdo_check_ffmpeg || return 1
+  if [[ -d "$input_path" ]]; then
+    local output_dir="${input_path%/}/trimmed"
+    local processed=0
+    local success=0
+    local failed=0
+    local video_file=""
+    local -a matched_files=()
 
-  output_file="${input_file%.*}_trimmed.mp4"
-  echo "Trimming $input_file from $start_time for $duration..."
+    _vdo_validate_dir "$input_path" || return 1
+    _vdo_check_ffmpeg || return 1
 
-  if ffmpeg -ss "$start_time" -i "$input_file" -t "$duration" -c:v copy -c:a copy "$output_file"; then
-    echo "Trimming complete, exported to $output_file"
-  else
-    echo "Error: Video trimming failed" >&2
-    return 1
+    while IFS= read -r video_file; do
+      matched_files+=("$video_file")
+    done < <(find "$input_path" -maxdepth 1 -type f -iname "*.${source_extension}")
+
+    if [[ ${#matched_files[@]} -eq 0 ]]; then
+      echo "Error: No ${source_extension} files found in $input_path" >&2
+      return 1
+    fi
+
+    mkdir -p "$output_dir" || return 1
+
+    for video_file in "${matched_files[@]}"; do
+      local base_name="$(basename "$video_file")"
+      local output_file="$output_dir/${base_name%.*}_trimmed.mp4"
+
+      if _vdo_trim_single "$video_file" "$start_time" "$duration" "$output_file"; then
+        ((success++))
+      else
+        ((failed++))
+      fi
+      ((processed++))
+    done
+
+    echo "Batch trimming summary:"
+    echo "  Processed: $processed files"
+    echo "  Success:   $success files"
+    echo "  Failed:    $failed files"
+    echo "Output files saved to: $output_dir"
+
+    if [[ $failed -gt 0 ]]; then
+      return 1
+    fi
+    return 0
   fi
+
+  _vdo_validate_file "$input_path" || return 1
+  _vdo_check_ffmpeg || return 1
+  local output_file="${input_path%.*}_trimmed.mp4"
+  _vdo_trim_single "$input_path" "$start_time" "$duration" "$output_file" || return 1
 }' # Trim video to specified start time and duration
 
 alias vdo-split='() {
@@ -1261,7 +1318,7 @@ alias vdo-dir-first-frame='() {
 #------------------------------------------------------------------------------
 
 alias vdo-export-frames='() {
-  echo -e "Export frames from video with advanced options.\nUsage:\n  vdo-export-frames <video_file_path> [options]\n\nOptions:\n  -m, --mode MODE        : Export mode: \"time\" (time range), \"fps\" (frame rate), \"count\" (frame count) (default: fps)\n  -s, --start START      : Start time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -e, --end END          : End time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -f, --fps FPS          : Frame rate for fps mode (default: 1)\n  -c, --count COUNT      : Number of frames for count mode (default: 10)\n  -o, --output DIR       : Output directory (default: video_name_frames)\n  -q, --quality VALUE    : Image quality (1-31 for JPEG, lower is better, default: 2)\n  -t, --format FORMAT    : Output format: jpg, png, bmp (default: jpg)\n  -w, --width WIDTH      : Resize width (default: original size)\n  -h, --height HEIGHT    : Resize height (default: original size)\n  -n, --name FORMAT      : Output filename format (default: \"frame_%04d\")\n  -h, --help             : Show this help message\n\nExamples:\n  # Basic usage - extract 1 frame per second\n  vdo-export-frames video.mp4\n  vdo-export-frames video.mp4 --mode fps --fps 1\n\n  # Extract frames from specific time range\n  vdo-export-frames video.mp4 --mode time --start 00:01:00 --end 00:02:00\n  vdo-export-frames video.mp4 --mode time --start 00:05:30 --end 00:06:00 --fps 2\n\n  # Extract specific number of evenly spaced frames\n  vdo-export-frames video.mp4 --mode count --count 20\n  vdo-export-frames video.mp4 --mode count --count 5 --start 00:01:00 --end 00:02:00\n\n  # High quality and custom format\n  vdo-export-frames video.mp4 --mode fps --fps 0.5 --quality 1 --format png\n  vdo-export-frames video.mp4 --mode fps --fps 1 --quality 1 --format bmp\n\n  # Resize frames\n  vdo-export-frames video.mp4 --mode fps --fps 1 --width 1280 --height 720\n  vdo-export-frames video.mp4 --mode fps --fps 1 --width 800\n\n  # Custom output directory and naming\n  vdo-export-frames video.mp4 --mode fps --fps 1 --output ./my_frames\n  vdo-export-frames video.mp4 --mode fps --fps 1 --name \"shot_%03d\"\n  vdo-export-frames video.mp4 --mode fps --fps 1 --name \"frame_%05d\"\n\n  # Complex examples\n  vdo-export-frames video.mp4 --mode time --start 00:01:00 --end 00:02:00 --fps 2 --quality 1 --format png --width 1920 --output ./high_quality_frames\n  vdo-export-frames video.mp4 --mode count --count 10 --quality 1 --format png --name \"preview_%02d\" --output ./previews"
+  echo -e "Export frames from video with advanced options.\nUsage:\n  vdo-export-frames <video_file_path> [options]\n\nOptions:\n  -m, --mode MODE        : Export mode: \"time\" (time range), \"fps\" (frame rate), \"count\" (frame count) (default: fps)\n  -s, --start START      : Start time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -e, --end END          : End time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -f, --fps FPS          : Frame rate for fps mode (default: 1)\n  -c, --count COUNT      : Number of frames for count mode (default: 10)\n  -o, --output DIR       : Output directory (default: input_dir/video_name_frames)\n  -q, --quality VALUE    : Image quality (1-31 for JPEG, lower is better, default: 2)\n  -t, --format FORMAT    : Output format: jpg, png, bmp (default: jpg)\n  -w, --width WIDTH      : Resize width (default: original size)\n  -h, --height HEIGHT    : Resize height (default: original size)\n  -n, --name FORMAT      : Output filename format (default: \"frame_%04d\")\n  -h, --help             : Show this help message\n\nExamples:\n  # Basic usage - extract 1 frame per second\n  vdo-export-frames video.mp4\n  vdo-export-frames video.mp4 --mode fps --fps 1\n\n  # Extract frames from specific time range\n  vdo-export-frames video.mp4 --mode time --start 00:01:00 --end 00:02:00\n  vdo-export-frames video.mp4 --mode time --start 00:05:30 --end 00:06:00 --fps 2\n\n  # Extract specific number of evenly spaced frames\n  vdo-export-frames video.mp4 --mode count --count 20\n  vdo-export-frames video.mp4 --mode count --count 5 --start 00:01:00 --end 00:02:00\n\n  # High quality and custom format\n  vdo-export-frames video.mp4 --mode fps --fps 0.5 --quality 1 --format png\n  vdo-export-frames video.mp4 --mode fps --fps 1 --quality 1 --format bmp\n\n  # Resize frames\n  vdo-export-frames video.mp4 --mode fps --fps 1 --width 1280 --height 720\n  vdo-export-frames video.mp4 --mode fps --fps 1 --width 800\n\n  # Custom output directory and naming\n  vdo-export-frames video.mp4 --mode fps --fps 1 --output ./my_frames\n  vdo-export-frames video.mp4 --mode fps --fps 1 --name \"shot_%03d\"\n  vdo-export-frames video.mp4 --mode fps --fps 1 --name \"frame_%05d\"\n\n  # Complex examples\n  vdo-export-frames video.mp4 --mode time --start 00:01:00 --end 00:02:00 --fps 2 --quality 1 --format png --width 1920 --output ./high_quality_frames\n  vdo-export-frames video.mp4 --mode count --count 10 --quality 1 --format png --name \"preview_%02d\" --output ./previews"
 
   # Variables with default values
   local input_file=""
@@ -1364,8 +1421,9 @@ alias vdo-export-frames='() {
 
   # Set default output_dir if not specified
   if [ -z "$output_dir" ]; then
-    local base_name=$(basename "$input_file")
-    output_dir="${base_name%.*}_frames"
+    local input_dir="$(dirname "$input_file")"
+    local base_name="$(basename "$input_file")"
+    output_dir="${input_dir}/${base_name%.*}_frames"
   fi
 
   # Create output directory
@@ -2612,7 +2670,7 @@ alias vdo-batch-rm-metadata='() {
 
   local dir="$1"
   local ext="${2:-mp4}"
-  local output_dir="${dir%/}_nometa"
+  local output_dir="${dir%/}/nometa"
   local processed=0
   local success=0
   local failed=0
@@ -2659,7 +2717,7 @@ alias vdo-batch-rm-metadata='() {
 #------------------------------------------------------------------------------
 
 alias vdo-add-watermark='() {
-  echo -e "Add watermark to video files (single or batch processing).\nUsage:\n  vdo-add-watermark <input_path> [options]\n\nImage Watermark:\n  -w, --watermark PATH     : Watermark image path (PNG format preferred)\n\nText Watermark:\n  -t, --text TEXT          : Watermark text content\n  --font-family FONT       : Font family (default: Arial)\n  --font-size SIZE         : Font size (default: 24)\n  --font-color COLOR       : Font color (default: white@0.8)\n\nCommon Options:\n  -p, --position POS       : Position (topleft/top-center/...+x,y%offset, default: bottomright+10,10)\n  -s, --scale SCALE        : Scale ratio (0.1-2.0, default: 0.2)\n  -o, --opacity OPACITY    : Opacity (0.1-1.0, default: 0.8)\n  -r, --rotate ANGLE       : Rotation angle (0-360 degrees, default: 0)\n  --output-dir DIR         : Output directory (default: ./watermarked)\n  --suffix SUFFIX          : Output file suffix (default: _wm)\n  --parallel               : Parallel processing (default: sequential)\n  -h, --help              : Show this help message\n\nExamples:\n  # Single file with image watermark\n  vdo-add-watermark video.mp4 -w logo.png -p bottomright+5,5\n  \n  # Batch text watermarking\n  vdo-add-watermark ./videos/ -t \"Copyright\" -p topleft+10,10 --opacity 0.6\n  \n  # Advanced parameters\n  vdo-add-watermark video.mp4 -w watermark.png -s 0.15 -o 0.7 -r 45 --output-dir ./output"
+  echo -e "Add watermark to video files (single or batch processing).\nUsage:\n  vdo-add-watermark <input_path> [options]\n\nImage Watermark:\n  -w, --watermark PATH     : Watermark image path (PNG format preferred)\n\nText Watermark:\n  -t, --text TEXT          : Watermark text content\n  --font-family FONT       : Font family (default: Arial)\n  --font-size SIZE         : Font size (default: 24)\n  --font-color COLOR       : Font color (default: white@0.8)\n\nCommon Options:\n  -p, --position POS       : Position (topleft/top-center/...+x,y%offset, default: bottomright+10,10)\n  -s, --scale SCALE        : Scale ratio (0.1-2.0, default: 0.2)\n  -o, --opacity OPACITY    : Opacity (0.1-1.0, default: 0.8)\n  -r, --rotate ANGLE       : Rotation angle (0-360 degrees, default: 0)\n  --output-dir DIR         : Output directory (default: input_dir/watermarked)\n  --suffix SUFFIX          : Output file suffix (default: _wm)\n  --parallel               : Parallel processing (default: sequential)\n  -h, --help              : Show this help message\n\nExamples:\n  # Single file with image watermark\n  vdo-add-watermark video.mp4 -w logo.png -p bottomright+5,5\n  \n  # Batch text watermarking\n  vdo-add-watermark ./videos/ -t \"Copyright\" -p topleft+10,10 --opacity 0.6\n  \n  # Advanced parameters\n  vdo-add-watermark video.mp4 -w watermark.png -s 0.15 -o 0.7 -r 45 --output-dir ./output"
 
   # Variables with default values
   local input_path=""
@@ -2674,7 +2732,7 @@ alias vdo-add-watermark='() {
   local font_family="Arial"
   local font_size="24"
   local font_color="white@0.8"
-  local output_dir="./watermarked"
+  local output_dir=""
   local suffix="_wm"
   local parallel=false
   local show_help=false
@@ -2828,9 +2886,6 @@ alias vdo-add-watermark='() {
   _vdo_check_ffmpeg || return 1
   _vdo_check_dependencies
 
-  # Create output directory
-  mkdir -p "$output_dir"
-
   # Process input path (file or directory)
   if [[ -f "$input_path" ]]; then
     # Single file processing
@@ -2839,6 +2894,12 @@ alias vdo-add-watermark='() {
     if [ -n "$watermark_file" ]; then
       _vdo_validate_image "$watermark_file" || return 1
     fi
+
+    if [ -z "$output_dir" ]; then
+      output_dir="$(dirname "$input_path")/watermarked"
+    fi
+
+    mkdir -p "$output_dir" || return 1
 
     local base_name=$(basename "$input_path")
     local extension="${base_name##*.}"
@@ -2867,6 +2928,12 @@ alias vdo-add-watermark='() {
     if [ -n "$watermark_file" ]; then
       _vdo_validate_image "$watermark_file" || return 1
     fi
+
+    if [ -z "$output_dir" ]; then
+      output_dir="${input_path%/}/watermarked"
+    fi
+
+    mkdir -p "$output_dir" || return 1
 
     # Find video files
     local video_files=()
@@ -2940,7 +3007,7 @@ alias vdo-help='() {
   echo "  vdo-duration <file>            - Show the duration of a video file"
   echo ""
   echo "Trimming & Splitting:"
-  echo "  vdo-trim <file> <start> <duration> - Trim video between start and duration"
+  echo "  vdo-trim <file|dir> <start> <duration> [ext] - Trim one video or batch trim a directory"
   echo "  vdo-split <file> <segment_duration> - Split video into segments of specified duration"
   echo ""
   echo "Frame Extraction:"
