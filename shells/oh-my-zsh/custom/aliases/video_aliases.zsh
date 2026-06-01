@@ -56,6 +56,33 @@ _vdo_check_dependencies() {
   return 0
 }
 
+# Helper function to calculate export fps for count-based frame extraction
+_vdo_calculate_count_mode_fps() {
+  local duration_seconds="$1"
+  local frame_count="$2"
+  local fps_rate=""
+
+  if [[ -z "$duration_seconds" || -z "$frame_count" ]]; then
+    echo "Error: Missing duration or frame count for count mode" >&2
+    return 1
+  fi
+
+  fps_rate=$(awk -v duration="$duration_seconds" -v count="$frame_count" 'BEGIN {
+    if (duration <= 0 || count <= 0) {
+      exit 1
+    }
+    printf "%.8f", count / duration
+  }')
+
+  if [[ -z "$fps_rate" || "$fps_rate" == "0" || "$fps_rate" == "0.00000000" ]]; then
+    echo "Error: Failed to calculate a valid frame rate for count mode" >&2
+    return 1
+  fi
+
+  echo "$fps_rate"
+  return 0
+}
+
 # Helper function to calculate watermark position for overlay filter (nine-grid + percentage offset)
 _vdo_calculate_watermark_position() {
   local position="$1"
@@ -1432,6 +1459,7 @@ alias vdo-export-frames='() {
   # Build ffmpeg command based on mode
   local ffmpeg_cmd="ffmpeg"
   local filter_complex=""
+  local frame_limit_param=""
 
   # Add input file
   ffmpeg_cmd="$ffmpeg_cmd -i \"$input_file\""
@@ -1455,9 +1483,16 @@ alias vdo-export-frames='() {
   else
     # Count mode: extract specified number of evenly spaced frames
     local duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$input_file")
-    duration=${duration%.*} # Remove decimal part
-    local interval=$((duration / (count + 1)))
-    filter_complex="fps=1/$interval"
+    local count_mode_fps=""
+
+    if ! [[ "$count" =~ ^[0-9]+$ ]] || (( count <= 0 )); then
+      echo "Error: Count must be a positive integer" >&2
+      return 1
+    fi
+
+    count_mode_fps=$(_vdo_calculate_count_mode_fps "$duration" "$count") || return 1
+    filter_complex="fps=${count_mode_fps}"
+    frame_limit_param="-frames:v $count"
   fi
 
   # Add resize if specified
@@ -1483,7 +1518,7 @@ alias vdo-export-frames='() {
 
   # Build final command
   local output_pattern="$output_dir/${name_format}.${format}"
-  ffmpeg_cmd="$ffmpeg_cmd -vf \"$filter_complex\" $quality_param \"$output_pattern\""
+  ffmpeg_cmd="$ffmpeg_cmd -vf \"$filter_complex\" $frame_limit_param $quality_param \"$output_pattern\""
 
   echo "Exporting frames from $input_file..."
   echo "  Mode: $mode"
@@ -1641,6 +1676,7 @@ alias vdo-batch-export-frames='() {
     # Build ffmpeg command for this video
     local ffmpeg_cmd="ffmpeg"
     local filter_complex=""
+    local frame_limit_param=""
 
     # Add input file
     ffmpeg_cmd="$ffmpeg_cmd -i \"$video_file\""
@@ -1664,9 +1700,16 @@ alias vdo-batch-export-frames='() {
     else
       # Count mode: extract specified number of evenly spaced frames
       local duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$video_file")
-      duration=${duration%.*} # Remove decimal part
-      local interval=$((duration / (count + 1)))
-      filter_complex="fps=1/$interval"
+      local count_mode_fps=""
+
+      if ! [[ "$count" =~ ^[0-9]+$ ]] || (( count <= 0 )); then
+        echo "Error: Count must be a positive integer" >&2
+        return 1
+      fi
+
+      count_mode_fps=$(_vdo_calculate_count_mode_fps "$duration" "$count") || return 1
+      filter_complex="fps=${count_mode_fps}"
+      frame_limit_param="-frames:v $count"
     fi
 
     # Add resize if specified
@@ -1693,7 +1736,7 @@ alias vdo-batch-export-frames='() {
     # Build final command
     local actual_name_format=$(printf "$name_format" "$base_name" "%04d")
     local output_pattern="$video_output_dir/${actual_name_format}.${format}"
-    ffmpeg_cmd="$ffmpeg_cmd -vf \"$filter_complex\" $quality_param \"$output_pattern\""
+    ffmpeg_cmd="$ffmpeg_cmd -vf \"$filter_complex\" $frame_limit_param $quality_param \"$output_pattern\""
 
     echo "  Exporting frames to $video_output_dir..."
 
