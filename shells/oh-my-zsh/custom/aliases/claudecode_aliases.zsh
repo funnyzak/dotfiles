@@ -1,0 +1,39 @@
+# Description: Claude Code aliases
+
+_check_command_claudecode_aliases() {
+  if ! command -v $1 &> /dev/null; then
+    return 1
+  fi
+  return 0
+}
+
+alias cc-free='() {
+  IS_SANDBOX=1 claude --dangerously-skip-permissions $@
+}'
+
+alias ccr-free='() {
+  IS_SANDBOX=1 ccr code --permission-mode bypassPermissions
+}'
+
+alias cc-usage='() {
+  if ! _check_command_claudecode_aliases npx ccusage; then
+    return 1
+  fi
+  npx ccusage $@
+}'
+
+alias cc-monitor='() {
+  if ! _check_command_claudecode_aliases claude-monitor; then
+    return 1
+  fi
+  claude-monitor $@
+}'
+
+alias cc-help='() {
+  echo "Claude Code"
+  echo "Usage:"
+  echo "  cc-free - Claude Code bypass permission"
+  echo "  ccr-free - Claude Code Run bypass permission"
+  echo "  cc-usage"
+  echo "  cc-monitor"
+}'

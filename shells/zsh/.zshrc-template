@@ -1,0 +1,41 @@
+#
+# ~/.zshrc
+#
+# This is the default zsh configuration file.
+# It is recommended to keep this file clean and modular.
+#
+# Load environment variables.
+if [[ -f ~/.zshenv ]]; then
+  source ~/.zshenv
+fi
+
+# Set options.
+setopt hist_ignore_all_dups  # Ignore duplicated entries in the history list.
+setopt inc_append_history   # Append new history entries to the history file.
+setopt share_history        # Share history between all instances of zsh.
+
+# Load aliases.
+if [[ -f ~/.aliases ]]; then
+  source ~/.aliases
+fi
+
+# Load functions.
+if [[ -f ~/.functions ]]; then
+  source ~/.functions
+fi
+
+# Load completions.
+if [[ -d /usr/local/share/zsh/site-functions ]]; then
+  fpath=(/usr/local/share/zsh/site-functions $fpath)
+fi
+
+autoload -Uz compinit
+compinit
+
+# Load custom configurations.
+if [[ -f ~/.zshrc.local ]]; then
+  source ~/.zshrc.local
+fi
+
+# Example: Set a custom prompt.
+# PROMPT="%{$fg_bold[green]%}%n@%m%{$reset_color%}:%{$fg_bold[blue]%}%~%{$reset_color%}$ "

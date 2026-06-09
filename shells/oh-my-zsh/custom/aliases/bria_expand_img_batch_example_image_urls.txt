@@ -1,0 +1,11 @@
+# Example image URLs for batch processing
+# Each line should contain one image URL
+# Lines starting with # are comments and will be ignored
+
+https://example.com/image1.jpg
+https://example.com/image2.png
+https://example.com/image3.jpg
+https://example.com/image4.png
+
+# You can add more URLs here following the same pattern
+# Make sure each URL is a valid HTTP/HTTPS URL pointing to an image
