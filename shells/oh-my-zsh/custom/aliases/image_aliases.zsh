@@ -1616,11 +1616,11 @@ alias img-resize-dir='_image_aliases_cmd_img_resize_dir' # Batch resize images i
 
 _image_aliases_cmd_img_convert_format() {
   echo "Convert image files to different format."
-  echo "Usage: img-convert-format <source_path> <new_extension>"
-  echo "       img-convert-format <source_dir> <new_extension>"
+  echo "Usage: img-cvt <source_path> <new_extension>"
+  echo "       img-cvt <source_dir> <new_extension>"
   echo "Examples:"
-  echo "  img-convert-format image.jpg png -> Converts single file to PNG"
-  echo "  img-convert-format ./photos webp -> Converts all images in directory to WebP"
+  echo "  img-cvt image.jpg png -> Converts single file to PNG"
+  echo "  img-cvt ./photos webp -> Converts all images in directory to WebP"
 
   if [ $# -lt 2 ]; then
     return 0
@@ -1677,7 +1677,7 @@ _image_aliases_cmd_img_convert_format() {
   [ $errors -eq 0 ] || return 1
 }
 
-alias img-convert-format='_image_aliases_cmd_img_convert_format' # Convert image files to different format
+alias img-cvt='_image_aliases_cmd_img_convert_format' # Convert image files to different format
 
 # --------------------------------
 # Image Effects
@@ -1695,8 +1695,9 @@ _image_aliases_cmd_img_opacity() {
   local source_path="$1"
   local opacity="${2:-50}"
   local target_path="${source_path%.*}_opacity${opacity}.${source_path##*.}"
+  local magick_cmd=$(_image_aliases_magick_cmd)
 
-  if magick convert "$source_path" -alpha set -channel A -evaluate set "${opacity}%" "$target_path"; then
+  if $magick_cmd "$source_path" -alpha set -channel A -evaluate set "${opacity}%" "$target_path"; then
     echo "Opacity adjustment complete, exported to $target_path"
   else
     echo "Error: Failed to adjust image opacity." >&2
@@ -1718,8 +1719,9 @@ _image_aliases_cmd_img_rotate() {
   local source_path="$1"
   local degrees="${2:-90}"
   local target_path="${source_path%.*}_rotate${degrees}.${source_path##*.}"
+  local magick_cmd=$(_image_aliases_magick_cmd)
 
-  if magick convert -rotate "$degrees" -background none "$source_path" "$target_path"; then
+  if $magick_cmd "$source_path" -rotate "$degrees" -background none "$target_path"; then
     echo "Rotation complete, exported to $target_path"
   else
     echo "Error: Failed to rotate image." >&2
@@ -1733,7 +1735,7 @@ _image_aliases_cmd_img_grayscale_binary() {
   _image_aliases_grayscale_command binary "$@"
 }
 
-alias img-grayscale-binary='_image_aliases_cmd_img_grayscale_binary' # Convert image to grayscale and binarize
+alias img-graybin='_image_aliases_cmd_img_grayscale_binary' # Convert image to grayscale and binarize
 
 _image_aliases_cmd_img_grayscale() {
   _image_aliases_grayscale_command normal "$@"
@@ -1747,15 +1749,15 @@ alias img-grayscale='_image_aliases_cmd_img_grayscale' # Convert image to graysc
 
 _image_aliases_cmd_img_grayscale_binary_dir() {
   if [ $# -eq 0 ]; then
-    echo "Compatibility wrapper for img-grayscale-binary."
-    echo "Usage: img-grayscale-binary-dir <source_dir>"
+    echo "Compatibility wrapper for img-graybin."
+    echo "Usage: img-graybin-dir <source_dir>"
     return 0
   fi
 
   _image_aliases_grayscale_command binary "$1" -o "$1/gray_binary"
 }
 
-alias img-grayscale-binary-dir='_image_aliases_cmd_img_grayscale_binary_dir' # Convert directory of images to grayscale and binarize
+alias img-graybin-dir='_image_aliases_cmd_img_grayscale_binary_dir' # Convert directory of images to grayscale and binarize
 
 _image_aliases_cmd_img_grayscale_dir() {
   if [ $# -eq 0 ]; then
@@ -2156,12 +2158,15 @@ _image_aliases_cmd_img_blur() {
     start_idx=2
   fi
 
+  local first_image="$1"
+  if [ "$start_idx" -eq 2 ]; then
+    shift 2
+    set -- "$first_image" "$@"
+  fi
+
   local result_status=0
-  local i=$start_idx
-  while [ $i -le $# ]; do
-    local var="$i"
-    local img="${!var}"
-    _image_aliases_validate_file "$img" || { result_status=1; i=$((i+1)); continue; }
+  for img in "$@"; do
+    _image_aliases_validate_file "$img" || { result_status=1; continue; }
 
     local target_path="${img%.*}_blur_${radius}.${img##*.}"
     if $magick_cmd "$img" -blur 0x"$radius" "$target_path"; then
@@ -2170,7 +2175,6 @@ _image_aliases_cmd_img_blur() {
       echo "Error: Failed to apply blur effect to $img" >&2
       result_status=1
     fi
-    i=$((i+1))
   done
 
   return $result_status
@@ -2223,7 +2227,7 @@ _image_aliases_cmd_img_add_color_background() {
   _image_aliases_background_command "$source_path" --color "$background_color" "$@"
 }
 
-alias img-add-color-background='_image_aliases_cmd_img_add_color_background' # Add solid color background to image(s)
+alias img-bg-color='_image_aliases_cmd_img_add_color_background' # Add solid color background to image(s)
 
 # --------------------------------
 # Sprite Generation Functions
@@ -2467,8 +2471,8 @@ alias img-sprite-batch='_image_aliases_cmd_img_sprite_batch' # Generate sprite s
 
 _image_aliases_cmd_img_rename_sequential() {
   echo "Rename images in a directory with sequential numbering."
-  echo "Usage: img-rename-sequential <directory> <prefix>"
-  echo "Example: img-rename-sequential vacation_photos vacation"
+  echo "Usage: img-ren-seq <directory> <prefix>"
+  echo "Example: img-ren-seq vacation_photos vacation"
 
   if [ $# -lt 2 ]; then
     return 0
@@ -2518,19 +2522,13 @@ _image_aliases_cmd_img_rename_sequential() {
   [ $errors -eq 0 ] || return 1
 }
 
-alias img-rename-sequential='_image_aliases_cmd_img_rename_sequential' # Rename images in a directory with sequential numbering
+alias img-ren-seq='_image_aliases_cmd_img_rename_sequential' # Rename images in a directory with sequential numbering
 
 _image_aliases_cmd_img_gray() {
   _image_aliases_grayscale_command normal "$@"
 }
 
 alias img-gray='_image_aliases_cmd_img_gray' # Short alias for grayscale conversion
-
-_image_aliases_cmd_img_graybin() {
-  _image_aliases_grayscale_command binary "$@"
-}
-
-alias img-graybin='_image_aliases_cmd_img_graybin' # Short alias for grayscale binary conversion
 
 _image_aliases_cmd_img_pdf() {
   _image_aliases_to_pdf_command "$@"
@@ -2559,7 +2557,7 @@ _image_aliases_cmd_image_help() {
   echo "Unified Core Commands:"
   echo "  img-resize           - Resize a file or directory of images"
   echo "  img-grayscale        - Convert a file or directory to grayscale"
-  echo "  img-grayscale-binary - Convert a file or directory to grayscale + binary"
+  echo "  img-graybin          - Convert a file or directory to grayscale + binary"
   echo "  img-split            - Split file or directory images by grid"
   echo "  img-to-pdf           - Convert a file or directory of images to PDF"
   echo "  img-watermark        - Add watermark to a file or directory"
@@ -2567,17 +2565,17 @@ _image_aliases_cmd_image_help() {
   echo "  img-bg               - Add image or color background to a file or directory"
   echo
   echo "Format Conversion:"
-  echo "  img-convert-format   - Convert image files to different format"
+  echo "  img-cvt              - Convert image files to different format"
   echo
   echo "Image Effects:"
   echo "  img-opacity          - Adjust image opacity"
   echo "  img-rotate           - Rotate image"
   echo "  img-gray             - Short alias of img-grayscale"
-  echo "  img-graybin          - Short alias of img-grayscale-binary"
+  echo "  img-graybin-dir      - Convert a directory to grayscale + binary"
   echo "  img-sepia            - Apply sepia tone effect to an image"
   echo "  img-blur             - Apply blur effect to an image"
   echo "  img-add-bg           - Compatibility alias for image background mode"
-  echo "  img-add-color-background - Compatibility alias for color background mode"
+  echo "  img-bg-color         - Add a solid color background"
   echo
   echo "Image Information:"
   echo "  img-info             - Display basic information about image files"
@@ -2613,10 +2611,10 @@ _image_aliases_cmd_image_help() {
   echo "  img-sprite-batch     - Generate sprite sheets with different configurations"
   echo
   echo "Batch Rename:"
-  echo "  img-rename-sequential - Rename images in a directory with sequential numbering"
+  echo "  img-ren-seq          - Rename images in a directory with sequential numbering"
   echo
   echo "Compatibility Wrappers:"
-  echo "  img-resize-dir, img-grayscale-dir, img-grayscale-binary-dir"
+  echo "  img-resize-dir, img-grayscale-dir, img-graybin-dir"
   echo "  img-split-dir, img-compress-dir, img-dir-to-pdf"
   echo "  img-watermark-dir, img-add-bg-dir"
   echo

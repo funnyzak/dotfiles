@@ -403,8 +403,8 @@ alias vdo-merge-audio='() {
   fi
 }' # Merge a video with an audio file
 
-alias vdo-batch-merge-audio='() {
-  echo -e "Batch merge video and audio files from directories.\nUsage:\n  vdo-batch-merge-audio <video_directory> [options]\n\nOptions:\n  -ad, --audio_dir DIR    : Directory containing audio files (default: same as video dir)\n  -ve, --video_ext EXT    : Video file extension (default: mp4)\n  -ae, --audio_ext EXT    : Audio file extension (default: mp3)\n  -q,  --quality VALUE    : Audio quality in kbps (default: 192)\n  -o,  --output_dir DIR   : Output directory (default: video_dir/merged)\n  -h,  --help             : Show this help message\n\nExamples:\n  vdo-batch-merge-audio videos/ --audio_dir audios/ --video_ext mp4 --audio_ext wav\n  vdo-batch-merge-audio videos/ -ad audios/ -ve mp4 -ae wav"
+alias vdo-merge-audio-batch='() {
+  echo -e "Batch merge video and audio files from directories.\nUsage:\n  vdo-merge-audio-batch <video_directory> [options]\n\nOptions:\n  -ad, --audio_dir DIR    : Directory containing audio files (default: same as video dir)\n  -ve, --video_ext EXT    : Video file extension (default: mp4)\n  -ae, --audio_ext EXT    : Audio file extension (default: mp3)\n  -q,  --quality VALUE    : Audio quality in kbps (default: 192)\n  -o,  --output_dir DIR   : Output directory (default: video_dir/merged)\n  -h,  --help             : Show this help message\n\nExamples:\n  vdo-merge-audio-batch videos/ --audio_dir audios/ --video_ext mp4 --audio_ext wav\n  vdo-merge-audio-batch videos/ -ad audios/ -ve mp4 -ae wav"
 
   # Variables with default values
   local video_dir=""
@@ -989,11 +989,11 @@ alias vdo-dir-to-1080p='() {
 # Mobile Device Optimization
 #------------------------------------------------------------------------------
 
-alias vdo-optimize-for-mobile='() {
+alias vdo-mobile='() {
   if [ $# -eq 0 ]; then
     echo "Optimize video for mobile devices."
     echo "Usage:"
-    echo "  vdo-optimize-for-mobile <video_file_path> [video_file_path2] [video_file_path3]..."
+    echo "  vdo-mobile <video_file_path> [video_file_path2] [video_file_path3]..."
     return 1
   fi
 
@@ -1001,7 +1001,7 @@ alias vdo-optimize-for-mobile='() {
   _vdo_check_ffmpeg || return 1
 
   for input_file in "${input_files[@]}"; do
-    _vdo_validate_file "${input_files[@]}" || return 1
+    _vdo_validate_file "$input_file" || return 1
     temp_file="${input_file%.*}_320p_temp.mp4"
     output_file="${input_file%.*}_mobile.mp4"
     echo "Converting $input_file to mobile-optimized format..."
@@ -1029,11 +1029,11 @@ alias vdo-optimize-for-mobile='() {
 # M3U8 Stream Processing
 #------------------------------------------------------------------------------
 
-alias vdo-convert-m3u8-to-mp4='() {
+alias vdo-m3u8-mp4='() {
   if [ $# -eq 0 ]; then
     echo "Convert M3U8 stream to MP4 video."
     echo "Usage:"
-    echo "  vdo-convert-m3u8-to-mp4 <m3u8_url> [output_filename]"
+    echo "  vdo-m3u8-mp4 <m3u8_url> [output_filename]"
     return 1
   fi
 
@@ -1247,8 +1247,8 @@ alias vdo-extract-frames='() {
 }' # Legacy: Extract frames at regular intervals
 
 alias vdo-batch-extract-frame='() {
-  echo "DEPRECATED: Use vdo-batch-export-frames instead for better features"
-  echo "Example: vdo-batch-export-frames <dir> --mode time --start <time> --end <time>"
+  echo "DEPRECATED: Use vdo-frames-export-batch instead for better features"
+  echo "Example: vdo-frames-export-batch <dir> --mode time --start <time> --end <time>"
   return 1
 }' # Legacy: Extract frames at specified time from multiple videos
 
@@ -1536,8 +1536,8 @@ alias vdo-export-frames='() {
   return 0
 }' # Export frames from video with advanced options
 
-alias vdo-batch-export-frames='() {
-  echo -e "Batch export frames from videos in directory with advanced options.\nUsage:\n  vdo-batch-export-frames <video_directory> [options]\n\nOptions:\n  -m, --mode MODE        : Export mode: \"time\" (time range), \"fps\" (frame rate), \"count\" (frame count) (default: fps)\n  -s, --start START      : Start time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -e, --end END          : End time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -f, --fps FPS          : Frame rate for fps mode (default: 1)\n  -c, --count COUNT      : Number of frames for count mode (default: 10)\n  -o, --output DIR       : Output directory (default: video_dir/frames)\n  -q, --quality VALUE    : Image quality (1-31 for JPEG, lower is better, default: 2)\n  -t, --format FORMAT    : Output format: jpg, png, bmp (default: jpg)\n  -w, --width WIDTH      : Resize width (default: original size)\n  -h, --height HEIGHT    : Resize height (default: original size)\n  --extension EXT        : Video file extension to process (default: mp4)\n  -n, --name FORMAT      : Output filename format (default: \"%s_frame_%04d\")\n  --help                 : Show this help message\n\nExamples:\n  # Basic usage - extract 1 frame per second from all videos\n  vdo-batch-export-frames videos/\n  vdo-batch-export-frames videos/ --mode fps --fps 1\n\n  # Extract frames from specific time range for all videos\n  vdo-batch-export-frames videos/ --mode time --start 00:01:00 --end 00:02:00\n  vdo-batch-export-frames videos/ --mode time --start 00:05:30 --end 00:06:00 --fps 2\n\n  # Extract specific number of evenly spaced frames from all videos\n  vdo-batch-export-frames videos/ --mode count --count 20\n  vdo-batch-export-frames videos/ --mode count --count 5 --start 00:01:00 --end 00:02:00\n\n  # Process specific video format\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --extension mkv\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --extension avi\n\n  # High quality and custom format\n  vdo-batch-export-frames videos/ --mode fps --fps 0.5 --quality 1 --format png\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --quality 1 --format bmp\n\n  # Resize frames for all videos\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --width 1280 --height 720\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --width 800\n\n  # Custom output directory and naming\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --output ./my_frames\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --name \"%s_shot_%03d\"\n  vdo-batch-export-frames videos/ --mode fps --fps 1 --name \"%s_frame_%05d\"\n\n  # Complex examples\n  vdo-batch-export-frames videos/ --mode time --start 00:01:00 --end 00:02:00 --fps 2 --quality 1 --format png --width 1920 --output ./high_quality_frames\n  vdo-batch-export-frames videos/ --mode count --count 10 --quality 1 --format png --name \"%s_preview_%02d\" --output ./previews --extension mp4"
+alias vdo-frames-export-batch='() {
+  echo -e "Batch export frames from videos in directory with advanced options.\nUsage:\n  vdo-frames-export-batch <video_directory> [options]\n\nOptions:\n  -m, --mode MODE        : Export mode: \"time\" (time range), \"fps\" (frame rate), \"count\" (frame count) (default: fps)\n  -s, --start START      : Start time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -e, --end END          : End time for time mode (format: HH:MM:SS or MM:SS or SS)\n  -f, --fps FPS          : Frame rate for fps mode (default: 1)\n  -c, --count COUNT      : Number of frames for count mode (default: 10)\n  -o, --output DIR       : Output directory (default: video_dir/frames)\n  -q, --quality VALUE    : Image quality (1-31 for JPEG, lower is better, default: 2)\n  -t, --format FORMAT    : Output format: jpg, png, bmp (default: jpg)\n  -w, --width WIDTH      : Resize width (default: original size)\n  -h, --height HEIGHT    : Resize height (default: original size)\n  --extension EXT        : Video file extension to process (default: mp4)\n  -n, --name FORMAT      : Output filename format (default: \"%s_frame_%04d\")\n  --help                 : Show this help message\n\nExamples:\n  # Basic usage - extract 1 frame per second from all videos\n  vdo-frames-export-batch videos/\n  vdo-frames-export-batch videos/ --mode fps --fps 1\n\n  # Extract frames from specific time range for all videos\n  vdo-frames-export-batch videos/ --mode time --start 00:01:00 --end 00:02:00\n  vdo-frames-export-batch videos/ --mode time --start 00:05:30 --end 00:06:00 --fps 2\n\n  # Extract specific number of evenly spaced frames from all videos\n  vdo-frames-export-batch videos/ --mode count --count 20\n  vdo-frames-export-batch videos/ --mode count --count 5 --start 00:01:00 --end 00:02:00\n\n  # Process specific video format\n  vdo-frames-export-batch videos/ --mode fps --fps 1 --extension mkv\n  vdo-frames-export-batch videos/ --mode fps --fps 1 --extension avi\n\n  # High quality and custom format\n  vdo-frames-export-batch videos/ --mode fps --fps 0.5 --quality 1 --format png\n  vdo-frames-export-batch videos/ --mode fps --fps 1 --quality 1 --format bmp\n\n  # Resize frames for all videos\n  vdo-frames-export-batch videos/ --mode fps --fps 1 --width 1280 --height 720\n  vdo-frames-export-batch videos/ --mode fps --fps 1 --width 800\n\n  # Custom output directory and naming\n  vdo-frames-export-batch videos/ --mode fps --fps 1 --output ./my_frames\n  vdo-frames-export-batch videos/ --mode fps --fps 1 --name \"%s_shot_%03d\"\n  vdo-frames-export-batch videos/ --mode fps --fps 1 --name \"%s_frame_%05d\"\n\n  # Complex examples\n  vdo-frames-export-batch videos/ --mode time --start 00:01:00 --end 00:02:00 --fps 2 --quality 1 --format png --width 1920 --output ./high_quality_frames\n  vdo-frames-export-batch videos/ --mode count --count 10 --quality 1 --format png --name \"%s_preview_%02d\" --output ./previews --extension mp4"
 
   # Variables with default values
   local video_dir=""
@@ -1933,10 +1933,10 @@ alias vdo-adjust-volume='() {
 # Video Screenshot Series
 #------------------------------------------------------------------------------
 
-alias vdo-create-thumbnails='() {
+alias vdo-thumbs='() {
   echo "Create thumbnail images from video at regular intervals."
   echo "Usage:"
-  echo "  vdo-create-thumbnails <video_file_path> <interval_in_seconds:60> <thumbnail_width:320>"
+  echo "  vdo-thumbs <video_file_path> <interval_in_seconds:60> <thumbnail_width:320>"
 
   if [ $# -lt 1 ]; then
     return 1
@@ -1963,10 +1963,10 @@ alias vdo-create-thumbnails='() {
   fi
 }' # Create thumbnails at regular intervals
 
-alias vdo-create-preview-grid='() {
+alias vdo-grid='() {
   echo "Create a preview grid of video screenshots."
   echo "Usage:"
-  echo "  vdo-create-preview-grid <video_file_path> <columns:4> <rows:4>"
+  echo "  vdo-grid <video_file_path> <columns:4> <rows:4>"
 
   if [ $# -lt 1 ]; then
     return 1
@@ -2703,11 +2703,11 @@ alias vdo-rm-metadata='() {
     echo "Error: Failed to remove metadata." >&2
 }' # Remove metadata from a video file
 
-alias vdo-batch-rm-metadata='() {
+alias vdo-meta-rm-batch='() {
   if [[ -z "$1" ]]; then
     echo "Remove metadata from all video files in a directory"
-    echo "Usage: vdo-batch-rm-metadata <directory> [extension]"
-    echo "Example: vdo-batch-rm-metadata ./videos mp4"
+    echo "Usage: vdo-meta-rm-batch <directory> [extension]"
+    echo "Example: vdo-meta-rm-batch ./videos mp4"
     return 1
   fi
 
@@ -3057,7 +3057,7 @@ alias vdo-help='() {
   echo "  vdo-first-frame <file> [format]      - Extract the first frame from a video (default: jpg)"
   echo "  vdo-dir-first-frame <dir> [ext] [fmt] - Extract first frames from all videos in a directory"
   echo "  vdo-export-frames <file> [options]   - Export frames with advanced options (time range, fps, count)"
-  echo "  vdo-batch-export-frames <dir> [options] - Batch export frames from videos with advanced options"
+  echo "  vdo-frames-export-batch <dir> [options] - Batch export frames from videos with advanced options"
   echo "  Note: Legacy functions (vdo-extract-frame, vdo-extract-frames, vdo-batch-extract-frame) are deprecated"
   echo ""
   echo "Cropping:"
@@ -3075,7 +3075,7 @@ alias vdo-help='() {
   echo "  vdo-extract-mp3 <file>               - Extract audio to MP3 format"
   echo "  vdo-extract-dir-mp3 <dir>            - Extract audio from videos in directory to MP3"
   echo "  vdo-merge-audio <video> [audio]      - Merge video and audio into a single file"
-  echo "  vdo-batch-merge-audio <vdir> [adir] [vext] [aext] - Batch merge videos with audio files"
+  echo "  vdo-merge-audio-batch <dir> [options] - Batch merge videos with audio files"
   echo ""
   echo "Compression & Conversion:"
   echo "  vdo-compress <file> <quality>        - Compress video with specified quality"
@@ -3084,8 +3084,8 @@ alias vdo-help='() {
   echo "  vdo-batch-convert <dir> <ext> [format] - Convert videos in directory to specified format"
   echo "  vdo-to-mp4 <file> [file2] [file3]...   - Convert video to MP4 format"
   echo "  vdo-batch-to-mp4 <dir> <ext>          - Convert videos in directory to MP4 format"
-  echo "  vdo-optimize-for-mobile <file> [file2] [file3]... - Optimize video for mobile devices"
-  echo "  vdo-convert-m3u8-to-mp4 <url>        - Convert M3U8 stream to MP4 video"
+  echo "  vdo-mobile <file> [file2] [file3]... - Optimize video for mobile devices"
+  echo "  vdo-m3u8-mp4 <url>        - Convert M3U8 stream to MP4 video"
   echo ""
   echo "Resolution Conversion:"
   echo "  vdo-to-144p <file>                   - Convert video to 144p resolution"
@@ -3099,11 +3099,11 @@ alias vdo-help='() {
   echo ""
   echo "Metadata Removal:"
   echo "  vdo-rm-metadata <file> [output_file]   - Remove metadata from a video file"
-  echo "  vdo-batch-rm-metadata <dir> [ext]      - Batch remove metadata from videos in a directory"
+  echo "  vdo-meta-rm-batch <dir> [ext]      - Batch remove metadata from videos in a directory"
   echo ""
   echo "Screenshot Series:"
-  echo "  vdo-create-thumbnails <file> <interval> - Create thumbnails at regular intervals"
-  echo "  vdo-create-preview-grid <file> <cols>   - Create a grid of screenshots"
+  echo "  vdo-thumbs <file> [interval] [width]   - Create thumbnails at regular intervals"
+  echo "  vdo-grid <file> [cols] [rows]          - Create a grid of screenshots"
   echo "  vdo-screenshot <file> [options]         - Capture screenshots from a video"
   echo "  vdo-batch-screenshot <dir> [options]    - Capture screenshots from videos in a directory"
   echo ""

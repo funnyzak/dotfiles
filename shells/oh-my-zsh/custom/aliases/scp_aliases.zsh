@@ -273,10 +273,10 @@ alias scp-dir-from='() {
 # Advanced Transfer Commands
 # ------------------------
 
-alias scp-compress-to='() {
+alias scp-zip-to='() {
   echo "Copy local file to remote host with compression."
-  echo "Usage: scp-compress-to <local_file_path> <remote_host> [remote_directory:~] [port:22]"
-  echo "Example: scp-compress-to ~/large_file.txt user@server.com /home/user/docs 2222"
+  echo "Usage: scp-zip-to <local_file_path> <remote_host> [remote_directory:~] [port:22]"
+  echo "Example: scp-zip-to ~/large_file.txt user@server.com /home/user/docs 2222"
 
   # Check if scp is installed
   _scp_check_installed || return 1
@@ -321,10 +321,10 @@ alias scp-compress-to='() {
   fi
 }' # Copy local file to remote host with compression
 
-alias scp-compress-dir-to='() {
+alias scp-zip-dir-to='() {
   echo "Copy local directory to remote host recursively with compression."
-  echo "Usage: scp-compress-dir-to <local_directory> <remote_host> [remote_directory:~] [port:22]"
-  echo "Example: scp-compress-dir-to ~/documents user@server.com /home/user/backup 2222"
+  echo "Usage: scp-zip-dir-to <local_directory> <remote_host> [remote_directory:~] [port:22]"
+  echo "Example: scp-zip-dir-to ~/documents user@server.com /home/user/backup 2222"
 
   # Check if scp is installed
   _scp_check_installed || return 1
@@ -369,10 +369,10 @@ alias scp-compress-dir-to='() {
   fi
 }' # Copy local directory to remote host recursively with compression
 
-alias scp-limit-speed-to='() {
+alias scp-rate-to='() {
   echo "Copy local file to remote host with bandwidth limit."
-  echo "Usage: scp-limit-speed-to <local_file_path> <remote_host> <limit_kbps> [remote_directory:~] [port:22]"
-  echo "Example: scp-limit-speed-to ~/large_file.txt user@server.com 1000 /home/user/docs 2222"
+  echo "Usage: scp-rate-to <local_file_path> <remote_host> <limit_kbps> [remote_directory:~] [port:22]"
+  echo "Example: scp-rate-to ~/large_file.txt user@server.com 1000 /home/user/docs 2222"
 
   # Check if scp is installed
   _scp_check_installed || return 1
@@ -476,10 +476,10 @@ alias scp-batch-to='() {
   fi
 }' # Copy multiple local files to remote host
 
-alias scp-multi-host-to='() {
+alias scp-multi-to='() {
   echo "Copy local file to multiple remote hosts."
-  echo "Usage: scp-multi-host-to <local_file_path> <hosts_file> [remote_directory:~] [port:22]"
-  echo "Example: scp-multi-host-to ~/config.txt ~/hosts.txt /etc/app 2222"
+  echo "Usage: scp-multi-to <local_file_path> <hosts_file> [remote_directory:~] [port:22]"
+  echo "Example: scp-multi-to ~/config.txt ~/hosts.txt /etc/app 2222"
   echo "Note: hosts.txt should contain one host per line in format [user@]host"
 
   # Check if scp is installed
@@ -881,13 +881,13 @@ alias scp-help='() {
   echo "  scp-dir-from        - Copy remote directory to local directory recursively"
   echo ""
   echo "Advanced Transfer Commands:"
-  echo "  scp-compress-to     - Copy local file to remote host with compression"
-  echo "  scp-compress-dir-to - Copy local directory to remote host with compression"
-  echo "  scp-limit-speed-to  - Copy local file to remote host with bandwidth limit"
+  echo "  scp-zip-to          - Copy local file to remote host with compression"
+  echo "  scp-zip-dir-to      - Copy local directory to remote host with compression"
+  echo "  scp-rate-to         - Copy local file to remote host with bandwidth limit"
   echo ""
   echo "Batch Transfer Commands:"
   echo "  scp-batch-to        - Copy multiple local files to remote host"
-  echo "  scp-multi-host-to   - Copy local file to multiple remote hosts"
+  echo "  scp-multi-to        - Copy local file to multiple remote hosts"
   echo ""
   echo "Secure Transfer Commands:"
   echo "  scp-key             - Copy file or directory with automatic SSH key detection"

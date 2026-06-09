@@ -638,7 +638,7 @@ alias adb-wifi='() {
   _adb_check_multiple_devices
 
   local device_ip
-  device_ip=$(adb shell ip route | awk '{print $9}' | head -n 1)
+  device_ip=$(adb shell ip route | awk "{print \$9}" | head -n 1)
 
   if [ -z "$device_ip" ]; then
     _adb_error "Could not determine device IP address. Make sure the device is connected to WiFi."

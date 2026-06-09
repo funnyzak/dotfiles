@@ -562,7 +562,7 @@ _pdf_to_images_pdf_aliases() {
   local command_flag="-png"
 
   if [[ "$#" -eq 0 ]]; then
-    _pdf_show_usage_pdf_aliases "Convert PDF pages to images.\nUsage:\n  pdf-to-images <pdf_or_dir> [more_inputs...] [options]\n\nOptions:\n  -f, --format <png|jpg|jpeg>   Output image format, default: png\n  -d, --density <dpi>           Render density, default: 300\n  -r, --resolution <dpi>        Same as --density\n  -o, --output-dir <dir>        Output root directory\n  -h, --help                    Show this help\n\nExamples:\n  pdf-to-images report.pdf\n  pdf-to-images ./docs --format jpg --density 200\n  pdf-to-images report.pdf ./archive -o ./exports/images"
+    _pdf_show_usage_pdf_aliases "Convert PDF pages to images.\nUsage:\n  pdf-img <pdf_or_dir> [more_inputs...] [options]\n\nOptions:\n  -f, --format <png|jpg|jpeg>   Output image format, default: png\n  -d, --density <dpi>           Render density, default: 300\n  -r, --resolution <dpi>        Same as --density\n  -o, --output-dir <dir>        Output root directory\n  -h, --help                    Show this help\n\nExamples:\n  pdf-img report.pdf\n  pdf-img ./docs --format jpg --density 200\n  pdf-img report.pdf ./archive -o ./exports/images"
     return 1
   fi
 
@@ -593,7 +593,7 @@ _pdf_to_images_pdf_aliases() {
         shift 2
         ;;
       -h|--help)
-        _pdf_show_usage_pdf_aliases "Convert PDF pages to images.\nUsage:\n  pdf-to-images <pdf_or_dir> [more_inputs...] [options]\n\nOptions:\n  -f, --format <png|jpg|jpeg>   Output image format, default: png\n  -d, --density <dpi>           Render density, default: 300\n  -r, --resolution <dpi>        Same as --density\n  -o, --output-dir <dir>        Output root directory\n  -h, --help                    Show this help"
+        _pdf_show_usage_pdf_aliases "Convert PDF pages to images.\nUsage:\n  pdf-img <pdf_or_dir> [more_inputs...] [options]\n\nOptions:\n  -f, --format <png|jpg|jpeg>   Output image format, default: png\n  -d, --density <dpi>           Render density, default: 300\n  -r, --resolution <dpi>        Same as --density\n  -o, --output-dir <dir>        Output root directory\n  -h, --help                    Show this help"
         return 0
         ;;
       -*)
@@ -1205,7 +1205,7 @@ _pdf_to_image_pdf_pdf_aliases() {
   local rendered_size=""
 
   if [[ "$#" -eq 0 ]]; then
-    _pdf_show_usage_pdf_aliases "Convert PDF files to image-based PDFs.\nUsage:\n  pdf-to-image-pdf <pdf_or_dir> [more_inputs...] [options]\n\nOptions:\n  -d, --density <dpi>      Render density, default: 300\n  -f, --format <png|jpg|jpeg>   Intermediate image format, default: png\n  -o, --output-dir <dir>   Output root directory\n  -h, --help               Show this help\n\nExamples:\n  pdf-to-image-pdf report.pdf\n  pdf-to-image-pdf ./docs --density 200 --format jpg\n  pdf-to-image-pdf report.pdf ./archive -o ./exports/image-pdf"
+    _pdf_show_usage_pdf_aliases "Convert PDF files to image-based PDFs.\nUsage:\n  pdf-raster <pdf_or_dir> [more_inputs...] [options]\n\nOptions:\n  -d, --density <dpi>      Render density, default: 300\n  -f, --format <png|jpg|jpeg>   Intermediate image format, default: png\n  -o, --output-dir <dir>   Output root directory\n  -h, --help               Show this help\n\nExamples:\n  pdf-raster report.pdf\n  pdf-raster ./docs --density 200 --format jpg\n  pdf-raster report.pdf ./archive -o ./exports/image-pdf"
     return 1
   fi
 
@@ -1236,7 +1236,7 @@ _pdf_to_image_pdf_pdf_aliases() {
         shift 2
         ;;
       -h|--help)
-        _pdf_show_usage_pdf_aliases "Convert PDF files to image-based PDFs.\nUsage:\n  pdf-to-image-pdf <pdf_or_dir> [more_inputs...] [options]\n\nOptions:\n  -d, --density <dpi>      Render density, default: 300\n  -f, --format <png|jpg|jpeg>   Intermediate image format, default: png\n  -o, --output-dir <dir>   Output root directory\n  -h, --help               Show this help"
+        _pdf_show_usage_pdf_aliases "Convert PDF files to image-based PDFs.\nUsage:\n  pdf-raster <pdf_or_dir> [more_inputs...] [options]\n\nOptions:\n  -d, --density <dpi>      Render density, default: 300\n  -f, --format <png|jpg|jpeg>   Intermediate image format, default: png\n  -o, --output-dir <dir>   Output root directory\n  -h, --help               Show this help"
         return 0
         ;;
       -*)
@@ -1319,7 +1319,7 @@ _pdf_to_text_pdf_aliases() {
   local success_count="0"
 
   if [[ "$#" -eq 0 ]]; then
-    _pdf_show_usage_pdf_aliases "Extract text from PDF files.\nUsage:\n  pdf-to-text <pdf_or_dir> [more_inputs...] [options]\n\nOptions:\n  -o, --output-dir <dir>   Output root directory\n  -h, --help               Show this help\n\nExamples:\n  pdf-to-text report.pdf\n  pdf-to-text ./docs -o ./exports/text"
+    _pdf_show_usage_pdf_aliases "Extract text from PDF files.\nUsage:\n  pdf-text <pdf_or_dir> [more_inputs...] [options]\n\nOptions:\n  -o, --output-dir <dir>   Output root directory\n  -h, --help               Show this help\n\nExamples:\n  pdf-text report.pdf\n  pdf-text ./docs -o ./exports/text"
     return 1
   fi
 
@@ -1334,7 +1334,7 @@ _pdf_to_text_pdf_aliases() {
         shift 2
         ;;
       -h|--help)
-        _pdf_show_usage_pdf_aliases "Extract text from PDF files.\nUsage:\n  pdf-to-text <pdf_or_dir> [more_inputs...] [options]\n\nOptions:\n  -o, --output-dir <dir>   Output root directory\n  -h, --help               Show this help"
+        _pdf_show_usage_pdf_aliases "Extract text from PDF files.\nUsage:\n  pdf-text <pdf_or_dir> [more_inputs...] [options]\n\nOptions:\n  -o, --output-dir <dir>   Output root directory\n  -h, --help               Show this help"
         return 0
         ;;
       -*)
@@ -1414,7 +1414,7 @@ _pdf_watermark_pdf_aliases() {
   local -a planned_outputs=()
 
   if [[ "$#" -eq 0 ]]; then
-    _pdf_show_usage_pdf_aliases "Add text or image watermarks to PDF files.\nUsage:\n  pdf-watermark <pdf_or_dir> [more_inputs...] (--text <text> | --image <path>) [options]\n\nDefaults:\n  pages=all, layer=over, opacity=0.1, rotate=45, mode=repeat\n\nOptions:\n  -t, --text <text>              Text watermark content\n  -i, --image <path>             Image watermark path, png/jpg/jpeg\n  --pages <value>                all, odd, even, first, last, or 1,3,5-8; default: all\n  --mode <single|repeat>         Watermark layout mode, default: repeat\n  --layer <over|under>           Draw above or below page content, default: over\n  -p, --position <position>      single mode position, default: center\n  --x <pt>                       Custom x coordinate for single mode\n  --y <pt>                       Custom y coordinate for single mode\n  --margin <pt>                  Position margin, default: 36\n  --opacity <0.0-1.0>            Watermark opacity, default: 0.1\n  --rotate <degrees>             Rotation angle, default: 45\n  --scale <ratio>                Image width ratio against page width, default: 0.25\n  --width <pt>                   Watermark width in points\n  --font-size <pt>               Text font size, default: 48\n  --font-color <color>           Text color, default: #888888\n  --font <name_or_path>          Built-in font name or font file path, default: helv\n  --spacing-x <pt>               Repeat horizontal spacing, default: 240\n  --spacing-y <pt>               Repeat vertical spacing, default: 160\n  --suffix <suffix>              Output suffix, default: _watermarked\n  -o, --output-dir <dir>         Output root directory\n  --overwrite                    Overwrite target files when they already exist\n  --dry-run                      Print planned operations without writing files\n  -h, --help                     Show this help\n\nExamples:\n  pdf-watermark report.pdf --text \"CONFIDENTIAL\"\n  pdf-watermark report.pdf --image logo.png --position bottom-right --mode single\n  pdf-watermark ./docs --text \"Draft\" --pages odd -o ./watermarked\n  pdf-watermark a.pdf b.pdf --text \"Internal\" --pages 1,3,5-8 --layer over\n\nNote:\n  This command requires python3 and PyMuPDF. Install with: python3 -m pip install pymupdf\n  Use straight ASCII quotes in shell commands; mixed smart and ASCII quotes can leave the shell waiting.\n  Under-layer watermarks can be hidden by opaque scanned page images."
+    _pdf_show_usage_pdf_aliases "Add text or image watermarks to PDF files.\nUsage:\n  pdf-wm <pdf_or_dir> [more_inputs...] (--text <text> | --image <path>) [options]\n\nDefaults:\n  pages=all, layer=over, opacity=0.1, rotate=45, mode=repeat\n\nOptions:\n  -t, --text <text>              Text watermark content\n  -i, --image <path>             Image watermark path, png/jpg/jpeg\n  --pages <value>                all, odd, even, first, last, or 1,3,5-8; default: all\n  --mode <single|repeat>         Watermark layout mode, default: repeat\n  --layer <over|under>           Draw above or below page content, default: over\n  -p, --position <position>      single mode position, default: center\n  --x <pt>                       Custom x coordinate for single mode\n  --y <pt>                       Custom y coordinate for single mode\n  --margin <pt>                  Position margin, default: 36\n  --opacity <0.0-1.0>            Watermark opacity, default: 0.1\n  --rotate <degrees>             Rotation angle, default: 45\n  --scale <ratio>                Image width ratio against page width, default: 0.25\n  --width <pt>                   Watermark width in points\n  --font-size <pt>               Text font size, default: 48\n  --font-color <color>           Text color, default: #888888\n  --font <name_or_path>          Built-in font name or font file path, default: helv\n  --spacing-x <pt>               Repeat horizontal spacing, default: 240\n  --spacing-y <pt>               Repeat vertical spacing, default: 160\n  --suffix <suffix>              Output suffix, default: _watermarked\n  -o, --output-dir <dir>         Output root directory\n  --overwrite                    Overwrite target files when they already exist\n  --dry-run                      Print planned operations without writing files\n  -h, --help                     Show this help\n\nExamples:\n  pdf-wm report.pdf --text \"CONFIDENTIAL\"\n  pdf-wm report.pdf --image logo.png --position bottom-right --mode single\n  pdf-wm ./docs --text \"Draft\" --pages odd -o ./watermarked\n  pdf-wm a.pdf b.pdf --text \"Internal\" --pages 1,3,5-8 --layer over\n\nNote:\n  This command requires python3 and PyMuPDF. Install with: python3 -m pip install pymupdf\n  Use straight ASCII quotes in shell commands; mixed smart and ASCII quotes can leave the shell waiting.\n  Under-layer watermarks can be hidden by opaque scanned page images."
     return 0
   fi
 
@@ -2071,7 +2071,7 @@ PYTHON_WATERMARK_PDF
 }
 
 _pdf_help_pdf_aliases() {
-  _pdf_show_usage_pdf_aliases "PDF alias overview\n\nAll commands accept one or more PDF files or directories unless noted otherwise.\nDirectory inputs are scanned recursively.\n\nCommands:\n  pdf-info              Show metadata for one or more PDFs\n  pdf-to-images         Export pages to png or jpg images\n  pdf-to-jpg            Shortcut for pdf-to-images --format jpg\n  pdf-compress          Compress one or more PDFs\n  pdf-watermark         Add text or image watermarks to one or more PDFs\n  pdf-encrypt           Encrypt one or more PDFs\n  pdf-merge             Merge many PDFs into one output file\n  pdf-split             Split PDFs into single-page PDFs\n  pdf-rotate            Rotate PDFs by 90, 180, or 270 degrees\n  pdf-extract           Export a page range from one or more PDFs\n  pdf-to-image-pdf      Rebuild PDFs as image-based PDFs\n  pdf-to-text           Export text from one or more PDFs\n\nCompatibility wrappers:\n  pdf-batch-to-images\n  pdf-batch-compress\n  pdf-batch-to-image-pdf\n\nRun any command with --help for detailed usage."
+  _pdf_show_usage_pdf_aliases "PDF alias overview\n\nAll commands accept one or more PDF files or directories unless noted otherwise.\nDirectory inputs are scanned recursively.\n\nCommands:\n  pdf-info              Show metadata for one or more PDFs\n  pdf-img               Export pages to png or jpg images\n  pdf-to-jpg            Shortcut for pdf-img --format jpg\n  pdf-compress          Compress one or more PDFs\n  pdf-wm                Add text or image watermarks to one or more PDFs\n  pdf-encrypt           Encrypt one or more PDFs\n  pdf-merge             Merge many PDFs into one output file\n  pdf-split             Split PDFs into single-page PDFs\n  pdf-rotate            Rotate PDFs by 90, 180, or 270 degrees\n  pdf-extract           Export a page range from one or more PDFs\n  pdf-raster            Rebuild PDFs as image-based PDFs\n  pdf-text              Export text from one or more PDFs\n\nBatch wrappers:\n  pdf-img-batch\n  pdf-compress-batch\n  pdf-raster-batch\n\nRun any command with --help for detailed usage."
 }
 
 _pdf_batch_to_images_pdf_aliases() {
@@ -2089,18 +2089,18 @@ _pdf_batch_to_image_pdf_pdf_aliases() {
 # PDF Aliases
 # ### --- ###
 alias pdf-info='() { _pdf_info_pdf_aliases "$@"; }'
-alias pdf-to-images='() { _pdf_to_images_pdf_aliases "$@"; }'
-alias pdf-batch-to-images='() { _pdf_batch_to_images_pdf_aliases "$@"; }'
+alias pdf-img='() { _pdf_to_images_pdf_aliases "$@"; }'
+alias pdf-img-batch='() { _pdf_batch_to_images_pdf_aliases "$@"; }'
 alias pdf-to-jpg='() { _pdf_to_jpg_pdf_aliases "$@"; }'
 alias pdf-compress='() { _pdf_compress_pdf_aliases "$@"; }'
-alias pdf-batch-compress='() { _pdf_batch_compress_pdf_aliases "$@"; }'
-alias pdf-watermark='() { _pdf_watermark_pdf_aliases "$@"; }'
+alias pdf-compress-batch='() { _pdf_batch_compress_pdf_aliases "$@"; }'
+alias pdf-wm='() { _pdf_watermark_pdf_aliases "$@"; }'
 alias pdf-encrypt='() { _pdf_encrypt_pdf_aliases "$@"; }'
 alias pdf-merge='() { _pdf_merge_pdf_aliases "$@"; }'
 alias pdf-split='() { _pdf_split_pdf_aliases "$@"; }'
 alias pdf-rotate='() { _pdf_rotate_pdf_aliases "$@"; }'
 alias pdf-extract='() { _pdf_extract_pdf_aliases "$@"; }'
-alias pdf-to-image-pdf='() { _pdf_to_image_pdf_pdf_aliases "$@"; }'
-alias pdf-batch-to-image-pdf='() { _pdf_batch_to_image_pdf_pdf_aliases "$@"; }'
-alias pdf-to-text='() { _pdf_to_text_pdf_aliases "$@"; }'
+alias pdf-raster='() { _pdf_to_image_pdf_pdf_aliases "$@"; }'
+alias pdf-raster-batch='() { _pdf_batch_to_image_pdf_pdf_aliases "$@"; }'
+alias pdf-text='() { _pdf_to_text_pdf_aliases "$@"; }'
 alias pdf-help='() { _pdf_help_pdf_aliases "$@"; }'

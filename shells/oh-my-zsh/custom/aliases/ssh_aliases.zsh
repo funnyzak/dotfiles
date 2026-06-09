@@ -449,8 +449,8 @@ alias ssh-hosts-list='() {
 # SSH Connection Testing and Maintenance
 
 # Test SSH connection to a host
-alias ssh-connection-test='() {
-  echo -e "Test SSH connection to a host with detailed diagnostics.\nUsage:\n  ssh-connection-test <hostname> [port:22] [timeout:5]\nOptions:\n  hostname: The hostname or IP address to connect to\n  port: The SSH port number (default: 22)\n  timeout: Connection timeout in seconds (default: 5)"
+alias ssh-test='() {
+  echo -e "Test SSH connection to a host with detailed diagnostics.\nUsage:\n  ssh-test <hostname> [port:22] [timeout:5]\nOptions:\n  hostname: The hostname or IP address to connect to\n  port: The SSH port number (default: 22)\n  timeout: Connection timeout in seconds (default: 5)"
 
   local host="$1"
   local port="${2:-22}"
@@ -689,8 +689,8 @@ alias ssh-key-dsa='() {
 }' # Generate DSA key (legacy support only)
 
 # SSH key permissions fix alias
-alias ssh-key-fix-permissions='() {
-  echo -e "Fix permissions for SSH keys in ~/.ssh directory.\nUsage:\n  ssh-key-fix-permissions [directory:~/.ssh]\nParameters:\n  directory: SSH directory to fix permissions for (default: ~/.ssh)"
+alias ssh-key-fix='() {
+  echo -e "Fix permissions for SSH keys in ~/.ssh directory.\nUsage:\n  ssh-key-fix [directory:~/.ssh]\nParameters:\n  directory: SSH directory to fix permissions for (default: ~/.ssh)"
 
   local ssh_dir="${1:-$HOME/.ssh}"
 
@@ -841,8 +841,8 @@ alias sshc='ssh-connect' # Alias for ssh-connect
 
 # SSH Port Forward Management
 # Connect with port forwarding using expect script
-alias ssh-port-forward='() {
-  echo -e "Connect to a remote host with port forwarding using expect script.\nUsage:\n  ssh-port-forward [server_id]\nOptions:\n  server_id: Optional server ID to connect directly\n\nEnvironment Variables:"
+alias ssh-pf='() {
+  echo -e "Connect to a remote host with port forwarding using expect script.\nUsage:\n  ssh-pf [server_id]\nOptions:\n  server_id: Optional server ID to connect directly\n\nEnvironment Variables:"
   echo -n "  PORT_FORWARD_EXP_EXEC_PATH: Path to ssh_port_forward.exp (wrapper only; not read by expect)"
   [[ -n "$PORT_FORWARD_EXP_EXEC_PATH" ]] && echo " (current: $PORT_FORWARD_EXP_EXEC_PATH)" || echo " (default: ~/.ssh/ssh_port_forward.exp)"
   echo -n "  SSHC_PORT_FORWARD_CONFIG: Port-forward servers config file"
@@ -875,11 +875,23 @@ alias ssh-port-forward='() {
 
   # Check if expect script exists
   if [[ ! -f "$port_forward_exp_path" ]]; then
-    echo "SSH port forward script not found. Running setup..."
-    ssh-port-forward-setup
+    echo "SSH port forward script not found. Looking for dotfiles utility copy..."
+    local dotfiles_dir=""
+    if [[ -n "$DOTFILES_DIR" ]]; then
+      dotfiles_dir="$DOTFILES_DIR"
+    elif [[ -d "$HOME/Documents/Work/Project/Pro/dotfiles" ]]; then
+      dotfiles_dir="$HOME/Documents/Work/Project/Pro/dotfiles"
+    elif [[ -d "$HOME/projects/dotfiles" ]]; then
+      dotfiles_dir="$HOME/projects/dotfiles"
+    fi
+
+    if [[ -n "$dotfiles_dir" && -f "$dotfiles_dir/utilities/shell/sshc/ssh_port_forward.exp" ]]; then
+      mkdir -p "$(dirname "$port_forward_exp_path")"
+      cp "$dotfiles_dir/utilities/shell/sshc/ssh_port_forward.exp" "$port_forward_exp_path"
+    fi
 
     if [[ ! -f "$port_forward_exp_path" ]]; then
-      _show_error_ssh_aliases "Failed to setup SSH port forward tool"
+      _show_error_ssh_aliases "SSH port forward script not found. Set DOTFILES_DIR or PORT_FORWARD_EXP_EXEC_PATH, or copy utilities/shell/sshc/ssh_port_forward.exp to $port_forward_exp_path."
       return 1
     fi
   fi
@@ -918,7 +930,7 @@ alias ssh-port-forward='() {
   return 0
 }' # Connect with port forwarding using expect script
 
-alias sshpf='ssh-port-forward' # Short alias for ssh-port-forward
+alias sshpf='ssh-pf' # Short alias for ssh-pf
 
 # SSH File Upload Management
 # Upload files to remote servers using expect script
@@ -1014,7 +1026,7 @@ alias ssh-help='() {
   echo -e "SSH aliases and functions help\n"
   echo "SSH Connection Management:"
   echo "  ssh-connect            - Connect to a remote host using expect script"
-  echo "  ssh-port-forward       - Connect with port forwarding using expect script"
+  echo "  ssh-pf                 - Connect with port forwarding using expect script"
   echo "  ssh-upload            - Upload files to remote servers using expect script"
   echo ""
   echo "SSH Key Management:"
@@ -1025,7 +1037,7 @@ alias ssh-help='() {
   echo "  ssh-key-dsa           - Generate DSA SSH key (not recommended)"
   echo "  ssh-key-list          - List all SSH keys in ~/.ssh directory"
   echo "  ssh-key-copy          - Copy SSH public key to remote host"
-  echo "  ssh-key-fix-permissions - Fix permissions for SSH keys"
+  echo "  ssh-key-fix            - Fix permissions for SSH keys"
   echo ""
   echo "SSH Agent Management:"
   echo "  ssh-agent-start       - Start SSH agent and load default keys"
@@ -1035,11 +1047,11 @@ alias ssh-help='() {
   echo "  ssh-hosts-list        - List all SSH hosts from config"
   echo ""
   echo "SSH Connection Testing:"
-  echo "  ssh-connection-test   - Test SSH connection to a host"
+  echo "  ssh-test              - Test SSH connection to a host"
   echo ""
   echo "Short aliases:"
   echo "  sshc                  - Alias for ssh-connect"
-  echo "  sshpf                 - Alias for ssh-port-forward"
+  echo "  sshpf                 - Alias for ssh-pf"
   echo "  sshu                  - Alias for ssh-upload"
   echo ""
   echo "For server management functions, use: ssh-srv-help"

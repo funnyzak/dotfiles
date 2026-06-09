@@ -1214,14 +1214,15 @@ alias gh-dl-release='() {
   done
 }'
 
-alias gh-to-ssh='() {
+alias gh-ssh='() {
   # Convert HTTPS GitHub URLs to SSH format recursively
-  echo -e "Convert HTTPS GitHub URLs to SSH format recursively.\nUsage:\n gh-to-ssh [search_directory:.] [--dry-run] [--verbose]"
-  echo -e "Examples:\n gh-to-ssh\n gh-to-ssh ~/projects --verbose\n gh-to-ssh . --dry-run"
+  echo -e "Convert HTTPS GitHub URLs to SSH format recursively.\nUsage:\n gh-ssh [search_directory:.] [--dry-run] [--verbose]"
+  echo -e "Examples:\n gh-ssh\n gh-ssh ~/projects --verbose\n gh-ssh --dry-run"
 
-  local search_directory="${1:-.}"
+  local search_directory="."
   local is_dry_run=false
   local is_verbose=false
+  local directory_set=false
   local converted_count=0
   local total_repository_count=0
   local converted_repositories=()
@@ -1238,8 +1239,16 @@ alias gh-to-ssh='() {
         ;;
       -*)
         echo "Error: Unknown option $argument" >&2
-        echo "Usage: gh-to-ssh [search_directory:.] [--dry-run] [--verbose]" >&2
+        echo "Usage: gh-ssh [search_directory:.] [--dry-run] [--verbose]" >&2
         return 1
+        ;;
+      *)
+        if [[ "$directory_set" == "true" ]]; then
+          echo "Error: Multiple search directories are not supported: $argument" >&2
+          return 1
+        fi
+        search_directory="$argument"
+        directory_set=true
         ;;
     esac
   done
@@ -1462,7 +1471,7 @@ alias git-help='() {
   echo "  gh-dl-branch         - Download GitHub repository branch"
   echo "  gh-dl-tag            - Download GitHub repository tag"
   echo "  gh-dl-release        - Download GitHub project release assets"
-  echo "  gh-to-ssh         - Convert HTTPS GitHub URLs to SSH format recursively"
+  echo "  gh-ssh            - Convert HTTPS GitHub URLs to SSH format recursively"
   echo ""
   echo "  git-help          - Display this help message"
 }' # Display help for Git management aliases

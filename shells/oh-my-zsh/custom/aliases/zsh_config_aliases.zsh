@@ -276,7 +276,7 @@ alias omz-aedit='() {
   echo "Alias file edited successfully. Run 'zreload' to apply changes."
 }' # Edit or create an alias script file in Oh-My-Zsh custom aliases directory
 
-alias omz-remove-custom-aliases='() {
+alias omz-rm-aliases='() {
   local aliases_dir="$HOME/.oh-my-zsh/custom/aliases"
 
   echo "Remove custom aliases from Oh-My-Zsh"
@@ -299,18 +299,19 @@ alias omz-remove-custom-aliases='() {
     return 0
   fi
 
-  # # Create backup before removal
-  # local backup_dir="$HOME/.oh-my-zsh-aliases-backup-$(date +%Y%m%d%H%M%S)"
-  # echo "Creating backup in $backup_dir"
-  # if ! cp -r "$aliases_dir" "$backup_dir"; then
-  #   echo "Warning: Failed to create backup, proceeding anyway" >&2
-  # fi
+  # Create backup before removal
+  local backup_dir="$HOME/.oh-my-zsh-aliases-backup-$(date +%Y%m%d%H%M%S)"
+  echo "Creating backup in $backup_dir"
+  if ! cp -R "$aliases_dir" "$backup_dir"; then
+    echo "Error: Failed to create backup. Aborting removal." >&2
+    return 1
+  fi
 
   # Remove directory
   echo "Removing custom aliases directory: $aliases_dir"
   if rm -rf "$aliases_dir"; then
     echo "Custom aliases removed successfully"
-    # echo "Backup saved to $backup_dir"
+    echo "Backup saved to $backup_dir"
     echo "Run 'omz-reload' to apply changes"
   else
     echo "Error: Failed to remove $aliases_dir" >&2
@@ -318,7 +319,7 @@ alias omz-remove-custom-aliases='() {
   fi
 }' # Remove custom aliases from Oh-My-Zsh
 
-alias omz-clear-empty-aliases='() {
+alias omz-clean-aliases='() {
   local aliases_dir="$HOME/.oh-my-zsh/custom/aliases"
 
   echo "Clear empty alias files from Oh-My-Zsh"
@@ -330,7 +331,8 @@ alias omz-clear-empty-aliases='() {
   fi
 
   # Find and remove empty files
-  local empty_files=$(find "$aliases_dir" -type f -size 0)
+  local empty_files
+  empty_files=$(find "$aliases_dir" -type f -size 0)
   if [ -z "$empty_files" ]; then
     echo "No empty alias files found in $aliases_dir"
     return 0
@@ -347,11 +349,20 @@ alias omz-clear-empty-aliases='() {
   fi
   # Remove empty files
   echo "Removing empty alias files..."
-  if rm -f $empty_files; then
-    echo "Empty alias files removed successfully"
-    echo "Run 'omz-reload' to apply changes"
-  else
-    echo "Error: Failed to remove empty alias files" >&2
+  local remove_failed=false
+  while IFS= read -r empty_file; do
+    if [ -n "$empty_file" ] && ! rm -f "$empty_file"; then
+      echo "Error: Failed to remove $empty_file" >&2
+      remove_failed=true
+    fi
+  done <<EOF
+$empty_files
+EOF
+
+  if [ "$remove_failed" = true ]; then
     return 1
   fi
+
+  echo "Empty alias files removed successfully"
+  echo "Run 'omz-reload' to apply changes"
 }' # Clear empty alias files from Oh-My-Zsh

@@ -709,7 +709,7 @@ alias bria-batch-expand-img='() {
 
     # Download the result image
     if curl -s "$result_url" -o "$output_path"; then
-      echo "✓ $filename expanded successfully -> $output_path"
+      echo "✓ $(basename "$output_path") expanded successfully -> $output_path"
       processed=$((processed + 1))
     else
       echo "✗ Failed to download result for $image_url" >&2

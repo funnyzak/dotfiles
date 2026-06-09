@@ -557,8 +557,8 @@ alias yt-thumbnail='() {
   fi
 }' # Download thumbnails from YouTube videos
 
-alias yt-batch-thumbnail='() {
-  echo -e "Batch download thumbnails from multiple YouTube videos.\nUsage:\n  yt-batch-thumbnail <url_file_path> [options]\n\nOptions:\n  -o, --output_dir DIR   : Output directory (default: current directory)\n  -q, --quality QUALITY  : Thumbnail quality (default: max)\n                          Options: default, medium, high, max\n  -h, --help             : Show this help message\n\nExamples:\n  yt-batch-thumbnail urls.txt\n  yt-batch-thumbnail urls.txt -q high -o ~/Pictures/thumbnails"
+alias yt-thumb-batch='() {
+  echo -e "Batch download thumbnails from multiple YouTube videos.\nUsage:\n  yt-thumb-batch <url_file_path> [options]\n\nOptions:\n  -o, --output_dir DIR   : Output directory (default: current directory)\n  -q, --quality QUALITY  : Thumbnail quality (default: max)\n                          Options: default, medium, high, max\n  -h, --help             : Show this help message\n\nExamples:\n  yt-thumb-batch urls.txt\n  yt-thumb-batch urls.txt -q high -o ~/Pictures/thumbnails"
 
   # Variables with default values
   local url_file=""
@@ -933,8 +933,8 @@ alias yt-batch-audio='() {
   return 0
 }' # Batch extract audio from multiple YouTube videos
 
-alias yt-playlist-audio='() {
-  echo -e "Extract audio from a YouTube playlist.\nUsage:\n  yt-playlist-audio <playlist_url> [options]\n\nOptions:\n  -o, --output_dir DIR   : Output directory (default: current directory)\n  -f, --format FORMAT    : Audio format (default: mp3)\n                          Options: mp3, m4a, wav, flac, opus, ogg\n  -q, --quality VALUE    : Audio quality (default: 192)\n                          Values: 64, 128, 192, 256, 320 (kbps)\n  -t, --thumbnail        : Embed thumbnail in audio files\n  -i, --items RANGE      : Download specific items (e.g., 1-3,7,10-12)\n  -r, --reverse          : Download playlist in reverse order\n  -l, --limit NUMBER     : Limit number of videos to download\n  -h, --help             : Show this help message\n\nExamples:\n  yt-playlist-audio https://www.youtube.com/playlist?list=PLxxx\n  yt-playlist-audio https://www.youtube.com/playlist?list=PLxxx -f wav -q 320 -t\n  yt-playlist-audio https://www.youtube.com/playlist?list=PLxxx -i 1-5,10 -o ~/Music"
+alias yt-pl-audio='() {
+  echo -e "Extract audio from a YouTube playlist.\nUsage:\n  yt-pl-audio <playlist_url> [options]\n\nOptions:\n  -o, --output_dir DIR   : Output directory (default: current directory)\n  -f, --format FORMAT    : Audio format (default: mp3)\n                          Options: mp3, m4a, wav, flac, opus, ogg\n  -q, --quality VALUE    : Audio quality (default: 192)\n                          Values: 64, 128, 192, 256, 320 (kbps)\n  -t, --thumbnail        : Embed thumbnail in audio files\n  -i, --items RANGE      : Download specific items (e.g., 1-3,7,10-12)\n  -r, --reverse          : Download playlist in reverse order\n  -l, --limit NUMBER     : Limit number of videos to download\n  -h, --help             : Show this help message\n\nExamples:\n  yt-pl-audio https://www.youtube.com/playlist?list=PLxxx\n  yt-pl-audio https://www.youtube.com/playlist?list=PLxxx -f wav -q 320 -t\n  yt-pl-audio https://www.youtube.com/playlist?list=PLxxx -i 1-5,10 -o ~/Music"
 
   # Variables with default values
   local url=""
@@ -1131,8 +1131,8 @@ alias yt-info='() {
   fi
 }' # Get information about YouTube videos
 
-alias yt-playlist-info='() {
-  echo -e "Get information about a YouTube playlist.\nUsage:\n  yt-playlist-info <playlist_url> [options]\n\nOptions:\n  -c, --count            : Show only video count\n  -i, --ids              : Show video IDs\n  -t, --titles           : Show only video titles\n  -d, --durations        : Show videos with durations\n  -s, --simple           : Show simplified information\n  -j, --json             : Output in JSON format\n  -h, --help             : Show this help message\n\nExamples:\n  yt-playlist-info https://www.youtube.com/playlist?list=PLxxx\n  yt-playlist-info https://www.youtube.com/playlist?list=PLxxx -c\n  yt-playlist-info https://www.youtube.com/playlist?list=PLxxx --titles"
+alias yt-pl-info='() {
+  echo -e "Get information about a YouTube playlist.\nUsage:\n  yt-pl-info <playlist_url> [options]\n\nOptions:\n  -c, --count            : Show only video count\n  -i, --ids              : Show video IDs\n  -t, --titles           : Show only video titles\n  -d, --durations        : Show videos with durations\n  -s, --simple           : Show simplified information\n  -j, --json             : Output in JSON format\n  -h, --help             : Show this help message\n\nExamples:\n  yt-pl-info https://www.youtube.com/playlist?list=PLxxx\n  yt-pl-info https://www.youtube.com/playlist?list=PLxxx -c\n  yt-pl-info https://www.youtube.com/playlist?list=PLxxx --titles"
 
   # Variables with default values
   local url=""
@@ -1358,8 +1358,8 @@ alias yt-subtitle='() {
   fi
 }' # Download subtitles from YouTube videos
 
-alias yt-batch-subtitle='() {
-  echo -e "Batch download subtitles from multiple YouTube videos.\nUsage:\n  yt-batch-subtitle <url_file_path> [options]\n\nOptions:\n  -o, --output_dir DIR   : Output directory (default: current directory)\n  -l, --lang LANG        : Subtitle language (default: en)\n                          Examples: en, fr, es, de, ja, zh\n  -a, --auto             : Download auto-generated subtitles\n  -f, --format FORMAT    : Subtitle format (default: srt)\n                          Options: srt, vtt, ass, lrc\n  -h, --help             : Show this help message\n\nExamples:\n  yt-batch-subtitle urls.txt\n  yt-batch-subtitle urls.txt -l fr -f vtt\n  yt-batch-subtitle urls.txt --auto --lang en --output_dir ~/Subtitles"
+alias yt-sub-batch='() {
+  echo -e "Batch download subtitles from multiple YouTube videos.\nUsage:\n  yt-sub-batch <url_file_path> [options]\n\nOptions:\n  -o, --output_dir DIR   : Output directory (default: current directory)\n  -l, --lang LANG        : Subtitle language (default: en)\n                          Examples: en, fr, es, de, ja, zh\n  -a, --auto             : Download auto-generated subtitles\n  -f, --format FORMAT    : Subtitle format (default: srt)\n                          Options: srt, vtt, ass, lrc\n  -h, --help             : Show this help message\n\nExamples:\n  yt-sub-batch urls.txt\n  yt-sub-batch urls.txt -l fr -f vtt\n  yt-sub-batch urls.txt --auto --lang en --output_dir ~/Subtitles"
 
   # Variables with default values
   local url_file=""
@@ -1528,19 +1528,19 @@ alias yt-help='() {
   echo "Audio Extraction:"
   echo "  yt-audio <url> [options]            - Extract audio from YouTube videos"
   echo "  yt-batch-audio <file> [options]     - Batch extract audio from multiple YouTube videos"
-  echo "  yt-playlist-audio <url> [options]   - Extract audio from a YouTube playlist"
+  echo "  yt-pl-audio <url> [options]         - Extract audio from a YouTube playlist"
   echo ""
   echo "Video Information:"
   echo "  yt-info <url> [options]             - Get information about YouTube videos"
-  echo "  yt-playlist-info <url> [options]    - Get information about a YouTube playlist"
+  echo "  yt-pl-info <url> [options]          - Get information about a YouTube playlist"
   echo ""
   echo "Thumbnail Download:"
   echo "  yt-thumbnail <url> [options]        - Download thumbnails from YouTube videos"
-  echo "  yt-batch-thumbnail <file> [options] - Batch download thumbnails from multiple videos"
+  echo "  yt-thumb-batch <file> [options]     - Batch download thumbnails from multiple videos"
   echo ""
   echo "Subtitle Download:"
   echo "  yt-subtitle <url> [options]         - Download subtitles from YouTube videos"
-  echo "  yt-batch-subtitle <file> [options]  - Batch download subtitles from multiple videos"
+  echo "  yt-sub-batch <file> [options]       - Batch download subtitles from multiple videos"
   echo ""
   echo "For more detailed help on any command, run the command without arguments"
 }' # Display help information about all YouTube commands

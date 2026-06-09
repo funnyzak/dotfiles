@@ -726,10 +726,10 @@ alias tcpd-http='() {
   _tcpdump_format_http "$format_type" "$port_number" "$interface_name" "$http_filter"
 }' # Monitor HTTP traffic with content in human-readable format
 
-alias tcpd-http-headers='() {
+alias tcpd-http-head='() {
   echo "Display HTTP headers from captured traffic."
-  echo "Usage: tcpd-http-headers [port_number:80] [interface_name:any]"
-  echo "Example: tcpd-http-headers 8080 eth0"
+  echo "Usage: tcpd-http-head [port_number:80] [interface_name:any]"
+  echo "Example: tcpd-http-head 8080 eth0"
 
   # Check if tcpdump is installed
   _tcpdump_check_installed || return 1
@@ -848,10 +848,10 @@ alias tcpd-http-post='() {
   sudo tcpdump -i "$interface_name" -s 0 -A "tcp port $port_number and (tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x504f5354)" # POST
 }' # Monitor HTTP POST requests with human-readable output
 
-alias tcpd-http-request='() {
+alias tcpd-http-req='() {
   echo "Monitor HTTP request methods (GET, POST, PUT, DELETE, etc)."
-  echo "Usage: tcpd-http-request [method:all] [port_number:80] [interface_name:any]"
-  echo "Example: tcpd-http-request GET 8080 eth0"
+  echo "Usage: tcpd-http-req [method:all] [port_number:80] [interface_name:any]"
+  echo "Example: tcpd-http-req GET 8080 eth0"
   echo "Available methods: GET, POST, PUT, DELETE, HEAD, PATCH, OPTIONS, or all"
   echo "Options:"
   echo "  -v      Verbose output (show more packet details)"
@@ -1201,10 +1201,10 @@ alias tcpd-tcp-flags='() {
   sudo tcpdump -i "$interface_name" $options "$filter"
 }' # Monitor specific TCP flag combinations
 
-alias tcpd-tcp-handshake='() {
+alias tcpd-handshake='() {
   echo "Monitor TCP 3-way handshake traffic."
-  echo "Usage: tcpd-tcp-handshake [interface_name:any] [options]"
-  echo "Example: tcpd-tcp-handshake eth0 -p 80"
+  echo "Usage: tcpd-handshake [interface_name:any] [options]"
+  echo "Example: tcpd-handshake eth0 -p 80"
   echo "Options:"
   echo "  -p <port>   Filter by port number"
   echo "  -h <host>   Filter by host IP address"
@@ -1323,10 +1323,10 @@ alias tcpd-udp='() {
   sudo tcpdump -i "$interface_name" $options "$filter"
 }' # Monitor UDP traffic
 
-alias tcpd-tcp-retransmit='() {
+alias tcpd-retransmit='() {
   echo "Monitor TCP retransmissions."
-  echo "Usage: tcpd-tcp-retransmit [interface_name:any] [options]"
-  echo "Example: tcpd-tcp-retransmit eth0 -v"
+  echo "Usage: tcpd-retransmit [interface_name:any] [options]"
+  echo "Example: tcpd-retransmit eth0 -v"
   echo "Options:"
   echo "  -v          Verbose output"
   echo "  -p <port>   Filter by port number"
@@ -1414,21 +1414,21 @@ alias tcpd-help='() {
   echo "                      Options: -t <type> (echo-request, echo-reply, time-exceeded)"
   echo "  tcpd-tcp-flags    - Monitor TCP packets with specific flags"
   echo "                      Types: syn, syn-ack, fin, rst, ack, push"
-  echo "  tcpd-tcp-handshake - Monitor TCP 3-way handshake connections"
+  echo "  tcpd-handshake     - Monitor TCP 3-way handshake connections"
   echo "  tcpd-udp          - Monitor UDP traffic"
   echo "                      Options: -p <port>, -v (verbose), -x (hex+ASCII dump)"
-  echo "  tcpd-tcp-retransmit - Monitor TCP retransmissions"
+  echo "  tcpd-retransmit    - Monitor TCP retransmissions"
   echo ""
   echo "HTTP Analysis Commands:"
   echo "  tcpd-http         - Monitor HTTP traffic with human-readable format"
   echo "                      Options: -a (ASCII), -x (hex+ASCII), -h (headers), -f (data only)"
-  echo "  tcpd-http-headers - Display HTTP headers in readable format"
+  echo "  tcpd-http-head    - Display HTTP headers in readable format"
   echo "  tcpd-https        - Monitor HTTPS encrypted traffic"
   echo "                      Options: -a (ASCII), -x (hex+ASCII)"
   echo "  tcpd-http-get     - Monitor HTTP GET requests"
   echo "                      Options: -v (verbose)"
   echo "  tcpd-http-post    - Monitor HTTP POST requests"
-  echo "  tcpd-http-request - Monitor specific HTTP request methods"
+  echo "  tcpd-http-req     - Monitor specific HTTP request methods"
   echo "                      Options: -v (verbose)"
   echo "  tcpd-http-url     - Monitor HTTP traffic with specific URL patterns"
   echo ""

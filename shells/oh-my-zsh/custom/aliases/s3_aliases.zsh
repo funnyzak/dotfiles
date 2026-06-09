@@ -50,21 +50,21 @@ _s3_validate_profile() {
       # Verify if the profile is configured in AWS CLI
       if ! aws configure list --profile "$profile" &>/dev/null; then
         echo "Warning: AWS profile \"$profile\" may not be configured yet" >&2
-        echo "Tip: Use s3-config-aws command to configure a new AWS profile" >&2
+        echo "Tip: Use s3-cfg-aws command to configure a new AWS profile" >&2
       fi
       ;;
     s3cmd)
       # Check if s3cmd config exists
       if [ ! -f "$HOME/.s3cfg" ]; then
         echo "Warning: s3cmd configuration file not found" >&2
-        echo "Tip: Use s3-config-s3cmd command to configure s3cmd" >&2
+        echo "Tip: Use s3-cfg-s3cmd command to configure s3cmd" >&2
       fi
       ;;
     rclone)
       # Verify if the remote is configured in rclone
       if ! rclone listremotes | grep -q "^$profile:$"; then
         echo "Warning: rclone remote \"$profile\" may not be configured yet" >&2
-        echo "Tip: Use s3-config-rclone command to configure a new rclone remote" >&2
+        echo "Tip: Use s3-cfg-rclone command to configure a new rclone remote" >&2
       fi
       ;;
   esac
@@ -98,8 +98,8 @@ _s3_get_default_region() {
 }
 
 # S3 Configuration Management
-alias s3-config-aws='() {
-  echo "Configure AWS CLI profile for S3 access.\nUsage:\n s3-config-aws [profile_name:default]\nParameters:\n profile_name: AWS profile name to configure"
+alias s3-cfg-aws='() {
+  echo "Configure AWS CLI profile for S3 access.\nUsage:\n s3-cfg-aws [profile_name:default]\nParameters:\n profile_name: AWS profile name to configure"
 
   if ! _s3_check_aws_installed; then
     return 1
@@ -120,8 +120,8 @@ alias s3-config-aws='() {
   fi
 }' # Configure AWS CLI profile for S3 access
 
-alias s3-config-s3cmd='() {
-  echo "Configure s3cmd for S3 access.\nUsage:\n s3-config-s3cmd"
+alias s3-cfg-s3cmd='() {
+  echo "Configure s3cmd for S3 access.\nUsage:\n s3-cfg-s3cmd"
 
   if ! _s3_check_s3cmd_installed; then
     return 1
@@ -139,8 +139,8 @@ alias s3-config-s3cmd='() {
   fi
 }' # Configure s3cmd for S3 access
 
-alias s3-config-rclone='() {
-  echo "Configure rclone for S3 access.\nUsage:\n s3-config-rclone [remote_name:s3]"
+alias s3-cfg-rclone='() {
+  echo "Configure rclone for S3 access.\nUsage:\n s3-cfg-rclone [remote_name:s3]"
 
   if ! _s3_check_rclone_installed; then
     return 1
@@ -161,8 +161,8 @@ alias s3-config-rclone='() {
   fi
 }' # Configure rclone for S3 access
 
-alias s3-list-profiles='() {
-  echo "List configured S3 profiles across different tools.\nUsage:\n s3-list-profiles [--tool <aws|s3cmd|rclone>]"
+alias s3-profiles='() {
+  echo "List configured S3 profiles across different tools.\nUsage:\n s3-profiles [--tool <aws|s3cmd|rclone>]"
 
   local tool=""
 
@@ -1517,10 +1517,10 @@ alias s3-help='() {
   echo ""
 
   echo "Configuration Commands:"
-  echo "  s3-config-aws [profile_name]       - Configure AWS CLI profile for S3 access"
-  echo "  s3-config-s3cmd                    - Configure s3cmd for S3 access"
-  echo "  s3-config-rclone [remote_name]     - Configure rclone for S3 access"
-  echo "  s3-list-profiles [--tool <name>]    - List configured S3 profiles across different tools"
+  echo "  s3-cfg-aws [profile_name]          - Configure AWS CLI profile for S3 access"
+  echo "  s3-cfg-s3cmd                       - Configure s3cmd for S3 access"
+  echo "  s3-cfg-rclone [remote_name]        - Configure rclone for S3 access"
+  echo "  s3-profiles [--tool <name>]        - List configured S3 profiles across different tools"
   echo ""
 
   echo "Bucket Operations:"

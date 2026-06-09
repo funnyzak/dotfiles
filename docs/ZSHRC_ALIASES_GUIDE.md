@@ -440,7 +440,7 @@ shells/oh-my-zsh/custom/aliases/
 
 ### PDF aliases notes
 
-`pdf_aliases.zsh` includes `pdf-watermark` for text or image watermarks. It requires `python3` and the `PyMuPDF` Python package for real processing. Keep `--dry-run` side-effect free, preserve transparent image alpha channels, and guard overwrite flows against duplicate output targets in batch runs. Non-ASCII text should render with a CJK-capable font by default, while `--font` can override the font. Shell examples should use straight ASCII quotes because mixed smart and ASCII quotes can leave the shell waiting for a closing quote.
+`pdf_aliases.zsh` includes `pdf-wm` for text or image watermarks. It requires `python3` and the `PyMuPDF` Python package for real processing. Keep `--dry-run` side-effect free, preserve transparent image alpha channels, and guard overwrite flows against duplicate output targets in batch runs. Non-ASCII text should render with a CJK-capable font by default, while `--font` can override the font. Shell examples should use straight ASCII quotes because mixed smart and ASCII quotes can leave the shell waiting for a closing quote.
 
 ## Testing and Validation
 
