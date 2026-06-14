@@ -503,8 +503,280 @@ _pdf_read_inputs_pdf_aliases() {
   return 0
 }
 
+_pdf_find_office_converter_pdf_aliases() {
+  if command -v soffice >/dev/null 2>&1; then
+    printf "%s\n" "soffice"
+    return 0
+  fi
+
+  if command -v libreoffice >/dev/null 2>&1; then
+    printf "%s\n" "libreoffice"
+    return 0
+  fi
+
+  _pdf_show_error_pdf_aliases "Error: Required command \"soffice\" or \"libreoffice\" not found. Please install LibreOffice first."
+  return 1
+}
+
+_pdf_default_office_extensions_pdf_aliases() {
+  printf "%s\n" "doc docx docm xls xlsx xlsm ppt pptx pptm odt ods odp rtf txt csv"
+}
+
+_pdf_normalize_extension_list_pdf_aliases() {
+  local extensions_text="$1"
+  local normalized_name=""
+
+  normalized_name="$(printf "%s" "$extensions_text" | tr "," "\n" | sed "s/^[[:space:]]*//;s/[[:space:]]*$//;s/^\\.//" | tr "[:upper:]" "[:lower:]" | awk "NF { values = values ? values \" \" \$0 : \$0 } END { print values }")"
+  if [[ -z "$normalized_name" ]]; then
+    _pdf_show_error_pdf_aliases "Error: Extension filter cannot be empty."
+    return 1
+  fi
+
+  printf "%s\n" "$normalized_name"
+  return 0
+}
+
+_pdf_is_convertible_to_pdf_pdf_aliases() {
+  local source_name="$1"
+  local allowed_extensions="$2"
+  local source_extension=""
+
+  source_extension="${source_name##*.}"
+  source_extension="$(printf "%s" "$source_extension" | tr "[:upper:]" "[:lower:]")"
+
+  case " ${allowed_extensions} " in
+    *" ${source_extension} "*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+_pdf_collect_convertible_files_pdf_aliases() {
+  local recursive_scan="$1"
+  local allowed_extensions="$2"
+  local input_name=""
+  local source_name=""
+  local found_any="0"
+
+  shift 2
+  for input_name in "$@"; do
+    if [[ -f "$input_name" ]]; then
+      if _pdf_is_convertible_to_pdf_pdf_aliases "$input_name" "$allowed_extensions"; then
+        printf "%s\0" "$input_name"
+        found_any="1"
+        continue
+      fi
+
+      _pdf_show_error_pdf_aliases "Error: File \"$input_name\" does not match the selected formats."
+      return 1
+    fi
+
+    if [[ -d "$input_name" ]]; then
+      if [[ "$recursive_scan" == "1" ]]; then
+        while IFS= read -r -d "" source_name; do
+          if _pdf_is_convertible_to_pdf_pdf_aliases "$source_name" "$allowed_extensions"; then
+            printf "%s\0" "$source_name"
+            found_any="1"
+          fi
+        done < <(find "$input_name" -type f -print0 2>/dev/null)
+      else
+        while IFS= read -r -d "" source_name; do
+          if _pdf_is_convertible_to_pdf_pdf_aliases "$source_name" "$allowed_extensions"; then
+            printf "%s\0" "$source_name"
+            found_any="1"
+          fi
+        done < <(find "$input_name" -maxdepth 1 -type f -print0 2>/dev/null)
+      fi
+      continue
+    fi
+
+    _pdf_show_error_pdf_aliases "Error: Input \"$input_name\" does not exist."
+    return 1
+  done
+
+  if [[ "$found_any" != "1" ]]; then
+    _pdf_show_error_pdf_aliases "Error: No convertible files found in the provided inputs."
+    return 1
+  fi
+
+  return 0
+}
+
+_pdf_read_convertible_inputs_pdf_aliases() {
+  local recursive_scan="$1"
+  local allowed_extensions="$2"
+  local source_name=""
+
+  shift 2
+  _PDF_COLLECTED_ITEMS_PDF_ALIASES=()
+  while IFS= read -r -d "" source_name; do
+    _PDF_COLLECTED_ITEMS_PDF_ALIASES+=("$source_name")
+  done < <(_pdf_collect_convertible_files_pdf_aliases "$recursive_scan" "$allowed_extensions" "$@")
+
+  if [[ "${#_PDF_COLLECTED_ITEMS_PDF_ALIASES[@]}" -eq 0 ]]; then
+    return 1
+  fi
+
+  return 0
+}
+
 # PDF Command Helpers
 # ### --- ###
+_pdf_from_office_pdf_aliases() {
+  local output_root=""
+  local formats_text=""
+  local allowed_extensions=""
+  local recursive_scan="0"
+  local overwrite_existing="0"
+  local dry_run="0"
+  local converter_command=""
+  local -a input_items=()
+  local -a source_items=()
+  local -a planned_outputs=()
+  local source_name=""
+  local output_pdf=""
+  local target_root=""
+  local work_root=""
+  local converted_pdf=""
+  local base_name=""
+  local total_count="0"
+  local success_count="0"
+
+  if [[ "$#" -eq 0 ]]; then
+    _pdf_show_usage_pdf_aliases "Convert Office and LibreOffice documents to PDF.\nUsage:\n  pdf-from <file_or_dir> [more_inputs...] [options]\n\nOptions:\n  -f, --formats <exts>     Only convert selected extensions, comma separated\n  -o, --output-dir <dir>   Output root directory, default: source directory\n  -r, --recursive          Recursively scan directory inputs\n  --overwrite              Overwrite existing PDF files\n  --dry-run                Print planned operations without writing files\n  -h, --help               Show this help\n\nDefault formats:\n  doc docx docm xls xlsx xlsm ppt pptx pptm odt ods odp rtf txt csv\n\nExamples:\n  pdf-from report.docx\n  pdf-from a.docx b.pptx -o ./pdfs\n  pdf-from ./docs --formats docx,pptx -o ./exports\n  pdf-from ./docs -r -f docx,xlsx,pptx --dry-run"
+    return 1
+  fi
+
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      -f|--formats)
+        if [[ -z "${2:-}" ]]; then
+          _pdf_show_error_pdf_aliases "Error: Missing value for $1."
+          return 1
+        fi
+        formats_text="$2"
+        shift 2
+        ;;
+      -o|--output-dir)
+        if [[ -z "${2:-}" ]]; then
+          _pdf_show_error_pdf_aliases "Error: Missing value for $1."
+          return 1
+        fi
+        output_root="$2"
+        shift 2
+        ;;
+      -r|--recursive)
+        recursive_scan="1"
+        shift
+        ;;
+      --overwrite)
+        overwrite_existing="1"
+        shift
+        ;;
+      --dry-run)
+        dry_run="1"
+        shift
+        ;;
+      -h|--help)
+        _pdf_show_usage_pdf_aliases "Convert Office and LibreOffice documents to PDF.\nUsage:\n  pdf-from <file_or_dir> [more_inputs...] [options]\n\nOptions:\n  -f, --formats <exts>     Only convert selected extensions, comma separated\n  -o, --output-dir <dir>   Output root directory, default: source directory\n  -r, --recursive          Recursively scan directory inputs\n  --overwrite              Overwrite existing PDF files\n  --dry-run                Print planned operations without writing files\n  -h, --help               Show this help"
+        return 0
+        ;;
+      -*)
+        _pdf_show_error_pdf_aliases "Error: Unknown option \"$1\"."
+        return 1
+        ;;
+      *)
+        input_items+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  if [[ "${#input_items[@]}" -eq 0 ]]; then
+    _pdf_show_error_pdf_aliases "Error: At least one file or directory is required."
+    return 1
+  fi
+
+  if [[ -n "$formats_text" ]]; then
+    allowed_extensions="$(_pdf_normalize_extension_list_pdf_aliases "$formats_text")" || return 1
+  else
+    allowed_extensions="$(_pdf_default_office_extensions_pdf_aliases)"
+  fi
+
+  if [[ "$dry_run" != "1" ]]; then
+    converter_command="$(_pdf_find_office_converter_pdf_aliases)" || return 1
+  fi
+
+  if ! _pdf_read_convertible_inputs_pdf_aliases "$recursive_scan" "$allowed_extensions" "${input_items[@]}"; then
+    return 1
+  fi
+  source_items=("${_PDF_COLLECTED_ITEMS_PDF_ALIASES[@]}")
+
+  total_count="${#source_items[@]}"
+  for source_name in "${source_items[@]}"; do
+    output_pdf="$(_pdf_build_output_path_pdf_aliases "$source_name" "" ".pdf" "$output_root")" || return 1
+
+    if [[ "$overwrite_existing" != "1" ]]; then
+      output_pdf="$(_pdf_unique_target_with_planned_pdf_aliases "$output_pdf" "${planned_outputs[@]}")" || return 1
+    elif _pdf_output_target_seen_pdf_aliases "$output_pdf" "${planned_outputs[@]}"; then
+      _pdf_show_error_pdf_aliases "Error: Multiple inputs would write to \"$output_pdf\". Use unique filenames or omit --overwrite."
+      return 1
+    fi
+
+    if [[ "$output_pdf" == "$source_name" ]]; then
+      _pdf_show_warning_pdf_aliases "Warning: Skipping \"$source_name\" because output would overwrite the source file."
+      planned_outputs+=("$output_pdf")
+      continue
+    fi
+
+    planned_outputs+=("$output_pdf")
+
+    if [[ "$dry_run" == "1" ]]; then
+      printf "%s\n" "Would convert \"$source_name\" -> \"$output_pdf\"."
+      success_count=$((success_count + 1))
+      continue
+    fi
+
+    target_root="$(dirname "$output_pdf")"
+    if ! _pdf_ensure_directory_pdf_aliases "$target_root"; then
+      return 1
+    fi
+
+    work_root="$(mktemp -d "${TMPDIR:-/tmp}/pdf_aliases_convert_XXXXXX")"
+    if [[ -z "$work_root" ]] || [[ ! -d "$work_root" ]]; then
+      _pdf_show_warning_pdf_aliases "Warning: Failed to create temporary directory for \"$source_name\"."
+      continue
+    fi
+
+    printf "%s\n" "Converting \"$source_name\" to PDF..."
+    if "$converter_command" --headless --convert-to pdf --outdir "$work_root" "$source_name" >/dev/null 2>&1; then
+      base_name="$(basename "$source_name")"
+      base_name="${base_name%.*}"
+      converted_pdf="${work_root}/${base_name}.pdf"
+
+      if [[ ! -f "$converted_pdf" ]]; then
+        converted_pdf="$(find "$work_root" -maxdepth 1 -type f -iname "*.pdf" -print -quit 2>/dev/null)"
+      fi
+
+      if [[ -n "$converted_pdf" ]] && [[ -f "$converted_pdf" ]] && mv -f "$converted_pdf" "$output_pdf"; then
+        printf "%s\n" "Saved \"$output_pdf\"."
+        success_count=$((success_count + 1))
+      else
+        _pdf_show_warning_pdf_aliases "Warning: Failed to save converted PDF for \"$source_name\"."
+      fi
+    else
+      _pdf_show_warning_pdf_aliases "Warning: Failed to convert \"$source_name\"."
+    fi
+
+    rm -rf "$work_root"
+  done
+
+  _pdf_summary_pdf_aliases "Office to PDF" "$total_count" "$success_count"
+}
+
 _pdf_info_pdf_aliases() {
   local -a input_items=()
   local -a pdf_items=()
@@ -2071,7 +2343,7 @@ PYTHON_WATERMARK_PDF
 }
 
 _pdf_help_pdf_aliases() {
-  _pdf_show_usage_pdf_aliases "PDF alias overview\n\nAll commands accept one or more PDF files or directories unless noted otherwise.\nDirectory inputs are scanned recursively.\n\nCommands:\n  pdf-info              Show metadata for one or more PDFs\n  pdf-img               Export pages to png or jpg images\n  pdf-to-jpg            Shortcut for pdf-img --format jpg\n  pdf-compress          Compress one or more PDFs\n  pdf-wm                Add text or image watermarks to one or more PDFs\n  pdf-encrypt           Encrypt one or more PDFs\n  pdf-merge             Merge many PDFs into one output file\n  pdf-split             Split PDFs into single-page PDFs\n  pdf-rotate            Rotate PDFs by 90, 180, or 270 degrees\n  pdf-extract           Export a page range from one or more PDFs\n  pdf-raster            Rebuild PDFs as image-based PDFs\n  pdf-text              Export text from one or more PDFs\n\nBatch wrappers:\n  pdf-img-batch\n  pdf-compress-batch\n  pdf-raster-batch\n\nRun any command with --help for detailed usage."
+  _pdf_show_usage_pdf_aliases "PDF alias overview\n\nAll commands accept one or more PDF files or directories unless noted otherwise.\nDirectory inputs are scanned recursively for PDF-only commands. pdf-from scans directory inputs non-recursively unless --recursive is used.\n\nCommands:\n  pdf-info              Show metadata for one or more PDFs\n  pdf-img               Export pages to png or jpg images\n  pdf-to-jpg            Shortcut for pdf-img --format jpg\n  pdf-compress          Compress one or more PDFs\n  pdf-wm                Add text or image watermarks to one or more PDFs\n  pdf-encrypt           Encrypt one or more PDFs\n  pdf-merge             Merge many PDFs into one output file\n  pdf-split             Split PDFs into single-page PDFs\n  pdf-rotate            Rotate PDFs by 90, 180, or 270 degrees\n  pdf-extract           Export a page range from one or more PDFs\n  pdf-raster            Rebuild PDFs as image-based PDFs\n  pdf-text              Export text from one or more PDFs\n  pdf-from              Convert Office or LibreOffice documents to PDF\n  office-to-pdf         Alias of pdf-from for Office documents\n\nBatch wrappers:\n  pdf-img-batch\n  pdf-compress-batch\n  pdf-raster-batch\n  pdf-from-batch\n\nRun any command with --help for detailed usage."
 }
 
 _pdf_batch_to_images_pdf_aliases() {
@@ -2084,6 +2356,10 @@ _pdf_batch_compress_pdf_aliases() {
 
 _pdf_batch_to_image_pdf_pdf_aliases() {
   _pdf_to_image_pdf_pdf_aliases "$@"
+}
+
+_pdf_batch_from_office_pdf_aliases() {
+  _pdf_from_office_pdf_aliases "$@"
 }
 
 # PDF Aliases
@@ -2103,4 +2379,7 @@ alias pdf-extract='() { _pdf_extract_pdf_aliases "$@"; }'
 alias pdf-raster='() { _pdf_to_image_pdf_pdf_aliases "$@"; }'
 alias pdf-raster-batch='() { _pdf_batch_to_image_pdf_pdf_aliases "$@"; }'
 alias pdf-text='() { _pdf_to_text_pdf_aliases "$@"; }'
+alias pdf-from='() { _pdf_from_office_pdf_aliases "$@"; }'
+alias pdf-from-batch='() { _pdf_batch_from_office_pdf_aliases "$@"; }'
+alias office-to-pdf='() { _pdf_from_office_pdf_aliases "$@"; }'
 alias pdf-help='() { _pdf_help_pdf_aliases "$@"; }'
