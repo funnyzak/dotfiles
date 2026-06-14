@@ -536,6 +536,19 @@ _pdf_normalize_extension_list_pdf_aliases() {
   return 0
 }
 
+_pdf_validate_source_extension_list_pdf_aliases() {
+  local allowed_extensions="$1"
+
+  case " ${allowed_extensions} " in
+    *" pdf "*)
+      _pdf_show_error_pdf_aliases "Error: PDF is an output format and cannot be used with --formats."
+      return 1
+      ;;
+  esac
+
+  return 0
+}
+
 _pdf_is_convertible_to_pdf_pdf_aliases() {
   local source_name="$1"
   local allowed_extensions="$2"
@@ -609,18 +622,73 @@ _pdf_read_convertible_inputs_pdf_aliases() {
   local recursive_scan="$1"
   local allowed_extensions="$2"
   local source_name=""
+  local list_file=""
+  local collect_status="0"
 
   shift 2
+  list_file="$(mktemp "${TMPDIR:-/tmp}/pdf_aliases_inputs_XXXXXX")"
+  if [[ -z "$list_file" ]]; then
+    _pdf_show_error_pdf_aliases "Error: Failed to create temporary input list."
+    return 1
+  fi
+
   _PDF_COLLECTED_ITEMS_PDF_ALIASES=()
+  _pdf_collect_convertible_files_pdf_aliases "$recursive_scan" "$allowed_extensions" "$@" > "$list_file"
+  collect_status="$?"
+  if [[ "$collect_status" -ne 0 ]]; then
+    rm -f "$list_file"
+    return "$collect_status"
+  fi
+
   while IFS= read -r -d "" source_name; do
     _PDF_COLLECTED_ITEMS_PDF_ALIASES+=("$source_name")
-  done < <(_pdf_collect_convertible_files_pdf_aliases "$recursive_scan" "$allowed_extensions" "$@")
+  done < "$list_file"
+  rm -f "$list_file"
 
   if [[ "${#_PDF_COLLECTED_ITEMS_PDF_ALIASES[@]}" -eq 0 ]]; then
     return 1
   fi
 
   return 0
+}
+
+_pdf_convert_office_file_pdf_aliases() {
+  local converter_command="$1"
+  local source_name="$2"
+  local output_pdf="$3"
+  local work_root=""
+  local converted_pdf=""
+  local base_name=""
+  local convert_status="1"
+
+  work_root="$(mktemp -d "${TMPDIR:-/tmp}/pdf_aliases_convert_XXXXXX")"
+  if [[ -z "$work_root" ]] || [[ ! -d "$work_root" ]]; then
+    _pdf_show_warning_pdf_aliases "Warning: Failed to create temporary directory for \"$source_name\"."
+    return 1
+  fi
+
+  printf "%s\n" "Converting \"$source_name\" to PDF..."
+  if "$converter_command" --headless --convert-to pdf --outdir "$work_root" "$source_name" >/dev/null 2>&1; then
+    base_name="$(basename "$source_name")"
+    base_name="${base_name%.*}"
+    converted_pdf="${work_root}/${base_name}.pdf"
+
+    if [[ ! -f "$converted_pdf" ]]; then
+      converted_pdf="$(find "$work_root" -maxdepth 1 -type f -iname "*.pdf" -print -quit 2>/dev/null)"
+    fi
+
+    if [[ -n "$converted_pdf" ]] && [[ -f "$converted_pdf" ]] && mv -f "$converted_pdf" "$output_pdf"; then
+      printf "%s\n" "Saved \"$output_pdf\"."
+      convert_status="0"
+    else
+      _pdf_show_warning_pdf_aliases "Warning: Failed to save converted PDF for \"$source_name\"."
+    fi
+  else
+    _pdf_show_warning_pdf_aliases "Warning: Failed to convert \"$source_name\"."
+  fi
+
+  rm -rf "$work_root"
+  return "$convert_status"
 }
 
 # PDF Command Helpers
@@ -639,9 +707,6 @@ _pdf_from_office_pdf_aliases() {
   local source_name=""
   local output_pdf=""
   local target_root=""
-  local work_root=""
-  local converted_pdf=""
-  local base_name=""
   local total_count="0"
   local success_count="0"
 
@@ -653,7 +718,7 @@ _pdf_from_office_pdf_aliases() {
   while [[ "$#" -gt 0 ]]; do
     case "$1" in
       -f|--formats)
-        if [[ -z "${2:-}" ]]; then
+        if [[ "$#" -lt 2 ]] || [[ "${2:-}" == -* ]]; then
           _pdf_show_error_pdf_aliases "Error: Missing value for $1."
           return 1
         fi
@@ -661,7 +726,7 @@ _pdf_from_office_pdf_aliases() {
         shift 2
         ;;
       -o|--output-dir)
-        if [[ -z "${2:-}" ]]; then
+        if [[ "$#" -lt 2 ]] || [[ "${2:-}" == -* ]]; then
           _pdf_show_error_pdf_aliases "Error: Missing value for $1."
           return 1
         fi
@@ -706,6 +771,10 @@ _pdf_from_office_pdf_aliases() {
     allowed_extensions="$(_pdf_default_office_extensions_pdf_aliases)"
   fi
 
+  if ! _pdf_validate_source_extension_list_pdf_aliases "$allowed_extensions"; then
+    return 1
+  fi
+
   if [[ "$dry_run" != "1" ]]; then
     converter_command="$(_pdf_find_office_converter_pdf_aliases)" || return 1
   fi
@@ -745,33 +814,9 @@ _pdf_from_office_pdf_aliases() {
       return 1
     fi
 
-    work_root="$(mktemp -d "${TMPDIR:-/tmp}/pdf_aliases_convert_XXXXXX")"
-    if [[ -z "$work_root" ]] || [[ ! -d "$work_root" ]]; then
-      _pdf_show_warning_pdf_aliases "Warning: Failed to create temporary directory for \"$source_name\"."
-      continue
+    if _pdf_convert_office_file_pdf_aliases "$converter_command" "$source_name" "$output_pdf"; then
+      success_count=$((success_count + 1))
     fi
-
-    printf "%s\n" "Converting \"$source_name\" to PDF..."
-    if "$converter_command" --headless --convert-to pdf --outdir "$work_root" "$source_name" >/dev/null 2>&1; then
-      base_name="$(basename "$source_name")"
-      base_name="${base_name%.*}"
-      converted_pdf="${work_root}/${base_name}.pdf"
-
-      if [[ ! -f "$converted_pdf" ]]; then
-        converted_pdf="$(find "$work_root" -maxdepth 1 -type f -iname "*.pdf" -print -quit 2>/dev/null)"
-      fi
-
-      if [[ -n "$converted_pdf" ]] && [[ -f "$converted_pdf" ]] && mv -f "$converted_pdf" "$output_pdf"; then
-        printf "%s\n" "Saved \"$output_pdf\"."
-        success_count=$((success_count + 1))
-      else
-        _pdf_show_warning_pdf_aliases "Warning: Failed to save converted PDF for \"$source_name\"."
-      fi
-    else
-      _pdf_show_warning_pdf_aliases "Warning: Failed to convert \"$source_name\"."
-    fi
-
-    rm -rf "$work_root"
   done
 
   _pdf_summary_pdf_aliases "Office to PDF" "$total_count" "$success_count"
