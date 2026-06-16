@@ -471,6 +471,327 @@ _pdf_rotation_token_pdf_aliases() {
   esac
 }
 
+_pdf_find_imagemagick_pdf_aliases() {
+  if command -v magick >/dev/null 2>&1; then
+    printf "%s\n" "magick"
+    return 0
+  fi
+
+  if command -v convert >/dev/null 2>&1; then
+    printf "%s\n" "convert"
+    return 0
+  fi
+
+  _pdf_show_error_pdf_aliases "Error: Required command \"magick\" or \"convert\" not found. Please install ImageMagick first."
+  return 1
+}
+
+_pdf_page_geometry_pdf_aliases() {
+  local page_size_name="${1:-A4}"
+
+  case "$page_size_name" in
+    A4|a4)
+      printf "%s\n" "2480x3508"
+      ;;
+    A3|a3)
+      printf "%s\n" "3508x4961"
+      ;;
+    A5|a5)
+      printf "%s\n" "1748x2480"
+      ;;
+    Letter|letter)
+      printf "%s\n" "2550x3300"
+      ;;
+    Legal|legal)
+      printf "%s\n" "2550x4200"
+      ;;
+    Tabloid|tabloid)
+      printf "%s\n" "3300x5100"
+      ;;
+    *)
+      _pdf_show_error_pdf_aliases "Error: Unknown page size \"$page_size_name\". Use A4, A3, A5, Letter, Legal, or Tabloid."
+      return 1
+      ;;
+  esac
+}
+
+_pdf_is_image_pdf_aliases() {
+  local source_name="$1"
+  local extension_name=""
+
+  extension_name="${source_name##*.}"
+  extension_name="$(printf "%s" "$extension_name" | tr "[:upper:]" "[:lower:]")"
+
+  case "$extension_name" in
+    jpg|jpeg|png|bmp|gif|webp|heic|tif|tiff)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+_pdf_default_image_output_pdf_aliases() {
+  local source_name="$1"
+  local base_name=""
+
+  base_name="$(basename "$source_name")"
+  if [[ "$base_name" == "." ]] || [[ "$base_name" == "/" ]] || [[ -z "$base_name" ]]; then
+    base_name="$(basename "$PWD")"
+  fi
+
+  printf "%s\n" "${base_name}.pdf"
+}
+
+_pdf_collect_image_inputs_pdf_aliases() {
+  local source_name="$1"
+  local pattern_name="$2"
+  local recursive_mode="$3"
+  local image_name=""
+
+  if [[ -f "$source_name" ]]; then
+    if _pdf_is_image_pdf_aliases "$source_name"; then
+      printf "%s\n" "$source_name"
+      return 0
+    fi
+
+    _pdf_show_error_pdf_aliases "Error: File \"$source_name\" is not a supported image file."
+    return 1
+  fi
+
+  if [[ ! -d "$source_name" ]]; then
+    _pdf_show_error_pdf_aliases "Error: Input \"$source_name\" does not exist."
+    return 1
+  fi
+
+  if [[ -n "$pattern_name" ]]; then
+    if [[ "$recursive_mode" == "1" ]]; then
+      while IFS= read -r image_name; do
+        if _pdf_is_image_pdf_aliases "$image_name"; then
+          printf "%s\n" "$image_name"
+        fi
+      done < <(find "$source_name" -type f -name "$pattern_name" 2>/dev/null)
+    else
+      while IFS= read -r image_name; do
+        if _pdf_is_image_pdf_aliases "$image_name"; then
+          printf "%s\n" "$image_name"
+        fi
+      done < <(find "$source_name" -maxdepth 1 -type f -name "$pattern_name" 2>/dev/null)
+    fi
+    return 0
+  fi
+
+  if [[ "$recursive_mode" == "1" ]]; then
+    while IFS= read -r image_name; do
+      if _pdf_is_image_pdf_aliases "$image_name"; then
+        printf "%s\n" "$image_name"
+      fi
+    done < <(find "$source_name" -type f 2>/dev/null)
+  else
+    while IFS= read -r image_name; do
+      if _pdf_is_image_pdf_aliases "$image_name"; then
+        printf "%s\n" "$image_name"
+      fi
+    done < <(find "$source_name" -maxdepth 1 -type f 2>/dev/null)
+  fi
+}
+
+_pdf_sort_images_pdf_aliases() {
+  local sort_output=""
+
+  if [[ "$#" -le 1 ]]; then
+    printf "%s\n" "$@"
+    return 0
+  fi
+
+  if sort -V </dev/null >/dev/null 2>&1; then
+    sort_output="$(printf "%s\n" "$@" | LC_ALL=C sort -V)"
+  else
+    sort_output="$(printf "%s\n" "$@" | LC_ALL=C sort)"
+  fi
+
+  if [[ -z "$sort_output" ]]; then
+    _pdf_show_error_pdf_aliases "Error: Failed to sort image list."
+    return 1
+  fi
+
+  printf "%s\n" "$sort_output"
+  return 0
+}
+
+_pdf_images_to_pdf_pdf_aliases() {
+  local output_pdf=""
+  local pattern_name=""
+  local page_size_name=""
+  local recursive_mode="0"
+  local overwrite_existing="0"
+  local -a input_items=()
+  local -a image_items=()
+  local -a magick_args=()
+  local input_name=""
+  local sorted_name=""
+  local magick_cmd=""
+  local page_geometry=""
+  local page_mode_name="auto"
+
+  if [[ "$#" -eq 0 ]]; then
+    _pdf_show_usage_pdf_aliases "Combine ordered images into a single PDF.\nUsage:\n  pdf-from-images <output_pdf|input_dir> [more_inputs...] [options]\n\nOptions:\n  -o, --output <pdf>       Output PDF path\n  -p, --page-size <size>   A4, A3, A5, Letter, Legal, Tabloid\n  --page-mode <auto|fit>   auto keeps image page size, fit places images on a fixed page\n  -f, --pattern <glob>     Filter files in directory mode, for example \"合同_*.jpg\"\n  -r, --recursive          Scan subdirectories when input is a directory\n  --overwrite              Overwrite an existing output file\n  -h, --help               Show this help\n\nExamples:\n  pdf-from-images ./合同.pdf ./合同_0001.jpg ./合同_0002.jpg\n  pdf-from-images ./合同.pdf . -f \"合同_*.jpg\"\n  pdf-from-images . --output ./合同.pdf --page-mode fit -p A4"
+    return 1
+  fi
+
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      -o|--output)
+        if [[ "$#" -lt 2 ]] || [[ -z "${2:-}" ]]; then
+          _pdf_show_error_pdf_aliases "Error: Missing value for $1."
+          return 1
+        fi
+        output_pdf="$2"
+        shift 2
+        ;;
+      -p|--page-size)
+        if [[ "$#" -lt 2 ]] || [[ -z "${2:-}" ]]; then
+          _pdf_show_error_pdf_aliases "Error: Missing value for $1."
+          return 1
+        fi
+        page_size_name="$2"
+        shift 2
+        ;;
+      --page-mode)
+        if [[ "$#" -lt 2 ]] || [[ -z "${2:-}" ]]; then
+          _pdf_show_error_pdf_aliases "Error: Missing value for $1."
+          return 1
+        fi
+        page_mode_name="$2"
+        shift 2
+        ;;
+      -f|--pattern)
+        if [[ "$#" -lt 2 ]] || [[ -z "${2:-}" ]]; then
+          _pdf_show_error_pdf_aliases "Error: Missing value for $1."
+          return 1
+        fi
+        pattern_name="$2"
+        shift 2
+        ;;
+      -r|--recursive)
+        recursive_mode="1"
+        shift
+        ;;
+      --overwrite)
+        overwrite_existing="1"
+        shift
+        ;;
+      -h|--help)
+        _pdf_show_usage_pdf_aliases "Combine ordered images into a single PDF.\nUsage:\n  pdf-from-images <output_pdf|input_dir> [more_inputs...] [options]\n\nOptions:\n  -o, --output <pdf>       Output PDF path\n  -p, --page-size <size>   A4, A3, A5, Letter, Legal, Tabloid\n  --page-mode <auto|fit>   auto keeps image page size, fit places images on a fixed page\n  -f, --pattern <glob>     Filter files in directory mode, for example \"合同_*.jpg\"\n  -r, --recursive          Scan subdirectories when input is a directory\n  --overwrite              Overwrite an existing output file\n  -h, --help               Show this help\n\nExamples:\n  pdf-from-images ./合同.pdf ./合同_0001.jpg ./合同_0002.jpg\n  pdf-from-images ./合同.pdf . -f \"合同_*.jpg\"\n  pdf-from-images . --output ./合同.pdf --page-mode fit -p A4"
+        return 0
+        ;;
+      -*)
+        _pdf_show_error_pdf_aliases "Error: Unknown option \"$1\"."
+        return 1
+        ;;
+      *)
+        input_items+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  if [[ "${#input_items[@]}" -eq 0 ]]; then
+    _pdf_show_error_pdf_aliases "Error: At least one input path is required."
+    return 1
+  fi
+
+  if [[ -z "$output_pdf" ]]; then
+    if [[ "${#input_items[@]}" -eq 1 ]] && [[ -d "${input_items[1]}" ]]; then
+      output_pdf="$(_pdf_default_image_output_pdf_aliases "${input_items[1]}")" || return 1
+    else
+      output_pdf="${input_items[1]}"
+      if [[ "${#input_items[@]}" -gt 1 ]]; then
+        input_items=("${input_items[@]:1}")
+      else
+        input_items=()
+      fi
+    fi
+  fi
+
+  if [[ -z "$output_pdf" ]]; then
+    _pdf_show_error_pdf_aliases "Error: Output PDF path cannot be empty."
+    return 1
+  fi
+
+  if [[ "$output_pdf" != *.pdf ]]; then
+    output_pdf="${output_pdf}.pdf"
+  fi
+
+  if [[ -e "$output_pdf" ]] && [[ "$overwrite_existing" != "1" ]]; then
+    _pdf_show_error_pdf_aliases "Error: Output file \"$output_pdf\" already exists. Use --overwrite to replace it."
+    return 1
+  fi
+
+  case "$page_mode_name" in
+    auto|"")
+      page_mode_name="auto"
+      ;;
+    fit)
+      ;;
+    *)
+      _pdf_show_error_pdf_aliases "Error: Invalid page mode \"$page_mode_name\". Use auto or fit."
+      return 1
+      ;;
+  esac
+
+  if [[ -n "$page_size_name" ]]; then
+    page_geometry="$(_pdf_page_geometry_pdf_aliases "$page_size_name")" || return 1
+    if [[ "$page_mode_name" == "auto" ]]; then
+      page_mode_name="fit"
+    fi
+  elif [[ "$page_mode_name" == "fit" ]]; then
+    page_size_name="A4"
+    page_geometry="$(_pdf_page_geometry_pdf_aliases "$page_size_name")" || return 1
+  fi
+
+  magick_cmd="$(_pdf_find_imagemagick_pdf_aliases)" || return 1
+
+  for input_name in "${input_items[@]}"; do
+    while IFS= read -r sorted_name; do
+      [[ -n "$sorted_name" ]] && image_items+=("$sorted_name")
+    done < <(_pdf_collect_image_inputs_pdf_aliases "$input_name" "$pattern_name" "$recursive_mode") || return 1
+  done
+
+  if [[ "${#image_items[@]}" -eq 0 ]]; then
+    _pdf_show_error_pdf_aliases "Error: No supported image files found in the provided inputs."
+    return 1
+  fi
+
+  local -a sorted_items=()
+  while IFS= read -r sorted_name; do
+    [[ -n "$sorted_name" ]] && sorted_items+=("$sorted_name")
+  done < <(_pdf_sort_images_pdf_aliases "${image_items[@]}") || return 1
+  image_items=("${sorted_items[@]}")
+
+  if ! _pdf_ensure_parent_directory_pdf_aliases "$output_pdf"; then
+    return 1
+  fi
+
+  if [[ "$page_mode_name" == "fit" ]]; then
+    for input_name in "${image_items[@]}"; do
+      magick_args+=("$input_name" -resize "${page_geometry}>" -gravity center -extent "$page_geometry" -background white)
+    done
+  else
+    for input_name in "${image_items[@]}"; do
+      magick_args+=("$input_name")
+    done
+  fi
+
+  if "$magick_cmd" "${magick_args[@]}" "$output_pdf"; then
+    printf "%s\n" "Saved \"$output_pdf\"."
+    return 0
+  fi
+
+  _pdf_show_error_pdf_aliases "Error: Failed to combine images into PDF."
+  return 1
+}
+
 _pdf_summary_pdf_aliases() {
   local action_name="$1"
   local total_count="$2"
@@ -2388,7 +2709,7 @@ PYTHON_WATERMARK_PDF
 }
 
 _pdf_help_pdf_aliases() {
-  _pdf_show_usage_pdf_aliases "PDF alias overview\n\nAll commands accept one or more PDF files or directories unless noted otherwise.\nDirectory inputs are scanned recursively for PDF-only commands. pdf-from scans directory inputs non-recursively unless --recursive is used.\n\nCommands:\n  pdf-info              Show metadata for one or more PDFs\n  pdf-img               Export pages to png or jpg images\n  pdf-to-jpg            Shortcut for pdf-img --format jpg\n  pdf-compress          Compress one or more PDFs\n  pdf-wm                Add text or image watermarks to one or more PDFs\n  pdf-encrypt           Encrypt one or more PDFs\n  pdf-merge             Merge many PDFs into one output file\n  pdf-split             Split PDFs into single-page PDFs\n  pdf-rotate            Rotate PDFs by 90, 180, or 270 degrees\n  pdf-extract           Export a page range from one or more PDFs\n  pdf-raster            Rebuild PDFs as image-based PDFs\n  pdf-text              Export text from one or more PDFs\n  pdf-from              Convert Office or LibreOffice documents to PDF\n  office-to-pdf         Alias of pdf-from for Office documents\n\nBatch wrappers:\n  pdf-img-batch\n  pdf-compress-batch\n  pdf-raster-batch\n  pdf-from-batch\n\nRun any command with --help for detailed usage."
+  _pdf_show_usage_pdf_aliases "PDF alias overview\n\nAll commands accept one or more PDF files or directories unless noted otherwise.\nDirectory inputs are scanned recursively for PDF-only commands. pdf-from and pdf-from-images scan directory inputs non-recursively unless --recursive is used.\n\nCommands:\n  pdf-info              Show metadata for one or more PDFs\n  pdf-img               Export pages to png or jpg images\n  pdf-to-jpg            Shortcut for pdf-img --format jpg\n  pdf-compress          Compress one or more PDFs\n  pdf-wm                Add text or image watermarks to one or more PDFs\n  pdf-encrypt           Encrypt one or more PDFs\n  pdf-merge             Merge many PDFs into one output file\n  pdf-split             Split PDFs into single-page PDFs\n  pdf-rotate            Rotate PDFs by 90, 180, or 270 degrees\n  pdf-extract           Export a page range from one or more PDFs\n  pdf-raster            Rebuild PDFs as image-based PDFs\n  pdf-text              Export text from one or more PDFs\n  pdf-from              Convert Office or LibreOffice documents to PDF\n  pdf-from-images       Combine ordered images into a single PDF\n  pdf-scan              Alias of pdf-from-images for scanned images\n  office-to-pdf         Alias of pdf-from for Office documents\n\nBatch wrappers:\n  pdf-img-batch\n  pdf-compress-batch\n  pdf-raster-batch\n  pdf-from-batch\n\nRun any command with --help for detailed usage."
 }
 
 _pdf_batch_to_images_pdf_aliases() {
@@ -2426,5 +2747,7 @@ alias pdf-raster-batch='() { _pdf_batch_to_image_pdf_pdf_aliases "$@"; }'
 alias pdf-text='() { _pdf_to_text_pdf_aliases "$@"; }'
 alias pdf-from='() { _pdf_from_office_pdf_aliases "$@"; }'
 alias pdf-from-batch='() { _pdf_batch_from_office_pdf_aliases "$@"; }'
+alias pdf-from-images='() { _pdf_images_to_pdf_pdf_aliases "$@"; }'
+alias pdf-scan='() { _pdf_images_to_pdf_pdf_aliases "$@"; }'
 alias office-to-pdf='() { _pdf_from_office_pdf_aliases "$@"; }'
 alias pdf-help='() { _pdf_help_pdf_aliases "$@"; }'

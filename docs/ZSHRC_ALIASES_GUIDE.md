@@ -448,6 +448,10 @@ Default `pdf-from` formats: `doc docx docm xls xlsx xlsm ppt pptx pptm odt ods o
 
 Common `pdf-from` options: `--formats/-f`, `--output-dir/-o`, `--recursive/-r`, `--overwrite`, and `--dry-run`. Directory inputs are scanned non-recursively by default; use `--recursive` for nested files. Without `--output-dir`, PDFs are written next to each source file. Without `--overwrite`, duplicate or existing output paths are made unique.
 
+`pdf-from-images` combines ordered image files into a single PDF for scan-like workflows. `pdf-scan` is an alias of `pdf-from-images`. It requires ImageMagick through `magick` or `convert` in `PATH`.
+
+Common `pdf-from-images` options: `--output/-o`, `--page-size/-p`, `--page-mode`, `--pattern/-f`, `--recursive/-r`, and `--overwrite`. It accepts explicit image files, a directory of images, or a directory plus `--pattern` such as `合同_*.jpg`. Directory inputs are sorted before PDF generation so names like `合同_0001.jpg` through `合同_0007.jpg` stay in page order. Default `--page-mode` is `auto`, which keeps each image close to its original page size and reduces white margins. Use `--page-mode fit -p A4` only when you need a fixed paper size.
+
 ## Testing and Validation
 
 ### Syntax Testing
