@@ -205,6 +205,107 @@ _filesystem_aliases_extension_matches() {
   esac
 }
 
+_filesystem_aliases_is_text_file() {
+  local target_path="$1"
+  local mime_encoding
+
+  if [ ! -f "$target_path" ]; then
+    return 1
+  fi
+
+  if [ ! -s "$target_path" ]; then
+    return 0
+  fi
+
+  if command -v file >/dev/null 2>&1; then
+    mime_encoding=$(file -b --mime-encoding "$target_path" 2>/dev/null)
+    [ "$mime_encoding" != "binary" ]
+    return $?
+  fi
+
+  return 0
+}
+
+_filesystem_aliases_collect_merge_files() {
+  local source_path="$1"
+  local glob_pattern="$2"
+  local recursive_flag="$3"
+  local current_path
+  local find_maxdepth="1"
+
+  if [ -f "$source_path" ]; then
+    printf "%s\n" "$source_path"
+    return 0
+  fi
+
+  if [ ! -d "$source_path" ]; then
+    echo "Error: Input path \"$source_path\" does not exist." >&2
+    return 1
+  fi
+
+  if [ "$recursive_flag" = "true" ]; then
+    find_maxdepth=""
+  fi
+
+  if [ -n "$find_maxdepth" ]; then
+    while IFS= read -r current_path; do
+      [ -n "$current_path" ] && printf "%s\n" "$current_path"
+    done < <(find "$source_path" -maxdepth "$find_maxdepth" -type f -name "$glob_pattern" 2>/dev/null | LC_ALL=C sort)
+  else
+    while IFS= read -r current_path; do
+      [ -n "$current_path" ] && printf "%s\n" "$current_path"
+    done < <(find "$source_path" -type f -name "$glob_pattern" 2>/dev/null | LC_ALL=C sort)
+  fi
+}
+
+_filesystem_aliases_merge_files_into_output() {
+  local output_file="$1"
+  local separator_flag="$2"
+  shift 2
+  local -a source_files=("$@")
+  local current_path
+  local merged_count=0
+
+  if ! _filesystem_aliases_create_parent_directory "$output_file"; then
+    return 1
+  fi
+
+  : > "$output_file" || {
+    echo "Error: Failed to create output file \"$output_file\"." >&2
+    return 1
+  }
+
+  for current_path in "${source_files[@]}"; do
+    if [ ! -f "$current_path" ]; then
+      echo "Error: File \"$current_path\" does not exist." >&2
+      return 1
+    fi
+
+    if ! _filesystem_aliases_is_text_file "$current_path"; then
+      echo "Error: File \"$current_path\" does not look like plain text." >&2
+      echo "Refuse to merge binary content." >&2
+      return 1
+    fi
+
+    if [ "$merged_count" -gt 0 ] && [ "$separator_flag" = "true" ]; then
+      printf "\n" >> "$output_file" || {
+        echo "Error: Failed to write separator to \"$output_file\"." >&2
+        return 1
+      }
+    fi
+
+    if ! cat "$current_path" >> "$output_file"; then
+      echo "Error: Failed to append \"$current_path\" to \"$output_file\"." >&2
+      return 1
+    fi
+
+    merged_count=$((merged_count + 1))
+  done
+
+  echo "$merged_count"
+  return 0
+}
+
 # Basic file operations
 alias rmi='() {
   if ! _filesystem_aliases_require_args "Remove files interactively.\nUsage:\n rmi <path> [...]" "$@"; then
@@ -1273,6 +1374,149 @@ alias fs-cpext='() {
   echo "Copy completed. Copied $copied_count files with extension \"$extension_value\" to \"$target_directory/\"."
 }' # Copy all files with specific extension to target directory
 
+# File merging
+alias fs-merge='() {
+  local output_file=""
+  local glob_pattern="*"
+  local recursive_flag="false"
+  local sort_mode="name"
+  local force_flag="false"
+  local separator_flag="true"
+  local -a input_paths=()
+  local -a collected_files=()
+  local -a sorted_files=()
+  local source_path
+  local merged_count
+
+  if [ $# -eq 0 ]; then
+    echo -e "Merge files or files collected from directories into one text file.\nUsage:\n fs-merge <output_file> <input_file_or_dir> [more_inputs...] [options]\n\nOptions:\n -g, --glob <pattern:*>\n -r, --recursive\n -s, --sort <name|none:name>\n -f, --force\n     --no-separator\n -h, --help\n\nExamples:\n fs-merge merged.sql a.sql b.sql\n fs-merge merged.sql ./sqls --glob \"*.sql\"\n fs-merge merged.txt ./notes --recursive --glob \"*.md\"" >&2
+    return 1
+  fi
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -g|--glob)
+        if [ -z "$2" ]; then
+          echo "Error: Missing value for $1." >&2
+          return 1
+        fi
+        glob_pattern="$2"
+        shift 2
+        ;;
+      -r|--recursive)
+        recursive_flag="true"
+        shift
+        ;;
+      -s|--sort)
+        if [ -z "$2" ]; then
+          echo "Error: Missing value for $1." >&2
+          return 1
+        fi
+        sort_mode="$2"
+        shift 2
+        ;;
+      -f|--force)
+        force_flag="true"
+        shift
+        ;;
+      --no-separator)
+        separator_flag="false"
+        shift
+        ;;
+      -h|--help)
+        echo -e "Merge files or files collected from directories into one text file.\nUsage:\n fs-merge <output_file> <input_file_or_dir> [more_inputs...] [options]\n\nOptions:\n -g, --glob <pattern:*>\n -r, --recursive\n -s, --sort <name|none:name>\n -f, --force\n     --no-separator\n -h, --help\n\nExamples:\n fs-merge merged.sql a.sql b.sql\n fs-merge merged.sql ./sqls --glob \"*.sql\"\n fs-merge merged.txt ./notes --recursive --glob \"*.md\""
+        return 0
+        ;;
+      *)
+        if [ -z "$output_file" ]; then
+          output_file="$1"
+        else
+          input_paths+=("$1")
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [ -z "$output_file" ] || [ "${#input_paths[@]}" -eq 0 ]; then
+    echo "Error: Output file and at least one input are required." >&2
+    return 1
+  fi
+
+  if [ -e "$output_file" ] && [ "$force_flag" != "true" ]; then
+    echo "Error: Output file \"$output_file\" already exists. Use --force to overwrite it." >&2
+    return 1
+  fi
+
+  if [ "$sort_mode" != "name" ] && [ "$sort_mode" != "none" ]; then
+    echo "Error: Unsupported sort mode \"$sort_mode\". Use name or none." >&2
+    return 1
+  fi
+
+  for source_path in "${input_paths[@]}"; do
+    if [ -f "$source_path" ]; then
+      collected_files+=("$source_path")
+    elif [ -d "$source_path" ]; then
+      while IFS= read -r source_path; do
+        [ -n "$source_path" ] && collected_files+=("$source_path")
+      done < <(_filesystem_aliases_collect_merge_files "$source_path" "$glob_pattern" "$recursive_flag") || return 1
+    else
+      echo "Error: Input path \"$source_path\" does not exist." >&2
+      return 1
+    fi
+  done
+
+  if [ "${#collected_files[@]}" -eq 0 ]; then
+    echo "Error: No matching files were found to merge." >&2
+    return 1
+  fi
+
+  if [ "$sort_mode" = "name" ]; then
+    while IFS= read -r source_path; do
+      [ -n "$source_path" ] && sorted_files+=("$source_path")
+    done < <(printf "%s\n" "${collected_files[@]}" | LC_ALL=C sort)
+    collected_files=("${sorted_files[@]}")
+  fi
+
+  merged_count=$(_filesystem_aliases_merge_files_into_output "$output_file" "$separator_flag" "${collected_files[@]}") || return 1
+
+  echo "Merge completed. Merged $merged_count file(s) into \"$output_file\"."
+}' # Merge files or collected directory matches into one text file
+
+alias fs-merge-dir='() {
+  local output_file="$1"
+  local source_directory="$2"
+  local glob_pattern="${3:-*}"
+  local recursive_flag="${4:-false}"
+  local sort_mode="${5:-name}"
+
+  if [ $# -lt 2 ]; then
+    echo -e "Merge matching files in a directory into one text file.\nUsage:\n fs-merge-dir <output_file> <source_directory> [glob_pattern:*] [recursive:false] [sort:name|none]\n\nExamples:\n fs-merge-dir merged.sql ./sqls \"*.sql\"\n fs-merge-dir merged.txt ./notes \"*.md\" true name" >&2
+    return 1
+  fi
+
+  if [ ! -d "$source_directory" ]; then
+    echo "Error: Source directory \"$source_directory\" does not exist." >&2
+    return 1
+  fi
+
+  if [ "$recursive_flag" != "true" ] && [ "$recursive_flag" != "false" ]; then
+    echo "Error: recursive must be true or false." >&2
+    return 1
+  fi
+
+  if [ "$sort_mode" != "name" ] && [ "$sort_mode" != "none" ]; then
+    echo "Error: Unsupported sort mode \"$sort_mode\". Use name or none." >&2
+    return 1
+  fi
+
+  if [ "$recursive_flag" = "true" ]; then
+    fs-merge "$output_file" "$source_directory" --glob "$glob_pattern" --recursive --sort "$sort_mode"
+  else
+    fs-merge "$output_file" "$source_directory" --glob "$glob_pattern" --sort "$sort_mode"
+  fi
+}' # Merge matching files in a directory into one text file
+
 # Code line counting
 alias fs-cl='() {
   local target_directory="${1:-$(pwd)}"
@@ -1343,4 +1587,6 @@ alias fs-help='() {
   echo "  fs-mkbatch                  - Create numbered files"
   echo "  fs-mirror                   - Create files with new extension"
   echo "  fs-cpext                    - Copy files by extension"
+  echo "  fs-merge                    - Merge files or directory matches into one text file"
+  echo "  fs-merge-dir                - Merge matching files from a directory"
 }' # Display help for filesystem aliases

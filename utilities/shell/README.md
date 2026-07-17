@@ -6,6 +6,7 @@ This directory contains shell-related utility scripts to enhance your workflow.
 - [ssh_connect.exp](#ssh_connectexp)
 - [ssh_port_forward.exp](#ssh_port_forwardexp)
 - [alist_upload.sh](#alist_uploadsh)
+- [four_sides_video.sh](#four_sides_videosh)
 - [mysql_backup.sh](#mysql_backupsh)
 
 ## ssh_connect.exp
@@ -463,6 +464,173 @@ The script automatically caches authentication tokens in `~/.cache/alist/token` 
 - **Path Normalization**: Remote paths are automatically normalized (leading slash added, trailing slash removed).
 - **Batch Processing**: Multiple files are uploaded sequentially with progress tracking and final summary reporting.
 - **Performance**: Small delay (0.5s) between uploads to avoid overwhelming the server.
+
+## four_sides_video.sh
+
+`video/four_sides_video.sh` creates a square video with visual elements centered on the top, right, bottom, and left edges. It accepts either one source video, which is duplicated four times, or four videos ordered as top, right, bottom, and left.
+
+### Features
+
+- Duplicates one video across all four sides or assigns four separate videos by position
+- Rotates side elements toward the center by default
+- Preserves source aspect ratio with `contain`, or fills each square slot with `cover`
+- Can crop solid-color outer borders before scaling so small subjects occupy more of each slot
+- Supports configurable square resolution, background color, element size, margin, and frame rate
+- Rejects layouts whose square video boxes could overlap
+- Rejects an output path that refers to any input file, even with `--force`
+- Exports MP4, MOV, or WebM without audio
+- Uses the shortest source duration when four videos are provided
+- Shows usage help and exits successfully when run without arguments
+
+### Requirements
+
+- Bash 3.2 or later
+- FFmpeg and ffprobe available in `PATH`
+
+Install FFmpeg with Homebrew on macOS or APT on Debian and Ubuntu:
+
+```bash
+brew install ffmpeg
+sudo apt install ffmpeg
+```
+
+### Usage
+
+Run the script without arguments to show its help:
+
+```bash
+./video/four_sides_video.sh
+```
+
+One input is duplicated to all sides:
+
+```bash
+./video/four_sides_video.sh \
+  --resolution 1080x1080 \
+  --background "#000000" \
+  --element-percent 30 \
+  --output output.mp4 \
+  input.mp4
+```
+
+Four inputs use the order top, right, bottom, and left:
+
+```bash
+./video/four_sides_video.sh \
+  --format webm \
+  --output output.webm \
+  top.mp4 right.mp4 bottom.mp4 left.mp4
+```
+
+Keep each source upright instead of rotating it toward the center:
+
+```bash
+./video/four_sides_video.sh \
+  --orientation none \
+  --fit cover \
+  --output output.mov \
+  input.mp4
+```
+
+For jade-bird or similar object footage on a solid black background, enable automatic border cropping so the subject appears larger:
+
+```bash
+./video/four_sides_video.sh \
+  --resolution 1080x1080 \
+  --background black \
+  --auto-crop \
+  --crop-threshold 0.08 \
+  --crop-padding-percent 10 \
+  --element-percent 30 \
+  --fit contain \
+  --orientation inward \
+  jade-bird.mp4
+```
+
+This command writes a uniquely named MP4 next to the input, such as `jade-bird_four_sides_20260717_143025_12345.mp4`. Use the same `--background` color as the source border. If cropping removes part of the subject, lower `--crop-threshold`; if too much border remains, raise it carefully. Increase `--crop-padding-percent` when the subject needs more breathing room around it.
+
+Run `./video/four_sides_video.sh --help` for all options.
+
+### Demo
+
+The left side shows the source frame. The subject occupies a small part of a wide black canvas. The right side shows the square output after automatic border cropping, inward rotation, and four-side placement.
+
+![Four-sides video input and output demo](video/assets/four_sides_video_demo.jpg)
+
+The demo uses these settings:
+
+```bash
+./video/four_sides_video.sh \
+  --resolution 1080x1080 \
+  --background black \
+  --auto-crop \
+  --crop-threshold 0.08 \
+  --crop-padding-percent 10 \
+  --element-percent 30 \
+  --fit contain \
+  --orientation inward \
+  input.mp4
+```
+
+### Options and Defaults
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `-o, --output PATH` | `<stem>_four_sides_YYYYMMDD_HHMMSS_<pid>.<format>` | Output path. The default is created beside the first input. A supported extension selects the format; an explicit path without an extension defaults to `.mp4`. |
+| `-s, --resolution WIDTHxHEIGHT` | `1080x1080` | Square output size. The side length must be an even integer from 64 to 8192. |
+| `-b, --background COLOR` | `black` | FFmpeg color name, `#RRGGBB`, or `0xRRGGBB`. |
+| `--element-percent VALUE` | `30` | Square slot size as a percentage of the canvas side, from 1 to 33. |
+| `--margin PIXELS` | `0` | Non-negative distance from each canvas edge. |
+| `--fps VALUE` | `30` | Output frame rate, from 1 to 120. |
+| `--fit MODE` | `contain` | `contain` preserves the full frame; `cover` fills and crops the square slot. |
+| `--orientation MODE` | `inward` | `inward` rotates each side toward the center; `none` keeps every source upright. |
+| `--auto-crop` | Disabled | Crop solid-color outer borders before fitting each source into its slot. |
+| `--crop-threshold VALUE` | `0.08` | Similarity to `--background`; must be from `0.00001` to `1`. |
+| `--crop-padding-percent VALUE` | `10` | Add background around the detected crop, as an integer from 0 to 100. |
+| `--format FORMAT` | Output extension, or `mp4` | `mp4`, `mov`, or `webm`. |
+| `-f, --force` | Disabled | Overwrite an existing output file, but never an input file. |
+
+MP4 and MOV use H.264. WebM uses VP9. When `--output` is omitted, the script uses the first input stem plus the current timestamp and process ID, then writes the result beside that input. A supported explicit output extension selects the format. If an explicit output path has no extension, the script appends `.mp4` by default, or appends the extension selected with `--format`. Other extensions are rejected.
+
+### Automatic Border Cropping
+
+`--auto-crop` compares pixels with `--background` in RGB color space, detects the foreground, removes the matching solid-color outer rectangle, and then scales the remaining subject into its square slot. RGB comparison keeps bright neutral subjects, such as white jade on black, separate from the background more reliably. It scans the complete video at 2 fps and combines every detected foreground box, so a subject that moves later in the video remains inside the crop. With four inputs, each source is analyzed separately. Odd source dimensions are supported.
+
+The default `--crop-threshold 0.08` works well for clean solid backgrounds. The accepted range is `0.00001` to `1`. Higher values accept a wider color difference and may crop into the subject; lower values preserve more edge detail but may leave more border.
+
+`--crop-padding-percent` adds background around the detected foreground before scaling. It accepts integers from 0 to 100 and defaults to 10. A larger value leaves more space and makes the subject smaller inside the slot; a smaller value produces a tighter crop and a larger subject.
+
+Automatic cropping changes the content fitted inside a slot, not the slot size or position. The same non-overlap rule still applies. It also does not make background pixels transparent or remove matching pixels inside the retained rectangle.
+
+Automatic cropping adds an analysis pass before export. Each source video is fully decoded once to calculate the combined crop boundary, then decoded again for the final composition. Long videos therefore spend extra time in analysis before FFmpeg starts writing the output.
+
+### Layout Rules
+
+Each source is placed in a square edge slot. `--element-percent` accepts values from 1 to 33. The script also enforces this condition before running FFmpeg:
+
+```text
+3 × element_size + 2 × margin <= canvas_size
+```
+
+This keeps all four square video boxes separate. The default is 30 percent with no edge margin.
+
+### Background and Audio Notes
+
+The tool creates a solid canvas but does not chroma-key the input into transparency. Use source videos whose solid background matches `--background` when rectangular source boundaries must remain invisible. Add `--auto-crop` when the subject is small inside a large solid-color border. The output is silent because combining four independent audio streams has no unambiguous default behavior.
+
+The output path must differ from every input path. `--force` can replace an unrelated output file, but it cannot bypass this input protection.
+
+### Testing
+
+Run the checks from the repository root:
+
+```bash
+bash -n utilities/shell/video/four_sides_video.sh
+bash -n utilities/shell/video/tests/test_four_sides_video.sh
+bash utilities/shell/video/tests/test_four_sides_video.sh
+```
+
+The 21-test suite generates temporary videos under the repository `temp_files/` directory and removes them after the run. It checks help behavior, both fitting modes, RGB automatic cropping, a white subject on black, full-video moving-subject bounds, odd source dimensions, crop-log parsing, threshold limits, default naming, output containers and codecs, duration handling, numeric validation, path safety, layout safety, and output-path protection.
 
 ## mysql_backup.sh
 
