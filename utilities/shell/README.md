@@ -553,9 +553,11 @@ Run `./video/four_sides_video.sh --help` for all options.
 
 ### Demo
 
-The left side shows the source frame. The subject occupies a small part of a wide black canvas. The right side shows the square output after automatic border cropping, inward rotation, and four-side placement.
+The left side shows a small subject on a wide black canvas. The right side shows the square output after automatic border cropping, inward rotation, and four-side placement.
 
-![Four-sides video input and output demo](video/assets/four_sides_video_demo.jpg)
+![Teddy bear four-sides video input and output demo](video/assets/four_sides_video_demo.jpg)
+
+The teddy bear artwork comes from [OpenMoji](https://openmoji.org/data/color/svg/1F9F8.svg), created by the OpenMoji contributors and licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). This demo image is a derivative and uses the same license. It is not covered by this repository's MIT license.
 
 The demo uses these settings:
 
