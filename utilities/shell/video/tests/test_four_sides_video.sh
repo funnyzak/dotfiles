@@ -539,6 +539,167 @@ test_rejects_crop_threshold_below_ffmpeg_minimum() {
   pass "crop threshold follows the FFmpeg supported range"
 }
 
+test_directory_batch_processes_supported_videos() {
+  local input_dir="$TEST_WORK_DIR/batch-input"
+  local output_dir="$TEST_WORK_DIR/batch-output"
+  local nested_dir="$input_dir/nested"
+  local batch_output
+  local output_count
+  local output_video
+  local dimensions
+  local codec_name
+
+  mkdir -p "$input_dir" "$nested_dir"
+  create_solid_video "$input_dir/red.mp4" red 0.3
+  create_solid_video "$input_dir/blue.mov" blue 0.3
+  create_solid_video "$nested_dir/nested.mp4" green 0.3
+  printf "not a video\n" > "$input_dir/notes.txt"
+
+  batch_output=$("$SCRIPT_PATH" --resolution 180x180 --format webm \
+    --output-dir "$output_dir" "$input_dir")
+
+  output_count=$(find "$output_dir" -maxdepth 1 -type f -name '*.webm' | wc -l | tr -d ' ')
+  assert_equals "$output_count" "2" "batch mode should process only first-level supported videos"
+  assert_contains "$batch_output" "Batch complete: 2 succeeded, 0 failed" "batch summary is incorrect"
+
+  while IFS= read -r output_video; do
+    dimensions=$(ffprobe -v error -select_streams v:0 \
+      -show_entries stream=width,height -of csv=s=x:p=0 "$output_video")
+    assert_equals "$dimensions" "180x180" "batch output resolution is incorrect"
+    codec_name=$(ffprobe -v error -select_streams v:0 \
+      -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "$output_video")
+    assert_equals "$codec_name" "vp9" "batch output codec is incorrect"
+  done < <(find "$output_dir" -maxdepth 1 -type f -name '*.webm')
+
+  pass "directory batch mode processes supported videos"
+}
+
+test_directory_batch_normalizes_output_format() {
+  local input_dir="$TEST_WORK_DIR/batch-uppercase-input"
+  local output_dir="$TEST_WORK_DIR/batch-uppercase-output"
+  local output_count
+
+  mkdir -p "$input_dir"
+  create_solid_video "$input_dir/source.mp4" red 0.3
+
+  "$SCRIPT_PATH" --resolution 180x180 --format WEBM \
+    --output-dir "$output_dir" "$input_dir"
+
+  output_count=$(find "$output_dir" -maxdepth 1 -type f -name '*.webm' | wc -l | tr -d ' ')
+  assert_equals "$output_count" "1" "batch format extension should be normalized to lowercase"
+  pass "directory batch mode normalizes the output format"
+}
+
+test_directory_batch_uses_default_output_directory() {
+  local input_dir="$TEST_WORK_DIR/batch-default-output"
+  local output_dir="$input_dir/four_sides_output"
+  local output_count
+
+  mkdir -p "$input_dir"
+  create_solid_video "$input_dir/source.mp4" red 0.3
+
+  "$SCRIPT_PATH" --resolution 180x180 "$input_dir"
+
+  output_count=$(find "$output_dir" -maxdepth 1 -type f -name '*.mp4' | wc -l | tr -d ' ')
+  assert_equals "$output_count" "1" "batch mode should create its default output directory"
+  pass "directory batch mode uses the default output directory"
+}
+
+test_directory_batch_rejects_empty_directory() {
+  local input_dir="$TEST_WORK_DIR/batch-empty-input"
+  local error_output
+
+  mkdir -p "$input_dir"
+  if error_output=$("$SCRIPT_PATH" "$input_dir" 2>&1); then
+    fail "an empty batch directory should be rejected"
+  fi
+
+  assert_contains "$error_output" "No supported videos found" "empty directory error is unclear"
+  pass "directory batch mode rejects an empty directory"
+}
+
+test_directory_batch_rejects_single_output_path() {
+  local input_dir="$TEST_WORK_DIR/batch-output-conflict-input"
+  local output_path="$TEST_WORK_DIR/batch-output-conflict.mp4"
+  local error_output
+
+  mkdir -p "$input_dir"
+  create_solid_video "$input_dir/source.mp4" red 0.3
+
+  if error_output=$("$SCRIPT_PATH" --output "$output_path" "$input_dir" 2>&1); then
+    fail "--output should be rejected for a directory input"
+  fi
+
+  assert_contains "$error_output" "Use --output-dir" "directory output conflict error is unclear"
+  pass "directory batch mode rejects a single output path"
+}
+
+test_directory_batch_keeps_same_stem_sources_separate() {
+  local input_dir="$TEST_WORK_DIR/batch-same-stem-input"
+  local output_dir="$TEST_WORK_DIR/batch-same-stem-output"
+  local output_names
+
+  mkdir -p "$input_dir"
+  create_solid_video "$input_dir/clip.mp4" red 0.3
+  create_solid_video "$input_dir/clip.mov" blue 0.3
+
+  "$SCRIPT_PATH" --resolution 180x180 --output-dir "$output_dir" "$input_dir"
+
+  output_names=$(find "$output_dir" -maxdepth 1 -type f -exec basename {} \;)
+  if ! printf "%s\n" "$output_names" \
+    | sed -nE '/^clip_mp4_four_sides_[0-9]{8}_[0-9]{6}_[0-9]+_[0-9]+[.]mp4$/p' \
+    | grep -q .; then
+    fail "MP4 batch output name does not contain all uniqueness fields"
+  fi
+  if ! printf "%s\n" "$output_names" \
+    | sed -nE '/^clip_mov_four_sides_[0-9]{8}_[0-9]{6}_[0-9]+_[0-9]+[.]mp4$/p' \
+    | grep -q .; then
+    fail "MOV batch output name does not contain all uniqueness fields"
+  fi
+  pass "directory batch mode keeps same-stem sources separate"
+}
+
+test_directory_batch_rejects_input_as_output_directory() {
+  local input_dir="$TEST_WORK_DIR/batch-same-directory"
+  local error_output
+  local video_count
+
+  mkdir -p "$input_dir"
+  create_solid_video "$input_dir/source.mp4" red 0.3
+
+  if error_output=$("$SCRIPT_PATH" --resolution 180x180 \
+    --output-dir "$input_dir" "$input_dir" 2>&1); then
+    fail "batch output directory should not equal the input directory"
+  fi
+
+  assert_contains "$error_output" "must differ from the input directory" \
+    "same input and output directory error is unclear"
+  video_count=$(find "$input_dir" -maxdepth 1 -type f | wc -l | tr -d ' ')
+  assert_equals "$video_count" "1" "same-directory validation should run before export"
+  pass "directory batch mode rejects the input directory as its output directory"
+}
+
+test_directory_batch_continues_after_item_failure() {
+  local input_dir="$TEST_WORK_DIR/batch-partial-input"
+  local output_dir="$TEST_WORK_DIR/batch-partial-output"
+  local batch_output
+  local output_count
+
+  mkdir -p "$input_dir"
+  printf "broken video\n" > "$input_dir/broken.mkv"
+  create_solid_video "$input_dir/valid.mp4" green 0.3
+
+  if batch_output=$("$SCRIPT_PATH" --resolution 180x180 \
+    --output-dir "$output_dir" "$input_dir" 2>&1); then
+    fail "a partially failed batch should return a non-zero status"
+  fi
+
+  output_count=$(find "$output_dir" -maxdepth 1 -type f -name '*.mp4' | wc -l | tr -d ' ')
+  assert_equals "$output_count" "1" "a valid batch item should export after another item fails"
+  assert_contains "$batch_output" "Batch complete: 1 succeeded, 1 failed" "partial batch summary is incorrect"
+  pass "directory batch mode continues after an item failure"
+}
+
 setup_work_dir
 test_help
 test_no_arguments_shows_help
@@ -561,5 +722,13 @@ test_auto_crop_ignores_crop_text_in_filename
 test_auto_crop_scans_the_full_video
 test_auto_crop_handles_odd_source_dimensions
 test_rejects_crop_threshold_below_ffmpeg_minimum
+test_directory_batch_processes_supported_videos
+test_directory_batch_normalizes_output_format
+test_directory_batch_uses_default_output_directory
+test_directory_batch_rejects_empty_directory
+test_directory_batch_rejects_single_output_path
+test_directory_batch_keeps_same_stem_sources_separate
+test_directory_batch_rejects_input_as_output_directory
+test_directory_batch_continues_after_item_failure
 
 echo "All $PASS_COUNT tests passed."

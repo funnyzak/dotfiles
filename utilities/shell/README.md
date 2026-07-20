@@ -467,11 +467,12 @@ The script automatically caches authentication tokens in `~/.cache/alist/token` 
 
 ## four_sides_video.sh
 
-`video/four_sides_video.sh` creates a square video with visual elements centered on the top, right, bottom, and left edges. It accepts either one source video, which is duplicated four times, or four videos ordered as top, right, bottom, and left.
+`video/four_sides_video.sh` creates a square video with visual elements centered on the top, right, bottom, and left edges. It accepts one source video, four videos ordered as top, right, bottom, and left, or a directory of videos for batch processing.
 
 ### Features
 
 - Duplicates one video across all four sides or assigns four separate videos by position
+- Processes a directory of videos and creates one independent four-side output for each source
 - Rotates side elements toward the center by default
 - Preserves source aspect ratio with `contain`, or fills each square slot with `cover`
 - Can crop solid-color outer borders before scaling so small subjects occupy more of each slot
@@ -549,17 +550,43 @@ For jade-bird or similar object footage on a solid black background, enable auto
 
 This command writes a uniquely named MP4 next to the input, such as `jade-bird_four_sides_20260717_143025_12345.mp4`. Use the same `--background` color as the source border. If cropping removes part of the subject, lower `--crop-threshold`; if too much border remains, raise it carefully. Increase `--crop-padding-percent` when the subject needs more breathing room around it.
 
+### Directory Batch Processing
+
+Pass one directory to process every supported video directly inside it:
+
+```bash
+./video/four_sides_video.sh \
+  --background black \
+  --auto-crop \
+  input_videos
+```
+
+The script accepts `mp4`, `mov`, `webm`, `mkv`, `avi`, and `m4v` input files, with case-insensitive extensions. It scans only the directory's first level and does not enter subdirectories. Each source is processed independently as a single input, so the script creates one four-side video per source.
+
+By default, batch results go to `<input_directory>/four_sides_output`. Use `--output-dir` to select another directory and `--format` to choose MP4, MOV, or WebM output:
+
+```bash
+./video/four_sides_video.sh \
+  --format webm \
+  --output-dir batch_results \
+  input_videos
+```
+
+Batch filenames use `<stem>_<source_extension>_four_sides_YYYYMMDD_HHMMSS_<pid>_<index>.<format>`. Keeping the source extension distinguishes files such as `clip.mp4` and `clip.mov`; the timestamp, process ID, and sequence number prevent outputs from overwriting one another. `--output` cannot be used with a directory input because one directory creates multiple files. The batch output directory must also differ from the input directory, which prevents old outputs from becoming inputs on a later run.
+
+If one source fails, the script reports that item and continues with the remaining videos. It prints the success and failure totals at the end. A batch with any failed item exits with a non-zero status.
+
 Run `./video/four_sides_video.sh --help` for all options.
 
 ### Demo
 
-The left side shows a small subject on a wide black canvas. The right side shows the square output after automatic border cropping, inward rotation, and four-side placement.
+The preview places two square frames side by side. The left frame shows a small teddy bear on a large black canvas. The right frame shows the output after automatic border cropping, inward rotation, and four-side placement.
 
 ![Teddy bear four-sides video input and output demo](video/assets/four_sides_video_demo.jpg)
 
-The teddy bear artwork comes from [OpenMoji](https://openmoji.org/data/color/svg/1F9F8.svg), created by the OpenMoji contributors and licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). This demo image is a derivative and uses the same license. It is not covered by this repository's MIT license.
+The [Teddy Bear artwork (U+1F9F8)](https://openmoji.org/data/color/svg/1F9F8.svg) was created by Liz Bravo for [OpenMoji](https://openmoji.org/) and is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). This demo places the artwork on black video frames, then scales, rotates, composites, and exports it as a side-by-side preview. The demo image remains under CC BY-SA 4.0 and is excluded from this repository's MIT license.
 
-The demo uses these settings:
+To reproduce the output layout, use a black-background teddy bear video like the left frame as `input.mp4` and run:
 
 ```bash
 ./video/four_sides_video.sh \
@@ -579,6 +606,7 @@ The demo uses these settings:
 | Option | Default | Description |
 | --- | --- | --- |
 | `-o, --output PATH` | `<stem>_four_sides_YYYYMMDD_HHMMSS_<pid>.<format>` | Output path. The default is created beside the first input. A supported extension selects the format; an explicit path without an extension defaults to `.mp4`. |
+| `--output-dir PATH` | `<input_directory>/four_sides_output` | Output directory for batch processing. It must differ from the input directory and cannot be combined with `--output`. |
 | `-s, --resolution WIDTHxHEIGHT` | `1080x1080` | Square output size. The side length must be an even integer from 64 to 8192. |
 | `-b, --background COLOR` | `black` | FFmpeg color name, `#RRGGBB`, or `0xRRGGBB`. |
 | `--element-percent VALUE` | `30` | Square slot size as a percentage of the canvas side, from 1 to 33. |
@@ -592,7 +620,7 @@ The demo uses these settings:
 | `--format FORMAT` | Output extension, or `mp4` | `mp4`, `mov`, or `webm`. |
 | `-f, --force` | Disabled | Overwrite an existing output file, but never an input file. |
 
-MP4 and MOV use H.264. WebM uses VP9. When `--output` is omitted, the script uses the first input stem plus the current timestamp and process ID, then writes the result beside that input. A supported explicit output extension selects the format. If an explicit output path has no extension, the script appends `.mp4` by default, or appends the extension selected with `--format`. Other extensions are rejected.
+MP4 and MOV use H.264. WebM uses VP9. For a video input, omitting `--output` uses the first input stem plus the current timestamp and process ID, then writes the result beside that input. A supported explicit output extension selects the format. If an explicit output path has no extension, the script appends `.mp4` by default, or appends the extension selected with `--format`. Other extensions are rejected. Directory inputs use the batch output directory and naming rules described above.
 
 ### Automatic Border Cropping
 
@@ -632,7 +660,7 @@ bash -n utilities/shell/video/tests/test_four_sides_video.sh
 bash utilities/shell/video/tests/test_four_sides_video.sh
 ```
 
-The 21-test suite generates temporary videos under the repository `temp_files/` directory and removes them after the run. It checks help behavior, both fitting modes, RGB automatic cropping, a white subject on black, full-video moving-subject bounds, odd source dimensions, crop-log parsing, threshold limits, default naming, output containers and codecs, duration handling, numeric validation, path safety, layout safety, and output-path protection.
+The 29-test suite generates temporary videos under the repository `temp_files/` directory and removes them after the run. It checks help behavior, both fitting modes, RGB automatic cropping, a white subject on black, full-video moving-subject bounds, odd source dimensions, crop-log parsing, threshold limits, single and batch naming, directory scanning, partial batch failures, input/output directory separation, output containers and codecs, duration handling, numeric validation, path safety, layout safety, and output-path protection.
 
 ## mysql_backup.sh
 

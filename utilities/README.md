@@ -86,8 +86,12 @@ Shell utilities provide command-line tools and scripts for system operations. Fo
   - Cross-platform support with auto-installation of MySQL client dependencies
   - Pre/post backup command execution and detailed logging with statistics reporting
 
-- **Four-Sides Video Composer** (`shell/video/four_sides_video.sh`): An FFmpeg utility for composing one or four videos around a square canvas.
+- **Four-Sides Video Composer** (`shell/video/four_sides_video.sh`): An FFmpeg utility for composing one or four videos around a square canvas, with directory batch processing.
   - Duplicates one source or assigns four sources in top, right, bottom, and left order
+  - Processes `mp4`, `mov`, `webm`, `mkv`, `avi`, and `m4v` files from a directory's first level, with one output per source
+  - Writes batch results to `<input_directory>/four_sides_output` by default; `--output-dir` selects another location that must differ from the input directory
+  - Keeps batch outputs unique with the source extension, timestamp, process ID, and sequence number
+  - Continues after an item fails, prints final totals, and returns a non-zero status when any item fails
   - Defaults to a 1080x1080 black canvas, 30 percent slots, no margin, 30 fps, `contain` fitting, and inward rotation
   - Can crop solid-color outer borders by comparing RGB colors with `--background`, with configurable similarity and padding
   - Auto-crop scans each complete video at 2 fps and combines all foreground positions; this adds a full decode pass before export

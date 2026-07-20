@@ -9,11 +9,14 @@ Create a square video with one video duplicated or four videos assigned to the f
 Usage:
   four_sides_video.sh [options] <input_video>
   four_sides_video.sh [options] <top_video> <right_video> <bottom_video> <left_video>
+  four_sides_video.sh [options] <input_directory>
 
-Provide exactly one or four input videos.
+Provide exactly one or four input videos, or one directory. Directory mode processes
+supported videos in the directory's first level and writes one output per input.
 
 Options:
   -o, --output PATH             Output file path.
+      --output-dir PATH         Batch output directory (default: INPUT/four_sides_output).
   -s, --resolution WIDTHxHEIGHT Square output resolution (default: 1080x1080).
   -b, --background COLOR       FFmpeg color name or RGB hex (default: black).
       --element-percent VALUE  Side element size as canvas percent, 1-33 (default: 30).
@@ -137,6 +140,99 @@ detect_foreground_crop() {
   echo "$crop_value"
 }
 
+run_batch() {
+  local input_directory="$1"
+  local output_directory="$2"
+  local output_format="$3"
+  shift 3
+  local -a common_arguments=("$@")
+  local -a batch_inputs=()
+  local candidate_path
+  local candidate_basename
+  local candidate_extension
+  local input_basename
+  local input_stem
+  local source_extension
+  local output_path
+  local output_timestamp
+  local input_physical_path
+  local output_physical_path
+  local batch_index=0
+  local success_count=0
+  local failure_count=0
+
+  if [ ! -d "$input_directory" ] || [ ! -r "$input_directory" ]; then
+    echo "Error: Input directory is missing or unreadable: $input_directory" >&2
+    return 2
+  fi
+
+  if ! input_physical_path=$(cd "$input_directory" 2>/dev/null && pwd -P); then
+    echo "Error: Could not access input directory: $input_directory" >&2
+    return 2
+  fi
+  if [ -d "$output_directory" ]; then
+    if ! output_physical_path=$(cd "$output_directory" 2>/dev/null && pwd -P); then
+      echo "Error: Could not access batch output directory: $output_directory" >&2
+      return 2
+    fi
+    if [ "$input_physical_path" = "$output_physical_path" ]; then
+      echo "Error: Batch output directory must differ from the input directory." >&2
+      return 2
+    fi
+  fi
+
+  if ! mkdir -p "$output_directory"; then
+    echo "Error: Could not create batch output directory: $output_directory" >&2
+    return 1
+  fi
+
+  for candidate_path in \
+    "$input_directory"/* \
+    "$input_directory"/.[!.]* \
+    "$input_directory"/..?*; do
+    [ -f "$candidate_path" ] || continue
+    candidate_basename=$(basename "$candidate_path")
+    candidate_extension="${candidate_basename##*.}"
+    candidate_extension=$(printf "%s" "$candidate_extension" | tr '[:upper:]' '[:lower:]')
+    case "$candidate_extension" in
+      mp4|mov|webm|mkv|avi|m4v)
+        batch_inputs+=("$candidate_path")
+        ;;
+    esac
+  done
+
+  if [ "${#batch_inputs[@]}" -eq 0 ]; then
+    echo "Error: No supported videos found in directory: $input_directory" >&2
+    echo "Supported extensions: mp4, mov, webm, mkv, avi, m4v." >&2
+    return 2
+  fi
+
+  output_timestamp=$(date "+%Y%m%d_%H%M%S")
+  for candidate_path in "${batch_inputs[@]}"; do
+    batch_index=$((batch_index + 1))
+    input_basename=$(basename "$candidate_path")
+    input_stem="${input_basename%.*}"
+    source_extension="${input_basename##*.}"
+    source_extension=$(printf "%s" "$source_extension" | tr '[:upper:]' '[:lower:]')
+    output_path="${output_directory}/${input_stem}_${source_extension}_four_sides_${output_timestamp}_$$_${batch_index}.${output_format}"
+
+    if main "${common_arguments[@]}" --format "$output_format" \
+      --output "$output_path" -- "$candidate_path"; then
+      success_count=$((success_count + 1))
+    else
+      failure_count=$((failure_count + 1))
+      echo "Batch item failed: $candidate_path" >&2
+    fi
+  done
+
+  echo "Batch complete: $success_count succeeded, $failure_count failed"
+  echo "Output directory: $output_directory"
+
+  if [ "$failure_count" -gt 0 ]; then
+    return 1
+  fi
+}
+
 main() {
   local resolution="1080x1080"
   local background="black"
@@ -150,6 +246,7 @@ main() {
   local crop_padding_percent=10
   local output_format=""
   local output_path=""
+  local batch_output_dir=""
   local force_flag="false"
   local -a input_videos=()
   local input_path
@@ -198,6 +295,11 @@ main() {
       -o|--output)
         require_option_value "$1" "${2:-}" || return $?
         output_path="$2"
+        shift 2
+        ;;
+      --output-dir)
+        require_option_value "$1" "${2:-}" || return $?
+        batch_output_dir="$2"
         shift 2
         ;;
       -s|--resolution)
@@ -289,6 +391,56 @@ main() {
   done
   if [ -n "$output_path" ]; then
     output_path=$(normalize_media_path "$output_path")
+  fi
+  if [ -n "$batch_output_dir" ]; then
+    batch_output_dir=$(normalize_media_path "$batch_output_dir")
+  fi
+
+  if [ -n "$output_format" ]; then
+    output_format=$(printf "%s" "$output_format" | tr '[:upper:]' '[:lower:]')
+    case "$output_format" in
+      mp4|mov|webm) ;;
+      *)
+        echo "Error: --format must be mp4, mov, or webm." >&2
+        return 2
+        ;;
+    esac
+  fi
+
+  if [ "${#input_videos[@]}" -eq 1 ] && [ -d "${input_videos[0]}" ]; then
+    local -a batch_common_arguments=(
+      --resolution "$resolution"
+      --background "$background"
+      --element-percent "$element_percent"
+      --margin "$margin"
+      --fps "$fps"
+      --fit "$fit_mode"
+      --orientation "$orientation_mode"
+      --crop-threshold "$crop_threshold"
+      --crop-padding-percent "$crop_padding_percent"
+    )
+
+    if [ -n "$output_path" ]; then
+      echo "Error: --output cannot be used with a directory input. Use --output-dir." >&2
+      return 2
+    fi
+    if [ "$auto_crop" = "true" ]; then
+      batch_common_arguments+=(--auto-crop)
+    fi
+    if [ "$force_flag" = "true" ]; then
+      batch_common_arguments+=(--force)
+    fi
+
+    output_format="${output_format:-mp4}"
+    batch_output_dir="${batch_output_dir:-${input_videos[0]}/four_sides_output}"
+    run_batch "${input_videos[0]}" "$batch_output_dir" "$output_format" \
+      "${batch_common_arguments[@]}"
+    return $?
+  fi
+
+  if [ -n "$batch_output_dir" ]; then
+    echo "Error: --output-dir can only be used with a directory input." >&2
+    return 2
   fi
 
   for input_path in "${input_videos[@]}"; do
@@ -394,17 +546,6 @@ main() {
     echo "Error: Element size and margin would make side video boxes overlap." >&2
     echo "Reduce --element-percent or --margin." >&2
     return 2
-  fi
-
-  if [ -n "$output_format" ]; then
-    output_format=$(printf "%s" "$output_format" | tr '[:upper:]' '[:lower:]')
-    case "$output_format" in
-      mp4|mov|webm) ;;
-      *)
-        echo "Error: --format must be mp4, mov, or webm." >&2
-        return 2
-        ;;
-    esac
   fi
 
   if [ -z "$output_path" ]; then
