@@ -11,6 +11,10 @@ alias oc='() {
 	opencode $@
 }'
 
+alias ocr='() {
+	opencode run $@
+}'
+
 alias cc-free='() {
   IS_SANDBOX=1 claude --dangerously-skip-permissions $@
 }'
