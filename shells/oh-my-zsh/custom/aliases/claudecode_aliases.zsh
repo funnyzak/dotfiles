@@ -7,6 +7,10 @@ _check_command_claudecode_aliases() {
   return 0
 }
 
+alias oc='() {
+	opencode $@
+}'
+
 alias cc-free='() {
   IS_SANDBOX=1 claude --dangerously-skip-permissions $@
 }'
