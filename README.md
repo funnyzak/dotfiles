@@ -10,9 +10,8 @@ A comprehensive dotfiles repository designed for centralized management of perso
 **CDN Addresses:**
 
 * GitHub raw: [`https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/`](https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/)
-* Vercel: [`https://idotfiles.vercel.app`](https://idotfiles.vercel.app)
-* Gitee: [`https://gitee.com/funnyzak/dotfiles/raw/main/`](https://gitee.com/funnyzak/dotfiles/raw/main/)
 * jsdelivr: [`https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/`](https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/)
+* Gitee: [`https://gitee.com/funnyzak/dotfiles/raw/main/`](https://gitee.com/funnyzak/dotfiles/raw/main/)
 
 ## Directory Structure
 
