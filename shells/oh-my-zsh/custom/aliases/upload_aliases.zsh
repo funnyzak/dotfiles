@@ -513,7 +513,7 @@ alias upload-alist='() {
   echo -e "Examples:\n  upload-alist file1.txt file2.pdf\n  upload-alist -r /documents file1.txt file2.pdf"
   echo -e "  upload-alist --no-cache file1.txt\n  upload-alist -a https://api.example.com -u user -p pass file1.txt"
 
-  local script_url="https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh"
+  local script_url="https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/alist/alist_upload.sh"
   local tmp_file=$(mktemp)
 
   if ! curl -sSL "$script_url" -o "$tmp_file"; then

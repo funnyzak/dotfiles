@@ -11,7 +11,7 @@
  *   node json-to-files.js [options] json1.json [json2.json...]
  *
  * 远程执行:
- *   curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/nodejs/json-to-files.js | npx -y node - [options] json1.json
+ *   curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/nodejs/json-to-files.js | npx -y node - [options] json1.json
 
  *
  * 选项:

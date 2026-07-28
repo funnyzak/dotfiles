@@ -43,13 +43,13 @@
 #
 # Remote Execution Examples:
 #   # Direct remote execution - single file
-#   curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt
+#   curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt
 #
 #   # Direct remote execution - multiple files
-#   curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt file2.pdf
+#   curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt file2.pdf
 #
 #   # Download and execute
-#   curl -fsSL -o alist_upload.sh https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh
+#   curl -fsSL -o alist_upload.sh https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/alist/alist_upload.sh
 #   chmod +x alist_upload.sh
 #   ./alist_upload.sh file1.txt file2.pdf
 #
@@ -228,13 +228,13 @@ EXAMPLES:
 
 REMOTE EXECUTION:
     # Direct execution from repository - single file
-    curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- document.pdf
+    curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/alist/alist_upload.sh | bash -s -- document.pdf
 
     # Direct execution from repository - multiple files
-    curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- document.pdf image.jpg
+    curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/alist/alist_upload.sh | bash -s -- document.pdf image.jpg
 
     # Download and execute
-    curl -fsSL -o alist_upload.sh https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh
+    curl -fsSL -o alist_upload.sh https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/alist/alist_upload.sh
     chmod +x alist_upload.sh
     ./alist_upload.sh document.pdf image.jpg
 

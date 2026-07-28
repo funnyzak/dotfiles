@@ -67,7 +67,7 @@ The `zshrc.zsh-template` file is a comprehensive template for the `.zshrc` confi
 To install the template remotely:
 
 ```bash
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/zshrc.zsh-template -o ~/.zshrc
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/zshrc.zsh-template -o ~/.zshrc
 ```
 
 ## Utility Scripts
@@ -103,7 +103,7 @@ The `tools/install_omz.sh` script is a versatile tool for installing, updating, 
 **Remote Execution**:
 ```bash
 # Basic remote installation
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh -o _install_omz.sh && chmod +x _install_omz.sh && ./_install_omz.sh --force
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz.sh -o _install_omz.sh && chmod +x _install_omz.sh && ./_install_omz.sh --force
 
 ```
 
@@ -163,10 +163,10 @@ The `tools/install_omz_aliases.sh` script is a tool for downloading Oh My Zsh al
 **Remote Execution**:
 ```bash
 # Download all alias files
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
 
 # Download specific alias files
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- git_aliases.zsh system_aliases.zsh
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- git_aliases.zsh system_aliases.zsh
 ```
 
 **Options**:
@@ -189,7 +189,7 @@ To use the Oh My Zsh configuration:
 
 2. Copy or download the zshrc template to your home directory:
    ```bash
-   curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/zshrc.zsh-template -o ~/.zshrc
+   curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/zshrc.zsh-template -o ~/.zshrc
    ```
 
 3. Install desired aliases using the aliases installer script:

@@ -75,7 +75,7 @@ node json-to-files.js data.json -e "process-file {filepath}" --execParallel
 Execute the script directly without downloading:
 
 ```bash
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/nodejs/json-to-files.js | npx -y node - json1.json [options]
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/nodejs/json-to-files.js | npx -y node - json1.json [options]
 ```
 
 ### Command-Line Options

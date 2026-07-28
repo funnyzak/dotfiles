@@ -23,16 +23,16 @@ set -euo pipefail
 #
 # 2. Remote Execution Examples:
 #    - Basic remote installation:
-#      curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash
+#      curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz.sh | bash
 #
 #    - Non-interactive remote installation:
-#      curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --yes
+#      curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --yes
 #
 #    - Force reinstall remotely:
 #      curl -fsSL https://raw.githubusercontent.com/funnyzak/dotfiles/refs/heads/main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --force
 #
 #    - Uninstall remotely:
-#      curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --uninstall
+#      curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz.sh | bash -s -- --uninstall
 #
 # 3. Environment Variables:
 #    - OMZ_REPO_URL:        Custom Oh My Zsh repository URL

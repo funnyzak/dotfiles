@@ -328,7 +328,7 @@ If you encounter issues:
 **Tips:** You can quickly execute the script remotely:
 
 ```bash
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt file2.pdf
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt file2.pdf
 ```
 
 ### Features
@@ -414,19 +414,19 @@ Enable detailed logging:
 Execute directly from the repository without downloading:
 ```bash
 # Direct remote execution - single file
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt
 
 # Direct remote execution - multiple files
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt file2.pdf
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/alist/alist_upload.sh | bash -s -- file1.txt file2.pdf
 
 # With parameters
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh | bash -s -- -r /documents file1.txt file2.pdf
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/alist/alist_upload.sh | bash -s -- -r /documents file1.txt file2.pdf
 ```
 
 ### Installation
 1. **Download the Script**:
    ```bash
-   curl -fsSL -o alist_upload.sh https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/alist/alist_upload.sh
+   curl -fsSL -o alist_upload.sh https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/alist/alist_upload.sh
    chmod +x alist_upload.sh
    ```
 
@@ -669,7 +669,7 @@ The 29-test suite generates temporary videos under the repository `temp_files/` 
 **Tips:** You can quickly execute the script remotely:
 
 ```bash
-bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.sh)
+bash <(curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/mysql/mysql_backup.sh)
 ```
 
 ### Features
@@ -729,15 +729,15 @@ Configure notification services:
 Execute directly from the repository:
 ```bash
 # Basic remote execution
-bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.sh)
+bash <(curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/mysql/mysql_backup.sh)
 
 # With parameters
-bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.sh) \
+bash <(curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/mysql/mysql_backup.sh) \
   -h localhost -u backup_user -p backup_pass -d "db1,db2" -o /backup -c
 
 # Using remote configuration file
-curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.yaml > /tmp/backup.yaml
-bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.sh) \
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/mysql/mysql_backup.yaml > /tmp/backup.yaml
+bash <(curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/mysql/mysql_backup.sh) \
   -f /tmp/backup.yaml
 ```
 
@@ -837,7 +837,7 @@ notifications:
 ### Installation
 1. **Download the Script**:
    ```bash
-   curl -fsSL -o mysql_backup.sh https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.sh
+   curl -fsSL -o mysql_backup.sh https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/mysql/mysql_backup.sh
    chmod +x mysql_backup.sh
    ```
 

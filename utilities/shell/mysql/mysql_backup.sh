@@ -28,15 +28,15 @@
 #
 # Remote execution examples:
 #   # Direct execution (using default configuration)
-#   bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.sh)
+#   bash <(curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/mysql/mysql_backup.sh)
 #
 #   # Execution with parameters
-#   bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.sh) \
+#   bash <(curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/mysql/mysql_backup.sh) \
 #     -h localhost -u backup_user -p backup_pass -d "db1,db2" -o /backup -c
 #
 #   # Using remote configuration file
-#   curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.yaml > /tmp/backup.yaml
-#   bash <(curl -fsSL https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.sh) \
+#   curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/mysql/mysql_backup.yaml > /tmp/backup.yaml
+#   bash <(curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/mysql/mysql_backup.sh) \
 #     -f /tmp/backup.yaml
 #
 # Local usage examples:
@@ -71,7 +71,7 @@ readonly SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_VERSION="1.0.0"
 readonly SCRIPT_AUTHOR="funnyzak"
-readonly SCRIPT_URL="https://gitee.com/funnyzak/dotfiles/raw/main/utilities/shell/mysql/mysql_backup.sh"
+readonly SCRIPT_URL="https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/utilities/shell/mysql/mysql_backup.sh"
 
 # Default configuration
 readonly DEFAULT_HOST="127.0.0.1"
