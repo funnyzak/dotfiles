@@ -140,7 +140,7 @@ OMZ_INSTALL_DIR="${OMZ_INSTALL_DIR:-${HOME}/.oh-my-zsh}"
 
 # zshrc configuration URL
 OMZ_ZSHRC_BRANCH=${OMZ_ZSHRC_BRANCH:-main}
-OMZ_ZSHRC_URL=${OMZ_ZSHRC_URL:-https://gitee.com/funnyzak/dotfiles/raw/${OMZ_ZSHRC_BRANCH}/shells/oh-my-zsh/zshrc.zsh-template}
+OMZ_ZSHRC_URL=${OMZ_ZSHRC_URL:-https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@${OMZ_ZSHRC_BRANCH}/shells/oh-my-zsh/zshrc.zsh-template}
 OMZ_REPO_URL=${OMZ_REPO_URL:-https://gitcode.com/gh_mirrors/oh/ohmyzsh.git}
 
 # Command line flags
