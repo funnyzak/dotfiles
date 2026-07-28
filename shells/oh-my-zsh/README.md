@@ -163,7 +163,7 @@ The `tools/install_omz_aliases.sh` script is a tool for downloading Oh My Zsh al
 **Remote Execution**:
 ```bash
 # Download all alias files
-curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force
+curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- --force --url https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/custom/aliases/
 
 # Download specific alias files
 curl -fsSL https://cdn.jsdelivr.net/gh/funnyzak/dotfiles@main/shells/oh-my-zsh/tools/install_omz_aliases.sh | bash -s -- git_aliases.zsh system_aliases.zsh
