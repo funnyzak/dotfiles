@@ -374,6 +374,41 @@ alias vps-yabs='() {
 # VPS auditing and diagnostics
 # -----------------------------
 
+alias vps-install-ossutil='() {
+  _show_usage_vps_aliases "Install Alibaba Cloud ossutil on a Linux VPS.\nUsage:\n  vps-install-ossutil"
+
+  if [ "$1" = "--help" ]; then
+    return 0
+  fi
+
+  if [ $# -gt 0 ]; then
+    _show_error_vps_aliases "Unknown parameter: $1"
+    return 1
+  fi
+
+  if ! _require_linux_vps_aliases "vps-install-ossutil" ||
+    ! _require_command_vps_aliases curl ||
+    ! _require_command_vps_aliases sudo; then
+    return 1
+  fi
+
+  if ! sudo -v; then
+    _show_error_vps_aliases "Failed to acquire sudo privileges."
+    return 1
+  fi
+
+  echo "Installing Alibaba Cloud ossutil..."
+  if ! (
+    set -o pipefail
+    curl -fsSL https://gosspublic.alicdn.com/ossutil/install.sh | sudo bash
+  ); then
+    _show_error_vps_aliases "Failed to install Alibaba Cloud ossutil."
+    return 1
+  fi
+
+  return 0
+}' # Install Alibaba Cloud ossutil
+
 alias vps-audit='() {
   _show_usage_vps_aliases "Run the vps-audit security and health checks.\nUsage:\n  vps-audit [--output path] [--no-sudo]\nExamples:\n  vps-audit\n  vps-audit --output ~/vps-audit.log\n  vps-audit --no-sudo"
 
@@ -482,5 +517,5 @@ alias vps-quick-info='() {
 # -----------------------------
 
 alias vps-help='() {
-  _show_usage_vps_aliases "VPS aliases overview.\nUsage:\n  vps-help\n\nAvailable commands:\n  vps-benchmark      Run NodeQuality for IP, route and mixed VPS quality checks\n  vps-benchmark-save Run NodeQuality and save the console log to a local file\n  vps-yabs           Run YABS for CPU, disk and network benchmarking\n  vps-audit          Run a safer vps-audit wrapper with download fallback support\n  vps-quick-info     Show a quick local Linux VPS summary\n  vps-help           Show this help message\n\nNotes:\n  NodeQuality: best for route, IP and mixed VPS quality checks\n  YABS: better fallback for common CPU, disk and network benchmarks\n  vps-audit: targeted at Linux servers, especially Debian and Ubuntu\n  Use --help for wrapper help, or pass upstream flags directly when supported."
+  _show_usage_vps_aliases "VPS aliases overview.\nUsage:\n  vps-help\n\nAvailable commands:\n  vps-benchmark       Run NodeQuality for IP, route and mixed VPS quality checks\n  vps-benchmark-save  Run NodeQuality and save the console log to a local file\n  vps-yabs            Run YABS for CPU, disk and network benchmarking\n  vps-install-ossutil Install Alibaba Cloud ossutil\n  vps-audit           Run a safer vps-audit wrapper with download fallback support\n  vps-quick-info      Show a quick local Linux VPS summary\n  vps-help            Show this help message\n\nNotes:\n  NodeQuality: best for route, IP and mixed VPS quality checks\n  YABS: better fallback for common CPU, disk and network benchmarks\n  vps-audit: targeted at Linux servers, especially Debian and Ubuntu\n  Use --help for wrapper help, or pass upstream flags directly when supported."
 }' # Display help for VPS aliases
