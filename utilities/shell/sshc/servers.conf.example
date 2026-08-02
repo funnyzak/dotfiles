@@ -1,0 +1,23 @@
+# SSH Connect Configuration File
+# Location: ~/.ssh/servers.conf
+# Used by: ssh_connect.exp
+# Override with: SSHC_CONNECT_CONFIG=/path/to/servers.conf
+#
+# Format: ID,Name,Host,Port,User,AuthType,AuthValue
+# - ID: Unique identifier for the server
+# - Name: Descriptive name of the server
+# - Host: IP address or hostname
+# - Port: SSH port number
+# - User: SSH username
+# - AuthType: 'key' or 'password'
+# - AuthValue: Path to key file or password
+#
+# Recommendations:
+# - Prefer SSH keys over plaintext passwords
+# - Protect this file with chmod 600 when passwords are stored
+# - Use SSHC_CONNECT_SERVER_ID or SSHC_CONNECT_SERVER_NUMBER for automation
+
+# Example entries:
+web1,Web Server 1,192.168.1.10,22,root,key,~/.ssh/web1.key
+db1,Database Server 1,192.168.1.20,22,root,password,securepass123
+app1,App Server 1,192.168.1.30,2222,admin,key,~/.ssh/app1.key

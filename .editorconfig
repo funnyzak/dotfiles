@@ -1,0 +1,34 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Matches all files
+[*.{js,py,java,c,cpp,cs,go,html,css,json,md,sh,yaml,yml,rb,php,sql,xml,txt}]
+charset = utf-8
+indent_style = space
+indent_size = 2
+
+# Matches js files
+[*.js]
+indent_size = 2
+
+# Matches Makefile files
+[Makefile]
+indent_style = tab
+
+# Special rules for documentation files
+[docs/**/*]
+indent_style = space
+indent_size = 2
+
+# Ignore certain folders
+[node_modules/**]
+[*]
+indent_style = ignore

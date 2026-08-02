@@ -1,0 +1,467 @@
+#!/usr/bin/expect -f
+
+# =========================================================================
+# SSH Connection Script
+# Description: A versatile SSH connection tool supporting multiple servers
+#              with key or password authentication, featuring keep-alive
+#              settings and both interactive/non-interactive selection.
+# Github: funnyzak
+# Last Updated: March 26, 2026
+# =========================================================================
+
+# =========================================================================
+# QUICK START
+# =========================================================================
+# 1. Prepare config file (default: ~/.ssh/servers.conf):
+#      ID,Name,Host,Port,User,AuthType,AuthValue
+#      web1,Web Server,192.168.1.10,22,root,key,~/.ssh/web1.key
+#      db1,Database Server,192.168.1.20,22,root,password,StrongPassword
+#
+# 2. Set restrictive permissions when passwords or private key paths are stored:
+#      chmod 600 ~/.ssh/servers.conf
+#
+# 3. Run:
+#      ./ssh_connect.exp
+#      ./ssh_connect.exp web1
+#      SSHC_CONNECT_SERVER_ID=web1 ./ssh_connect.exp
+#
+# Configuration precedence:
+#   command line > SSHC_CONNECT_* > legacy environment variables > defaults
+#
+# Primary environment variables:
+#   SSHC_CONNECT_CONFIG            Config file path (default: ~/.ssh/servers.conf)
+#   SSHC_CONNECT_SERVER_ID         Non-interactive target server ID
+#   SSHC_CONNECT_SERVER_NUMBER     Non-interactive 1-based server number
+#   SSHC_CONNECT_TIMEOUT           Expect timeout / ssh ConnectTimeout in seconds
+#   SSHC_CONNECT_MAX_ATTEMPTS      Maximum retry attempts
+#   SSHC_CONNECT_NO_COLOR          Disable color output: 1/true/yes/on
+#   SSHC_CONNECT_KEEP_ALIVE        Enable ServerAlive* options: 1/0
+#   SSHC_CONNECT_ALIVE_INTERVAL    ServerAliveInterval seconds
+#   SSHC_CONNECT_ALIVE_COUNT       ServerAliveCountMax value
+#   SSHC_CONNECT_DEFAULT_SHELL     Shell to exec after login, e.g. zsh
+#
+# Legacy compatibility still works:
+#   SERVERS_CONFIG, TARGET_SERVER_ID, TARGET_SERVER_NUM,
+#   SSH_TIMEOUT, SSH_MAX_ATTEMPTS, SSH_NO_COLOR, SSH_KEEP_ALIVE,
+#   SSH_ALIVE_INTERVAL, SSH_ALIVE_COUNT, SSH_DEFAULT_SHELL
+
+# =========================================================================
+# SECURITY NOTES
+# =========================================================================
+# - Prefer key authentication over plaintext passwords in config files.
+# - This script keeps the existing convenience behavior of auto-accepting host
+#   keys. Use only in environments you trust.
+# - ~/.ssh/servers.conf should be readable only by the current user.
+
+# =========================================================================
+# BOOTSTRAP HELPERS
+# =========================================================================
+
+# Expand home directory in path (~ / ~user)
+proc expand_path {path} {
+    if {$path eq ""} {
+        return ""
+    }
+
+    if {$path eq "~"} {
+        return $::env(HOME)
+    }
+
+    if {[string match "~/*" $path]} {
+        return [file join $::env(HOME) [string range $path 2 end]]
+    }
+
+    if {[regexp {^~([^/]+)(/.*)?$} $path -> username suffix]} {
+        if {![regexp {^[A-Za-z0-9._-]+$} $username]} {
+            return $path
+        }
+
+        if {[catch {exec sh -lc "printf '%s' ~$username"} user_home]} {
+            return $path
+        }
+
+        if {$suffix eq ""} {
+            return $user_home
+        }
+
+        return [file join $user_home [string range $suffix 1 end]]
+    }
+
+    return $path
+}
+
+proc get_first_env_value {names default_value} {
+    foreach name $names {
+        if {[info exists ::env($name)]} {
+            set value [string trim $::env($name)]
+            if {$value ne ""} {
+                return $value
+            }
+        }
+    }
+
+    return $default_value
+}
+
+proc get_first_env_int {names default_value {minimum_value ""}} {
+    set value [get_first_env_value $names ""]
+    if {$value eq ""} {
+        return $default_value
+    }
+
+    if {![string is integer -strict $value]} {
+        return $default_value
+    }
+
+    if {$minimum_value ne "" && $value < $minimum_value} {
+        return $default_value
+    }
+
+    return $value
+}
+
+proc get_first_env_bool {names default_value} {
+    set value [string tolower [get_first_env_value $names ""]]
+    if {$value eq ""} {
+        return $default_value
+    }
+
+    switch -- $value {
+        "1" -
+        "true" -
+        "yes" -
+        "on" -
+        "enable" -
+        "enabled" {
+            return 1
+        }
+        "0" -
+        "false" -
+        "no" -
+        "off" -
+        "disable" -
+        "disabled" {
+            return 0
+        }
+    }
+
+    return $default_value
+}
+
+proc has_nonempty_env {names} {
+    foreach name $names {
+        if {[info exists ::env($name)] && [string trim $::env($name)] ne ""} {
+            return 1
+        }
+    }
+
+    return 0
+}
+
+# =========================================================================
+# SCRIPT CONFIGURATION
+# =========================================================================
+
+set default_config_path [file join $::env(HOME) ".ssh" "servers.conf"]
+set config_file [expand_path [get_first_env_value [list "SSHC_CONNECT_CONFIG" "SERVERS_CONFIG"] $default_config_path]]
+set timeout [get_first_env_int [list "SSHC_CONNECT_TIMEOUT" "SSH_TIMEOUT"] 30 1]
+set max_attempts [get_first_env_int [list "SSHC_CONNECT_MAX_ATTEMPTS" "SSH_MAX_ATTEMPTS"] 3 1]
+set keep_alive [get_first_env_bool [list "SSHC_CONNECT_KEEP_ALIVE" "SSH_KEEP_ALIVE"] 1]
+set alive_interval [get_first_env_int [list "SSHC_CONNECT_ALIVE_INTERVAL" "SSH_ALIVE_INTERVAL"] 60 1]
+set alive_count [get_first_env_int [list "SSHC_CONNECT_ALIVE_COUNT" "SSH_ALIVE_COUNT"] 3 1]
+set default_shell [get_first_env_value [list "SSHC_CONNECT_DEFAULT_SHELL" "SSH_DEFAULT_SHELL"] ""]
+
+set no_color [get_first_env_bool [list "SSHC_CONNECT_NO_COLOR"] -1]
+if {$no_color == -1} {
+    set no_color [expr {[has_nonempty_env [list "SSH_NO_COLOR"]] ? 1 : 0}]
+}
+set use_colors [expr {!$no_color}]
+
+# Color codes for terminal output
+if {$use_colors} {
+    # ANSI color codes
+    set COLOR_RESET "\033\[0m"
+    set COLOR_HEADER "\033\[1;36m"
+    set COLOR_ID "\033\[1;33m"
+    set COLOR_HOST "\033\[1;32m"
+    set COLOR_NAME "\033\[1;34m"
+    set COLOR_SUCCESS "\033\[1;32m"
+    set COLOR_ERROR "\033\[1;31m"
+    set COLOR_INFO "\033\[1;35m"
+    set COLOR_WARNING "\033\[1;33m"
+} else {
+    # No colors
+    set COLOR_RESET ""
+    set COLOR_HEADER ""
+    set COLOR_ID ""
+    set COLOR_HOST ""
+    set COLOR_NAME ""
+    set COLOR_SUCCESS ""
+    set COLOR_ERROR ""
+    set COLOR_INFO ""
+    set COLOR_WARNING ""
+}
+
+# =========================================================================
+# HELPER FUNCTIONS
+# =========================================================================
+
+# Load server configurations from the specified file
+# Returns a list of server configurations
+proc load_servers {filename} {
+    global COLOR_ERROR COLOR_INFO COLOR_RESET
+
+    set servers {}
+    if {![file exists $filename]} {
+        send_user "${COLOR_ERROR}Error: Configuration file '$filename' does not exist${COLOR_RESET}\n"
+        send_user "${COLOR_INFO}Hint: set SSHC_CONNECT_CONFIG to use a custom config file${COLOR_RESET}\n"
+        exit 1
+    }
+
+    set fp [open $filename r]
+    while {[gets $fp line] >= 0} {
+        set line [string trim $line]
+        # Skip empty lines and comments
+        if {$line eq "" || [string match "#*" $line]} {
+            continue
+        }
+        set fields [split $line ","]
+        if {[llength $fields] < 7} {
+            send_user "${COLOR_ERROR}Warning: Invalid config line skipped: $line${COLOR_RESET}\n"
+            continue
+        }
+        lappend servers $fields
+    }
+    close $fp
+    return $servers
+}
+
+# Find a server by its ID or number
+# Returns the server config or empty string if not found
+proc find_server_by_id {servers id} {
+    # Check if ID is an integer (server number)
+    if {[string is integer -strict $id]} {
+        set index [expr {$id - 1}]
+        if {$index >= 0 && $index < [llength $servers]} {
+            return [lindex $servers $index]
+        }
+    } else {
+        # Original behavior for string IDs
+        foreach server $servers {
+            if {[lindex $server 0] eq $id} {
+                return $server
+            }
+        }
+    }
+    return ""
+}
+
+# Display server selection menu and get user choice
+# Returns the selected server configuration
+proc select_server {servers} {
+    global COLOR_ERROR COLOR_HEADER COLOR_ID COLOR_HOST COLOR_NAME COLOR_RESET COLOR_INFO
+
+    send_user "\n${COLOR_HEADER}Available Servers:${COLOR_RESET}\n"
+    send_user "${COLOR_HEADER}#   ID\tName\t\tHost\t\tPort\tUser${COLOR_RESET}\n"
+    # Use -- to prevent interpreting hyphens as command options
+    send_user -- [string repeat "-" 60]
+    send_user "\n"
+
+    # Display server list with numbering
+    set idx 1
+    foreach server $servers {
+        set id [lindex $server 0]
+        set name [lindex $server 1]
+        set host [lindex $server 2]
+        set port [lindex $server 3]
+        set user [lindex $server 4]
+        send_user "[format "%2d" $idx]  ${COLOR_ID}$id${COLOR_RESET}\t${COLOR_NAME}[string range "$name                " 0 15]${COLOR_RESET}${COLOR_HOST}$host${COLOR_RESET}\t$port\t$user\n"
+        incr idx
+    }
+
+    # Get user selection
+    send_user "\n${COLOR_INFO}Enter server ID or number (1-[llength $servers]):${COLOR_RESET} "
+    expect_user -re "(.*)\n"
+    set choice $expect_out(1,string)
+
+    # Process selection - either as a number or ID
+    if {[string is integer -strict $choice]} {
+        set index [expr {$choice - 1}]
+        if {$index >= 0 && $index < [llength $servers]} {
+            return [lindex $servers $index]
+        }
+    } else {
+        set server [find_server_by_id $servers $choice]
+        if {$server ne ""} {
+            return $server
+        }
+    }
+    send_user "${COLOR_ERROR}Invalid selection${COLOR_RESET}\n"
+    exit 1
+}
+
+# SSH connection function
+# Establishes an SSH connection to the specified server
+# Returns 1 on success, 0 on failure
+proc connect_ssh {server_info} {
+    global timeout max_attempts COLOR_SUCCESS COLOR_ERROR COLOR_INFO COLOR_RESET COLOR_WARNING
+    global keep_alive alive_interval alive_count default_shell
+
+    # Extract server details
+    set id    [lindex $server_info 0]
+    set name  [lindex $server_info 1]
+    set host  [lindex $server_info 2]
+    set port  [lindex $server_info 3]
+    set user  [lindex $server_info 4]
+    set auth  [lindex $server_info 5]
+    set value [lindex $server_info 6]
+
+    # Expand ~ in key path if necessary
+    if {$auth eq "key"} {
+        set value [expand_path $value]
+    }
+
+    # Connection retry loop
+    set attempt 1
+    while {$attempt <= $max_attempts} {
+        send_user "${COLOR_INFO}Connecting to $name ($host) - Attempt $attempt/$max_attempts${COLOR_RESET}\n"
+
+        # Build SSH command with proper argument list
+        set ssh_cmd [list ssh -p $port]
+        lappend ssh_cmd -o "StrictHostKeyChecking=no"
+        lappend ssh_cmd -o "ConnectTimeout=$timeout"
+
+        # Add keep-alive options if enabled
+        if {$keep_alive} {
+            lappend ssh_cmd -o "ServerAliveInterval=$alive_interval"
+            lappend ssh_cmd -o "ServerAliveCountMax=$alive_count"
+        }
+
+        # Add authentication options
+        if {$auth eq "key"} {
+            lappend ssh_cmd -o "PubkeyAuthentication=yes"
+            lappend ssh_cmd -o "IdentitiesOnly=yes"
+            lappend ssh_cmd -i $value
+        }
+
+        # Add user@host as the final argument
+        lappend ssh_cmd "$user@$host"
+
+        # Launch SSH with the constructed command
+        spawn {*}$ssh_cmd
+
+        # Handle different SSH connection scenarios
+        expect {
+            "yes/no" {
+                # Accept host key
+                send "yes\r"
+                exp_continue
+            }
+            "password:" {
+                # Handle password authentication
+                if {$auth ne "password"} {
+                    send_user "${COLOR_ERROR}Server requires password but configured for key auth${COLOR_RESET}\n"
+                    return 0
+                }
+                send "$value\r"
+                exp_continue
+            }
+            "Permission denied" {
+                # Authentication failure
+                send_user "${COLOR_ERROR}Authentication failed${COLOR_RESET}\n"
+                return 0
+            }
+            # Match shell prompt to detect successful connection
+            -re {(.*[$#%>]|.*[@].+[:])} {
+                send_user "${COLOR_SUCCESS}Successfully connected to $name (ID: $id)!${COLOR_RESET}\n"
+
+                # Check if shell switching is enabled
+                if {$default_shell ne ""} {
+                    send_user "${COLOR_INFO}Checking shell environment...${COLOR_RESET}\n"
+
+                    # Send command to check current shell and switch if needed
+                    send "if \[ -x \$(command -v $default_shell 2>/dev/null) \] && \[ \"\$(basename \$SHELL 2>/dev/null)\" != \"$default_shell\" \]; then echo \"Switching to $default_shell...\"; exec $default_shell -l; else echo \"Shell check complete\"; fi\r"
+
+                    # Wait for shell switch to complete
+                    expect {
+                        -re "Switching to $default_shell..." {
+                            send_user "${COLOR_SUCCESS}Shell switched to $default_shell${COLOR_RESET}\n"
+                            # Wait for new shell prompt
+                            expect -re {(.*[$#%>]|.*[@].+[:])}
+                        }
+                        "Shell check complete" {
+                            send_user "${COLOR_INFO}Continuing with current shell${COLOR_RESET}\n"
+                        }
+                        timeout {
+                            send_user "${COLOR_WARNING}Shell check timed out${COLOR_RESET}\n"
+                        }
+                    }
+                }
+
+                # Ensure terminal is ready for interaction
+                # send "\r"
+                # sleep 0.2
+
+                send_user "${COLOR_INFO}Terminal ready for input${COLOR_RESET}\n"
+                interact
+                return 1
+            }
+            "Connection refused" {
+                # Connection refused by remote host
+                send_user "${COLOR_ERROR}Connection refused${COLOR_RESET}\n"
+                sleep 5
+                incr attempt
+                exp_continue
+            }
+            timeout {
+                # Connection timeout
+                send_user "${COLOR_ERROR}Connection timeout${COLOR_RESET}\n"
+                sleep 5
+                incr attempt
+                exp_continue
+            }
+            eof {
+                # Unexpected termination
+                send_user "${COLOR_ERROR}Connection terminated unexpectedly${COLOR_RESET}\n"
+                return 0
+            }
+        }
+    }
+    return 0
+}
+
+# =========================================================================
+# MAIN PROGRAM
+# =========================================================================
+
+# Load server configurations
+send_user "${COLOR_INFO}Loading server configurations...${COLOR_RESET}\n"
+set servers [load_servers $config_file]
+
+# Check for command-line argument or environment variable for server ID
+set target_id ""
+if {[llength $argv] > 0} {
+    set target_id [lindex $argv 0]
+} else {
+    set target_id [get_first_env_value [list "SSHC_CONNECT_SERVER_ID" "TARGET_SERVER_ID"] ""]
+    if {$target_id eq ""} {
+        set target_id [get_first_env_int [list "SSHC_CONNECT_SERVER_NUMBER" "TARGET_SERVER_NUM"] "" 1]
+    }
+}
+
+# Select server either automatically by ID or interactively
+if {$target_id ne ""} {
+    set selected_server [find_server_by_id $servers $target_id]
+    if {$selected_server eq ""} {
+        send_user "${COLOR_ERROR}Error: No server found with ID or number '$target_id'${COLOR_RESET}\n"
+        exit 1
+    }
+} else {
+    set selected_server [select_server $servers]
+}
+
+# Connect to the selected server
+if {![connect_ssh $selected_server]} {
+    send_user "${COLOR_ERROR}Failed to connect to the selected server${COLOR_RESET}\n"
+    exit 1
+}
