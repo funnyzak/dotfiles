@@ -425,6 +425,7 @@ shells/oh-my-zsh/custom/aliases/
 ├── notification_aliases.zsh     # System notifications
 ├── other_aliases.zsh            # Miscellaneous aliases
 ├── pdf_aliases.zsh              # PDF processing and watermarking tools
+├── security_aliases.zsh         # Defensive external server security checks
 ├── srv_aliases.zsh              # Server management
 ├── ssh_aliases.zsh               # SSH connection management
 ├── ssh_server_aliases.zsh       # SSH server configuration
@@ -451,6 +452,20 @@ Common `pdf-from` options: `--formats/-f`, `--output-dir/-o`, `--recursive/-r`, 
 `pdf-from-images` combines ordered image files into a single PDF for scan-like workflows. `pdf-scan` is an alias of `pdf-from-images`. It requires ImageMagick through `magick` or `convert` in `PATH`.
 
 Common `pdf-from-images` options: `--output/-o`, `--page-size/-p`, `--page-mode`, `--pattern/-f`, `--recursive/-r`, and `--overwrite`. It accepts explicit image files, a directory of images, or a directory plus `--pattern` such as `合同_*.jpg`. Directory inputs are sorted before PDF generation so names like `合同_0001.jpg` through `合同_0007.jpg` stay in page order. Default `--page-mode` is `auto`, which keeps each image close to its original page size and reduces white margins. Use `--page-mode fit -p A4` only when you need a fixed paper size.
+
+### Security aliases notes
+
+`security_aliases.zsh` provides defensive external checks for systems the user owns or is authorized to test:
+
+- `sec-reverse-ip <ipv4>` queries a passive reverse IP provider and verifies current A records. The default provider is HackerTarget; override it with an HTTPS `SECURITY_REVERSE_IP_URL`.
+- `sec-port-scan <target> --authorized` runs a TCP connect scan with `T3`, open-port output, reasons, and a default five-minute host timeout. The default is the top 1000 TCP ports. Use `--ports`, `--top-ports`, `--full`, or explicit `--service` detection as needed.
+- `sec-dns-check <target> --authorized` tests UDP/TCP DNS, a reserved `.invalid` name, Fake-IP ranges, and the CHAOS version response.
+- `sec-tls-check <domain>` checks the certificate, OCSP stapling, TLS 1.2, and TLS 1.3. Use `--ip` to force a specific address while preserving SNI.
+- `sec-http-check <domain>` checks the HTTP root response, HTTPS verification, and common security headers. Use `--ip` to test a specific virtual-host address.
+- `sec-server-scan <target> --authorized` combines ownership, reverse IP, TCP, DNS, TLS, and HTTP checks. Add `--domain` when scanning an IP that hosts an SNI virtual host.
+- `security-help` prints the complete command overview.
+
+Required tools vary by command: `curl`, `dig`, `nmap`, and `openssl`; `whois` is optional in the combined scan. `DOTFILES_SECURITY_SCAN_ACK=1` can replace repeated `--authorized` flags for routine approved targets. The checks do not exploit vulnerabilities and do not inspect system patches, accounts, application code, cloud security groups, or authenticated routes.
 
 ## Testing and Validation
 

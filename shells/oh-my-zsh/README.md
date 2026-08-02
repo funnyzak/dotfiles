@@ -32,11 +32,26 @@ The `custom/aliases/` directory contains a collection of alias files for various
 - `brew_aliases.zsh`: Homebrew-related command aliases
 - `gniwt_aliases.zsh`: Safe `gniwt-*` wrappers for GeminiWatermarkTool with file, multi-file, and directory workflows
 - `text_aliases.zsh`: Unified `txt-*` aliases for deduplication, case conversion, line numbering, whitespace cleanup, EOL normalization, and quick text statistics
+- `security_aliases.zsh`: Defensive external server checks for reverse IP discovery, bounded TCP scans, exposed DNS, TLS certificates, and HTTP security headers
 - `videodl_aliases.zsh`: Unified `vdl-*` aliases for `videodl`, including presets, dependency checks, single-link share-text extraction, media-aware inspection via `vdl-url`, batch resource inspection via `vdl-url-batch`, batch helpers that extract URLs from mixed text lines, default related-cover downloads for `vdl*` download aliases, and fallback cover detection for aggregator-style responses such as SnapAny image media entries
 - `vps_aliases.zsh`: Linux VPS helpers for NodeQuality, YABS, Alibaba Cloud ossutil installation, vps-audit, and quick server inspection
 - `upload_aliases.zsh`: File upload helpers, including `upload-catbox`, `upload-litterbox`, `upload-freeimage`, and `upload-imgloc` for public file/image hosting
 
 To add new aliases, create a `.zsh` file in the `~/.oh-my-zsh/custom/aliases/` directory and add it to the `install_omz_aliases.sh` script for management.
+
+`security_aliases.zsh` is included in the default alias installation. Run `security-help` after installation for the full command reference.
+
+Security commands:
+
+- `sec-reverse-ip`: Find passive domains for an IPv4 address and verify current A records
+- `sec-port-scan`: Run a bounded TCP scan; requires `--authorized`
+- `sec-dns-check`: Check exposed recursive, synthetic, or Fake-IP DNS; requires `--authorized`
+- `sec-tls-check`: Inspect certificates, OCSP stapling, TLS 1.2, and TLS 1.3
+- `sec-http-check`: Inspect HTTP redirects, HTTPS verification, and security headers
+- `sec-server-scan`: Run the combined external assessment; requires `--authorized`
+- `security-help`: Show commands, examples, defaults, and safety notes
+
+The commands use `curl`, `dig`, `nmap`, and `openssl` when needed. `whois` is optional for the combined assessment. Set `DOTFILES_SECURITY_SCAN_ACK=1` only for routine targets you are authorized to scan. `sec-reverse-ip` sends the queried IP to HackerTarget by default; set `SECURITY_REVERSE_IP_URL` to an HTTPS-compatible provider if required. These commands perform external checks only and do not inspect system patches, accounts, application code, cloud security groups, or authenticated routes.
 
 ### Functions
 
